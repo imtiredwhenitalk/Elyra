@@ -6,10 +6,20 @@ const messages = [
   { sender: "Noah Williams", initials: "NW", subject: "Coffee next week?", preview: "Tuesday or Thursday both work on my end.", time: "Sep 26", tag: "Personal", category: "inbox", color: "violet", unread: false, starred: true },
   { sender: "Daily Offers", initials: "DO", subject: "You have been selected", preview: "Claim your exclusive reward before midnight.", time: "Sep 25", tag: "Spam", category: "spam", color: "coral", unread: false, starred: false },
   { sender: "Maya Chen", initials: "MC", subject: "Old project notes", preview: "Moved to trash during inbox cleanup.", time: "Sep 18", tag: "Trash", category: "trash", color: "blue", unread: false, starred: false },
+  { sender: "Elyra Team", initials: "ET", subject: "Welcome to Elyra", preview: "Thanks for joining the Elyra community! We’re excited to have you.", time: "Sep 15", tag: "Welcome", category: "inbox", color: "gold", unread: false, starred: false },
+  { sender: "Elyra Security", initials: "ES", subject: "Password changed successfully", preview: "Your password was changed successfully. If you did not make this change, please contact support immediately.", time: "Sep 12", tag: "Security", category: "security", color: "gold", unread: false, starred: false },
+  { sender: "Linear", initials: "L", subject: "New project created", preview: "A new project has been created in your workspace.", time: "Sep 10", tag: "Updates", category: "updates", color: "teal", unread: false, starred: false },
+  { sender: "Jon Bell", initials: "JB", subject: "Meeting rescheduled", preview: "The meeting has been rescheduled to next week.", time: "Sep 8", tag: "Important", category: "important", color: "blue", unread: false, starred: false }
 ];
 
 let currentFilter = "inbox";
 let selectedMessage = null;
+
+function normalizeAssetUrls() {
+  document.querySelectorAll('img[src^="/src/assets/"]').forEach((image) => {
+    image.src = image.src.replace("/src/assets/", "/assets/");
+  });
+}
 
 function renderMessages() {
   const query = document.querySelector("#search-input").value.toLowerCase();
@@ -27,7 +37,7 @@ function showMessage(message) {
   document.querySelector("#message-list").hidden = true;
   const viewer = document.querySelector("#message-viewer");
   viewer.hidden = false;
-  viewer.innerHTML = `<div class="viewer-toolbar"><button class="back-button" id="close-viewer" type="button">← Back to ${currentFilter}</button><div><button class="viewer-icon" title="Archive" type="button">▣</button><button class="viewer-icon" title="Move to trash" id="viewer-trash" type="button">⌫</button><button class="viewer-icon" title="More actions" type="button">•••</button></div></div><div class="viewer-heading"><div class="sender-avatar ${message.color}">${message.initials}</div><div><h2>${message.subject}</h2><p><b>${message.sender}</b> &lt;${message.sender.toLowerCase().replace(" ", ".")}@example.com&gt;</p></div><span class="message-time">${message.time}</span></div><div class="viewer-actions"><button type="button" id="viewer-star">${message.starred ? "★ Starred" : "☆ Star"}</button><button type="button">↗ Reply</button><button type="button">↪ Forward</button></div><div class="viewer-body"><p>Hi Alex,</p><p>${message.preview} I wanted to share a little more context here so you can review it when you have a quiet moment.</p><div class="inline-image"><span>▧</span><b>Inline image preview</b><small>Rendered safely in local preview mode</small></div><p>Thanks,<br />${message.sender}</p></div><div class="attachment-card"><span>⌁</span><span><b>message-notes.pdf</b><small>PDF · 248 KB</small></span><button type="button">↓</button></div>`;
+  viewer.innerHTML = `<div class="viewer-toolbar"><button class="back-button" id="close-viewer" type="button">← Back to ${currentFilter}</button><div><button class="viewer-icon" title="Archive" type="button"><img class="action-icon" src="/src/assets/archive.svg" alt="" /></button><button class="viewer-icon" title="Move to trash" id="viewer-trash" type="button"><img class="action-icon" src="/src/assets/trash.svg" alt="" /></button><button class="viewer-icon" title="More actions" type="button">•••</button></div></div><div class="viewer-heading"><div class="sender-avatar ${message.color}">${message.initials}</div><div><h2>${message.subject}</h2><p><b>${message.sender}</b> &lt;${message.sender.toLowerCase().replace(" ", ".")}@example.com&gt;</p></div><span class="message-time">${message.time}</span></div><div class="viewer-actions"><button type="button" id="viewer-star">${message.starred ? "★ Starred" : "☆ Star"}</button><button type="button">↗ Reply</button><button type="button">↪ Forward</button></div><div class="viewer-body"><p>Hi Alex,</p><p>${message.preview} I wanted to share a little more context here so you can review it when you have a quiet moment.</p><div class="inline-image"><span>▧</span><b>Inline image preview</b><small>Rendered safely in local preview mode</small></div><p>Thanks,<br />${message.sender}</p></div><div class="attachment-card"><img class="attachment-icon" src="/src/assets/clip.svg" alt="" /><span><b>message-notes.pdf</b><small>PDF · 248 KB</small></span><button type="button">↓</button></div>`;
   document.querySelector("#close-viewer").addEventListener("click", () => { viewer.hidden = true; document.querySelector("#message-list").hidden = false; });
   document.querySelector("#viewer-star").addEventListener("click", (event) => { message.starred = !message.starred; event.currentTarget.textContent = message.starred ? "★ Starred" : "☆ Star"; renderMessages(); });
   document.querySelector("#viewer-trash").addEventListener("click", () => { message.category = "trash"; viewer.hidden = true; renderMessages(); document.querySelector("#message-list").hidden = false; });
@@ -35,6 +45,8 @@ function showMessage(message) {
 
 window.addEventListener("DOMContentLoaded", () => {
   renderMessages();
+  normalizeAssetUrls();
+  document.addEventListener("click", normalizeAssetUrls);
   document.querySelector("#search-input").addEventListener("input", renderMessages);
   document.querySelector("#message-list").addEventListener("click", (event) => { const row = event.target.closest(".message-row"); if (row && !event.target.closest("button, input")) showMessage(messages[Number(row.dataset.messageId)]); });
   document.querySelectorAll("[data-filter]").forEach((item) => item.addEventListener("click", () => {
