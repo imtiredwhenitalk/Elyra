@@ -1,4 +1,5 @@
 mod storage;
+mod crypto;
 #[path = "../../services/sendemail.rs"]
 mod sendemail;
 
@@ -25,6 +26,10 @@ pub fn run() {
             storage::cache_email,
             storage::list_cached_emails,
             storage::set_local_setting,
+            crypto::generate_encryption_key,
+            crypto::encrypt_text,
+            crypto::decrypt_text,
+            crypto::fingerprint,
             sendemail::send_email,
             sendemail::list_sent_emails
         ])

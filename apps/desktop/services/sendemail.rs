@@ -30,16 +30,6 @@ fn send_email_connection(app: &AppHandle) -> Result<Connection, String> {
 fn save_send_email(app: &AppHandle, email: &SendEmail) -> Result<(), String> {
     let conn = send_email_connection(app)?;
     conn.execute(
-        "CREATE TABLE IF NOT EXISTS send_email (
-            id INTEGER PRIMARY KEY,
-            recipient TEXT NOT NULL,
-            subject TEXT NOT NULL,
-            body TEXT NOT NULL
-        )",
-        [],
-    )
-    .map_err(|error| error.to_string())?;
-    conn.execute(
         "INSERT INTO send_email (recipient, subject, body) VALUES (?1, ?2, ?3)",
         params![email.to, email.subject, email.body],
     )
@@ -50,6 +40,16 @@ fn save_send_email(app: &AppHandle, email: &SendEmail) -> Result<(), String> {
 #[tauri::command]
 pub fn list_sent_emails(app: AppHandle) -> Result<Vec<SendEmail>, String> {
     let conn = send_email_connection(&app)?;
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS send_email (
+            id INTEGER PRIMARY KEY,
+            recipient TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL
+        )",
+        [],
+    )
+    .map_err(|error| error.to_string())?;
     let mut stmt = conn
         .prepare("SELECT recipient, subject, body FROM send_email ORDER BY id DESC")
         .map_err(|error| error.to_string())?;

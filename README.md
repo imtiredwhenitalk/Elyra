@@ -24,3 +24,7 @@ Elyra aims to rethink the traditional email experience by combining the convenie
 ### Status
 
 Elyra is currently under active development. Features, architecture, and APIs may change as the project evolves.
+
+### Desktop build
+
+Use `npm.cmd run check` for the frontend syntax check and `npm.cmd run build` to create the Windows Tauri installer. Sending mail requires `ELYRA_SMTP_FROM`, `ELYRA_SMTP_HOST`, `ELYRA_SMTP_USERNAME`, and `ELYRA_SMTP_PASSWORD` in the process environment.

@@ -1,48 +1,52 @@
-services: 
-  sendemail:
-    build:
-      context: ../../apps/desktop/services/sendemail
-      dockerfile: Dockerfile
-      container_name: sendemail
-  sendemail-app-dev:
-    build:
-      context: ../../apps/desktop/services/sendemail
-      dockerfile: Dockerfile
-      startup-auto: false
-  tauri:
-    build:
-      context: ../../apps/desktop/services/tauri/src-tauri
-      dockerfile: Dockerfile
-      startup: true
-      shared:
-        - ../../apps/desktop/services/sendemail
-        - ../../apps/desktop/services/tauri/src-tauri
-  tauri-app-dev:
-    build:
-      context: ../../apps/desktop/services/tauri/src-tauri
-      dockerfile: Dockerfile
-      startup-auto: false
-      shared:
-        - ../../apps/desktop/services/sendemail
-        - ../../apps/desktop/services/tauri/src-tauri
-  tauri-app-build:
-    build:
-      context: ../../apps/desktop/services/tauri/src-tauri
-      dockerfile: Dockerfile
-      startup-auto: false
-      shared:
-        - ../../apps/desktop/services/sendemail
-        - ../../apps/desktop/services/tauri/src-tauri
-  tauri-app-run:
-    build:
-      context: ../../apps/desktop/services/tauri/src-tauri
-      dockerfile: Dockerfile
-      startup-auto: false
-      shared:
-        - ../../apps/desktop/services/sendemail
-        - ../../apps/desktop/services/tauri/src-tauri
-  database:
-    build:
-      context: ../../apps/desktop/services/database
-      dockerfile: Dockerfile
-      container_name: database
+name: elyra-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-elyra}
+      POSTGRES_USER: ${POSTGRES_USER:-elyra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-elyra-dev-password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - elyra-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [elyra]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - elyra-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [elyra]
+
+  mailpit:
+    image: axllent/mailpit:v1.21
+    profiles: [dev]
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_WEB_PORT:-8025}:8025"
+    networks: [elyra]
+
+volumes:
+  elyra-postgres-data:
+  elyra-redis-data:
+
+networks:
+  elyra:
+    driver: bridge

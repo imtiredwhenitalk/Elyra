@@ -1,0 +1,10 @@
+{
+  "name": "elyra",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "npm --prefix apps/desktop run build",
+    "check": "npm --prefix apps/desktop run check",
+    "tauri": "npm --prefix apps/desktop run tauri"
+  }
+}

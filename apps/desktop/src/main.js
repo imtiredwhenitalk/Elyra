@@ -1,4 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
+import { mountSecurityPage } from "./pages/SecurityPage.js";
+import { invoke } from "./services/tauri.js";
 
 let messages = [
   { sender: "Maya Chen", initials: "MC", subject: "The quieter way to work", preview: "I’ve been thinking about the new rhythm we discussed...", time: "9:42 AM", tag: "Important", category: "important", color: "coral", unread: true, starred: true },
@@ -15,8 +16,10 @@ let messages = [
 ];
 
 let currentFilter = "inbox";
+let quickFilter = "all";
 let selectedMessage = null;
 const settingsKey = "elyra-settings";
+const draftsKey = "elyra-drafts";
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, (character) => ({
@@ -44,6 +47,76 @@ function saveSettings(settings) {
   localStorage.setItem(settingsKey, JSON.stringify(settings));
 }
 
+function loadDrafts() {
+  try {
+    return JSON.parse(localStorage.getItem(draftsKey) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveDraft(draft) {
+  const drafts = loadDrafts().filter((item) => item.id !== draft.id);
+  localStorage.setItem(draftsKey, JSON.stringify([draft, ...drafts]));
+}
+
+function showToast(message, tone = "default") {
+  const toast = document.createElement("div");
+  toast.className = `toast ${tone}`;
+  toast.textContent = message;
+  document.body.append(toast);
+  requestAnimationFrame(() => toast.classList.add("visible"));
+  setTimeout(() => {
+    toast.classList.remove("visible");
+    setTimeout(() => toast.remove(), 220);
+  }, 2600);
+}
+
+function openComposer(initial = {}) {
+  let modal = document.querySelector("#compose-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "compose-modal";
+    modal.className = "modal-backdrop";
+    modal.innerHTML = `<form class="compose-modal" id="compose-form"><div class="compose-modal-header"><div><span class="eyebrow">New message</span><h2>Write with intention</h2></div><button class="modal-close" id="close-compose" type="button" aria-label="Close">×</button></div><label>To<input name="to" type="email" autocomplete="email" required placeholder="name@example.com" /></label><label>Subject<input name="subject" required placeholder="A clear subject" /></label><label class="body-field">Message<textarea name="body" required rows="8" placeholder="Write your message..."></textarea></label><div class="compose-modal-footer"><button class="text-button" id="save-draft" type="button">Save draft</button><span class="compose-hint">Stored locally on this device</span><button class="send-button" type="submit">Send message <span>→</span></button></div></form>`;
+    document.body.append(modal);
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal || event.target.closest("#close-compose")) modal.remove();
+    });
+    modal.querySelector("#save-draft").addEventListener("click", () => {
+      const form = modal.querySelector("#compose-form");
+      const data = new FormData(form);
+      saveDraft({ id: Date.now(), to: data.get("to"), subject: data.get("subject"), body: data.get("body") });
+      modal.remove();
+      showToast("Draft saved locally", "success");
+    });
+    modal.querySelector("#compose-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const submit = form.querySelector("[type=submit]");
+      const data = new FormData(form);
+      submit.disabled = true;
+      submit.textContent = "Sending...";
+      try {
+        await composeEmail(data.get("to"), data.get("subject"), data.get("body"));
+        modal.remove();
+        showToast("Message sent", "success");
+      } catch (error) {
+        submit.disabled = false;
+        submit.innerHTML = 'Send message <span>→</span>';
+        showToast("Could not send. Check SMTP settings.", "error");
+        console.error("Failed to send email", error);
+      }
+    });
+  }
+  const form = modal.querySelector("#compose-form");
+  form.elements.to.value = initial.to || "";
+  form.elements.subject.value = initial.subject || "";
+  form.elements.body.value = initial.body || "";
+  modal.hidden = false;
+  form.elements.to.focus();
+}
+
 function setPanelHidden(selector, hidden) {
   const panel = document.querySelector(selector);
   if (panel) panel.hidden = hidden;
@@ -69,6 +142,8 @@ async function listSentEmails() {
 async function composeEmail(to, subject, body) {
   await sendEmail(to, subject, body);
   const sentEmails = await listSentEmails();
+  messages = [...messages.filter((message) => message.category !== "sent"), ...sentEmails.map(mapSentEmail)];
+  renderMessages();
   console.log("Updated sent emails:", sentEmails);
 }
 
@@ -77,10 +152,11 @@ function renderMessages() {
   const list = document.querySelector("#message-list");
   const visible = messages.filter((message) => {
     const matchesFilter = currentFilter === "inbox" ? !["spam", "trash"].includes(message.category) : currentFilter === "starred" ? message.starred : message.category === currentFilter;
+    const matchesQuickFilter = quickFilter === "all" || quickFilter === "unread" && message.unread || quickFilter === "starred" && message.starred;
     const matchesSearch = `${message.sender} ${message.subject} ${message.preview}`.toLowerCase().includes(query);
-    return matchesFilter && matchesSearch;
+    return matchesFilter && matchesQuickFilter && matchesSearch;
   });
-  list.innerHTML = visible.length ? visible.map((message) => `<article class="message-row ${message.unread ? "unread" : ""}" data-message-id="${messages.indexOf(message)}"><input type="checkbox" aria-label="Select ${escapeHtml(message.subject)}" /><button class="star ${message.starred ? "selected" : ""}" aria-label="Star ${escapeHtml(message.subject)}" type="button">★</button><span class="sender-avatar ${message.color}">${escapeHtml(message.initials)}</span><div class="message-copy"><div><b>${escapeHtml(message.sender)}</b><span class="message-time">${escapeHtml(message.time)}</span></div><p><strong>${escapeHtml(message.subject)}</strong> <span>${escapeHtml(message.preview)}</span></p></div><span class="message-tag ${message.color}">${escapeHtml(message.tag)}</span></article>`).join("") : `<div class="empty-state"><span>⌕</span><h3>No messages found</h3><p>Try another search or mailbox.</p></div>`;
+  list.innerHTML = visible.length ? visible.map((message) => `<article class="message-row ${message.unread ? "unread" : ""}" data-message-id="${messages.indexOf(message)}"><input type="checkbox" ${message.unread ? "" : "checked"} aria-label="Mark ${escapeHtml(message.subject)} as read" /><button class="star ${message.starred ? "selected" : ""}" aria-label="Star ${escapeHtml(message.subject)}" type="button">★</button><span class="sender-avatar ${message.color}">${escapeHtml(message.initials)}</span><div class="message-copy"><div><b>${escapeHtml(message.sender)}</b><span class="message-time">${escapeHtml(message.time)}</span></div><p><strong>${escapeHtml(message.subject)}</strong> <span>${escapeHtml(message.preview)}</span></p></div><span class="message-tag ${message.color}">${escapeHtml(message.tag)}</span></article>`).join("") : `<div class="empty-state"><span>⌕</span><h3>No messages found</h3><p>Try another search or mailbox.</p></div>`;
 }
 
 function mapCachedEmail(email) {
@@ -99,6 +175,21 @@ function mapCachedEmail(email) {
     color,
     unread: !email.is_read,
     starred: email.is_starred
+  };
+}
+
+function mapSentEmail(email) {
+  return {
+    sender: "Alex Smith",
+    initials: "AS",
+    subject: email.subject,
+    preview: email.body,
+    time: "Just now",
+    tag: "Sent",
+    category: "sent",
+    color: "blue",
+    unread: false,
+    starred: false
   };
 }
 
@@ -143,6 +234,7 @@ function showMessage(message) {
 
 window.addEventListener("DOMContentLoaded", () => {
   const settings = loadSettings();
+  mountSecurityPage(document.querySelector("#settings-panel"));
   const theme = settings.theme || "light";
   document.body.dataset.theme = theme;
   document.querySelector("#theme-select").value = theme;
@@ -152,19 +244,20 @@ window.addEventListener("DOMContentLoaded", () => {
   normalizeAssetUrls();
   document.addEventListener("click", normalizeAssetUrls);
   document.querySelector("#search-input").addEventListener("input", renderMessages);
-  document.querySelector("#compose-button").addEventListener("click", async () => {
-    const to = window.prompt("Recipient email", "");
-    if (!to) return;
-    const subject = window.prompt("Subject", "");
-    if (subject === null) return;
-    const body = window.prompt("Message", "");
-    if (body === null) return;
-    try {
-      await composeEmail(to, subject, body);
-    } catch (error) {
-      console.error("Failed to send email", error);
-      alert("Unable to send the email. Check your SMTP settings.");
+  document.querySelector("#filter-button").addEventListener("click", (event) => {
+    const filters = ["all", "unread", "starred"];
+    quickFilter = filters[(filters.indexOf(quickFilter) + 1) % filters.length];
+    event.currentTarget.firstChild.textContent = `${quickFilter[0].toUpperCase()}${quickFilter.slice(1)} `;
+    renderMessages();
+    showToast(`Showing ${quickFilter} messages`);
+  });
+  document.querySelector("#compose-button").addEventListener("click", () => openComposer());
+  document.addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      document.querySelector("#search-input").focus();
     }
+    if (event.key === "Escape") document.querySelector("#compose-modal")?.remove();
   });
   document.querySelector("#message-list").addEventListener("change", (event) => {
     const row = event.target.closest(".message-row");
@@ -177,6 +270,15 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
   document.querySelector("#message-list").addEventListener("click", (event) => { const row = event.target.closest(".message-row"); if (row && !event.target.closest("button, input")) showMessage(messages[Number(row.dataset.messageId)]); });
+  document.querySelector("#message-list").addEventListener("click", (event) => {
+    const star = event.target.closest(".star");
+    if (!star) return;
+    const row = star.closest(".message-row");
+    const message = row && messages[Number(row.dataset.messageId)];
+    if (!message) return;
+    message.starred = !message.starred;
+    renderMessages();
+  });
   document.querySelectorAll("[data-filter]").forEach((item) => item.addEventListener("click", () => {
     document.querySelectorAll("[data-filter]").forEach((navItem) => navItem.classList.remove("active"));
     item.classList.add("active");
@@ -212,6 +314,8 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!isDedicatedPanel) renderMessages();
   }));
   document.querySelector("#refresh-button").addEventListener("click", (event) => refreshMessages(event.currentTarget));
+  document.querySelector(".top-actions .icon-button").addEventListener("click", () => showToast("You are all caught up", "success"));
+  document.querySelector(".top-actions .avatar").addEventListener("click", () => openSettings());
   document.querySelectorAll("#connect-account, #add-account").forEach((button) => button.addEventListener("click", () => alert("OAuth connection flow will be added in the next integration step.")));
   const openSettings = () => {
     document.querySelectorAll("[data-filter]").forEach((navItem) => navItem.classList.remove("active"));

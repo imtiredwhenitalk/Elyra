@@ -1,10 +1,9 @@
-docker_build_image:
-   sendemail:
-      context: ../../apps/desktop/services/sendemail
-      container_name: build project 
-      command: cargo run --release
-      check: cargo check
-      test: cargo test
-      startup_config:
-         startup: true
-         startup-auto: false
+name: elyra-build
+
+services:
+   frontend-check:
+      image: node:22-bookworm-slim
+      working_dir: /workspace
+      volumes:
+         - ../..:/workspace
+      command: ["node", "--check", "apps/desktop/src/main.js"]

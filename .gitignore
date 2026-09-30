@@ -12,6 +12,8 @@ apps/desktop/src-tauri/target-validation
 **/dist
 **/build
 **/coverage
+!infrastructure/build/
+!infrastructure/build/*.sh
 
 # Rust build output
 target/

@@ -52,3 +52,44 @@ Added one `ARCHITECTURE.md` file to every source, documentation, package, server
 Excluded generated and dependency directories such as `.git`, `node_modules`, `target`, and `target-validation`.
 
 Validation: [OK] 30 architecture files created for commit tracking.
+
+[200 OK] Added reproducible desktop build commands and completed the local mailbox slice:
+
+Added root and desktop npm scripts for JavaScript checks and Tauri production builds.
+Added missing SQLite folders used by the visible Spaces navigation.
+Made sent-mail listing safe before the first send and display successful sent records in the Sent mailbox.
+Enabled starring messages directly from the inbox list.
+
+Validation: [OK] `npm.cmd run check`; [OK] `cargo check`; [OK] Tauri release build produced the Windows MSI installer.
+
+[200 OK] Expanded the desktop interface and interaction layer:
+
+Added a proper compose modal with validation, sending state, local draft saving, and responsive layout.
+Added toast feedback, Escape-to-close, Ctrl/Cmd+K search focus, quick All/Unread/Starred filtering, and working notification/profile actions.
+Improved read/unread checkbox rendering and added visible focus states for keyboard navigation.
+
+Validation: [OK] JavaScript syntax check; [OK] editor diagnostics; [OK] Rust check.
+
+[200 OK] Reworked the infrastructure layer:
+
+Replaced invalid Compose pseudo-configuration with valid development and production stacks for PostgreSQL and Redis, plus Mailpit in the dev profile.
+Added healthchecks, persistent named volumes, isolated networks, production password requirements, and `.env.example`.
+Replaced unsafe installation commands in the shell files with deterministic `check`, `build`, `up`, `down`, `logs`, `status`, `backup`, and `clean` commands.
+Added infrastructure usage documentation.
+
+Validation: [OK] YAML editor diagnostics; shell files reviewed. Docker and Bash binaries were unavailable in the current Windows terminal, so runtime Compose validation must be run in Docker Desktop or WSL.
+
+[200 OK] Added modular desktop services and the first real crypto layer:
+
+Added reusable `components`, `pages`, `hooks`, and `services` modules for Security Lab, persistent preferences, mailbox utilities, and Tauri crypto calls.
+Added Rust AES-256-GCM encryption/decryption with random nonces, OS randomness, SHA-256 key fingerprints, strict key/payload validation, and unit tests.
+Mounted the Security Lab into Settings; generated keys remain in memory for the session and are not written to localStorage.
+
+Validation: [OK] frontend syntax checks; [OK] editor diagnostics; [OK] Rust crypto tests: 2 passed, 0 failed.
+
+[200 OK] Fixed the desktop runtime loading path:
+
+Moved browser-loaded security modules into `apps/desktop/src` and replaced unsupported bare Tauri API imports with the configured `window.__TAURI__.core.invoke` bridge.
+The Tauri dev window now starts with a static frontend that can resolve every runtime module without a bundler.
+
+Validation: [OK] editor diagnostics; [OK] `cargo check`; [OK] Tauri dev process starts.

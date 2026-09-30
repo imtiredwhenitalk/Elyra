@@ -1,13 +1,42 @@
-listen port: 8080
-listen port: 80 
-listen port: 443
-listen port: 8443
-listen host: env || example.com
-listen protocols:
-    - http
-    - https
+name: elyra-prod
 
-listen ssl:
-    cert: /etc/ssl/certs/example.com.crt
-    key: /etc/ssl/private/example.com.key
+services:
+    postgres:
+        image: postgres:16-alpine
+        restart: unless-stopped
+        environment:
+            POSTGRES_DB: ${POSTGRES_DB:-elyra}
+            POSTGRES_USER: ${POSTGRES_USER:-elyra}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+        volumes:
+            - elyra-prod-postgres:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+            interval: 10s
+            timeout: 5s
+            retries: 12
+        networks: [elyra]
+
+    redis:
+        image: redis:7-alpine
+        restart: unless-stopped
+        environment:
+            REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+        command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+        volumes:
+            - elyra-prod-redis:/data
+        healthcheck:
+            test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+            interval: 10s
+            timeout: 5s
+            retries: 12
+        networks: [elyra]
+
+volumes:
+    elyra-prod-postgres:
+    elyra-prod-redis:
+
+networks:
+    elyra:
+        driver: bridge
 

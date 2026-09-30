@@ -4,6 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "build": "tauri build",
+    "check": "node --check src/main.js",
     "tauri": "tauri"
   },
   "devDependencies": {

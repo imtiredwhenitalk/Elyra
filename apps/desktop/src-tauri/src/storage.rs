@@ -73,7 +73,9 @@ pub fn initialize(app: &AppHandle) -> Result<(), String> {
          );
          INSERT OR IGNORE INTO folders (name, kind) VALUES
              ('Inbox', 'system'), ('Starred', 'system'), ('Sent', 'system'),
-             ('Drafts', 'system'), ('Spam', 'system'), ('Trash', 'system');
+             ('Drafts', 'system'), ('Snoozed', 'system'), ('Spam', 'system'),
+             ('Trash', 'system'), ('Important', 'label'), ('Updates', 'label'),
+             ('Security', 'label');
          INSERT OR IGNORE INTO settings (key, value) VALUES ('theme', 'light');",
         )
         .map_err(|error| error.to_string())
