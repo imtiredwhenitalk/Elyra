@@ -14,10 +14,37 @@ const messages = [
 
 let currentFilter = "inbox";
 let selectedMessage = null;
+const settingsKey = "elyra-settings";
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>'"]/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;"
+  }[character]));
+}
+
+function assetUrl(name) {
+  return `/assets/${name}`;
+}
+
+function loadSettings() {
+  try {
+    return JSON.parse(localStorage.getItem(settingsKey) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveSettings(settings) {
+  localStorage.setItem(settingsKey, JSON.stringify(settings));
+}
 
 function normalizeAssetUrls() {
   document.querySelectorAll('img[src^="/src/assets/"]').forEach((image) => {
-    image.src = image.src.replace("/src/assets/", "/assets/");
+    image.src = image.getAttribute("src").replace("/src/assets/", "/assets/");
   });
 }
 
@@ -29,7 +56,7 @@ function renderMessages() {
     const matchesSearch = `${message.sender} ${message.subject} ${message.preview}`.toLowerCase().includes(query);
     return matchesFilter && matchesSearch;
   });
-  list.innerHTML = visible.length ? visible.map((message) => `<article class="message-row ${message.unread ? "unread" : ""}" data-message-id="${messages.indexOf(message)}"><input type="checkbox" aria-label="Select ${message.subject}" /><button class="star ${message.starred ? "selected" : ""}" aria-label="Star ${message.subject}" type="button">★</button><span class="sender-avatar ${message.color}">${message.initials}</span><div class="message-copy"><div><b>${message.sender}</b><span class="message-time">${message.time}</span></div><p><strong>${message.subject}</strong> <span>${message.preview}</span></p></div><span class="message-tag ${message.color}">${message.tag}</span></article>`).join("") : `<div class="empty-state"><span>⌕</span><h3>No messages found</h3><p>Try another search or mailbox.</p></div>`;
+  list.innerHTML = visible.length ? visible.map((message) => `<article class="message-row ${message.unread ? "unread" : ""}" data-message-id="${messages.indexOf(message)}"><input type="checkbox" aria-label="Select ${escapeHtml(message.subject)}" /><button class="star ${message.starred ? "selected" : ""}" aria-label="Star ${escapeHtml(message.subject)}" type="button">★</button><span class="sender-avatar ${message.color}">${escapeHtml(message.initials)}</span><div class="message-copy"><div><b>${escapeHtml(message.sender)}</b><span class="message-time">${escapeHtml(message.time)}</span></div><p><strong>${escapeHtml(message.subject)}</strong> <span>${escapeHtml(message.preview)}</span></p></div><span class="message-tag ${message.color}">${escapeHtml(message.tag)}</span></article>`).join("") : `<div class="empty-state"><span>⌕</span><h3>No messages found</h3><p>Try another search or mailbox.</p></div>`;
 }
 
 function showMessage(message) {
@@ -37,13 +64,19 @@ function showMessage(message) {
   document.querySelector("#message-list").hidden = true;
   const viewer = document.querySelector("#message-viewer");
   viewer.hidden = false;
-  viewer.innerHTML = `<div class="viewer-toolbar"><button class="back-button" id="close-viewer" type="button">← Back to ${currentFilter}</button><div><button class="viewer-icon" title="Archive" type="button"><img class="action-icon" src="/src/assets/archive.svg" alt="" /></button><button class="viewer-icon" title="Move to trash" id="viewer-trash" type="button"><img class="action-icon" src="/src/assets/trash.svg" alt="" /></button><button class="viewer-icon" title="More actions" type="button">•••</button></div></div><div class="viewer-heading"><div class="sender-avatar ${message.color}">${message.initials}</div><div><h2>${message.subject}</h2><p><b>${message.sender}</b> &lt;${message.sender.toLowerCase().replace(" ", ".")}@example.com&gt;</p></div><span class="message-time">${message.time}</span></div><div class="viewer-actions"><button type="button" id="viewer-star">${message.starred ? "★ Starred" : "☆ Star"}</button><button type="button">↗ Reply</button><button type="button">↪ Forward</button></div><div class="viewer-body"><p>Hi Alex,</p><p>${message.preview} I wanted to share a little more context here so you can review it when you have a quiet moment.</p><div class="inline-image"><span>▧</span><b>Inline image preview</b><small>Rendered safely in local preview mode</small></div><p>Thanks,<br />${message.sender}</p></div><div class="attachment-card"><img class="attachment-icon" src="/src/assets/clip.svg" alt="" /><span><b>message-notes.pdf</b><small>PDF · 248 KB</small></span><button type="button">↓</button></div>`;
+  viewer.innerHTML = `<div class="viewer-toolbar"><button class="back-button" id="close-viewer" type="button">← Back to ${escapeHtml(currentFilter)}</button><div><button class="viewer-icon" title="Archive" type="button"><img class="action-icon" src="${assetUrl("archive.svg")}" alt="" /></button><button class="viewer-icon" title="Move to trash" id="viewer-trash" type="button"><img class="action-icon" src="${assetUrl("trash.svg")}" alt="" /></button><button class="viewer-icon" title="More actions" type="button">•••</button></div></div><div class="viewer-heading"><div class="sender-avatar ${message.color}">${escapeHtml(message.initials)}</div><div><h2>${escapeHtml(message.subject)}</h2><p><b>${escapeHtml(message.sender)}</b> &lt;${escapeHtml(message.sender.toLowerCase().replace(" ", "."))}@example.com&gt;</p></div><span class="message-time">${escapeHtml(message.time)}</span></div><div class="viewer-actions"><button type="button" id="viewer-star">${message.starred ? "★ Starred" : "☆ Star"}</button><button type="button">↗ Reply</button><button type="button">↪ Forward</button></div><div class="viewer-body"><p>Hi Alex,</p><p>${escapeHtml(message.preview)} I wanted to share a little more context here so you can review it when you have a quiet moment.</p><div class="inline-image"><span>▧</span><b>Inline image preview</b><small>Rendered safely in local preview mode</small></div><p>Thanks,<br />${escapeHtml(message.sender)}</p></div><div class="attachment-card"><img class="attachment-icon" src="${assetUrl("clip.svg")}" alt="" /><span><b>message-notes.pdf</b><small>PDF · 248 KB</small></span><button type="button" title="Download attachment">↓</button></div>`;
   document.querySelector("#close-viewer").addEventListener("click", () => { viewer.hidden = true; document.querySelector("#message-list").hidden = false; });
   document.querySelector("#viewer-star").addEventListener("click", (event) => { message.starred = !message.starred; event.currentTarget.textContent = message.starred ? "★ Starred" : "☆ Star"; renderMessages(); });
   document.querySelector("#viewer-trash").addEventListener("click", () => { message.category = "trash"; viewer.hidden = true; renderMessages(); document.querySelector("#message-list").hidden = false; });
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  const settings = loadSettings();
+  const theme = settings.theme || "light";
+  document.body.dataset.theme = theme;
+  document.querySelector("#theme-select").value = theme;
+  const displayNameInput = document.querySelector('.settings-form input:not([type="checkbox"])');
+  if (settings.displayName && displayNameInput) displayNameInput.value = settings.displayName;
   renderMessages();
   normalizeAssetUrls();
   document.addEventListener("click", normalizeAssetUrls);
@@ -79,6 +112,11 @@ window.addEventListener("DOMContentLoaded", () => {
   };
   document.querySelector("#settings-button").addEventListener("click", openSettings);
   document.querySelector("#profile-settings").addEventListener("click", openSettings);
-  document.querySelector("#save-settings").addEventListener("click", (event) => { event.currentTarget.textContent = "Saved locally"; setTimeout(() => { event.currentTarget.textContent = "Save changes"; }, 1400); });
+  document.querySelector("#save-settings").addEventListener("click", (event) => {
+    const nextSettings = { ...loadSettings(), theme: document.querySelector("#theme-select").value, displayName: displayNameInput ? displayNameInput.value : "" };
+    saveSettings(nextSettings);
+    event.currentTarget.textContent = "Saved locally";
+    setTimeout(() => { event.currentTarget.textContent = "Save changes"; }, 1400);
+  });
   document.querySelector("#theme-select").addEventListener("change", (event) => { document.body.dataset.theme = event.target.value; });
 });

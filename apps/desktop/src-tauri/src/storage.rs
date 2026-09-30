@@ -17,7 +17,10 @@ pub struct CachedEmail {
 }
 
 fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let directory = app.path().app_local_data_dir().map_err(|error| error.to_string())?;
+    let directory = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|error| error.to_string())?;
     fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
     Ok(directory.join("elyra.sqlite3"))
 }
@@ -29,8 +32,9 @@ fn connection(app: &AppHandle) -> Result<Connection, String> {
 
 pub fn initialize(app: &AppHandle) -> Result<(), String> {
     let database = connection(app)?;
-    database.execute_batch(
-        "PRAGMA foreign_keys = ON;
+    database
+        .execute_batch(
+            "PRAGMA foreign_keys = ON;
          CREATE TABLE IF NOT EXISTS accounts (
              id INTEGER PRIMARY KEY,
              provider TEXT NOT NULL,
@@ -71,8 +75,8 @@ pub fn initialize(app: &AppHandle) -> Result<(), String> {
              ('Inbox', 'system'), ('Starred', 'system'), ('Sent', 'system'),
              ('Drafts', 'system'), ('Spam', 'system'), ('Trash', 'system');
          INSERT OR IGNORE INTO settings (key, value) VALUES ('theme', 'light');",
-    )
-    .map_err(|error| error.to_string())
+        )
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -93,7 +97,11 @@ pub fn cache_email(
 ) -> Result<(), String> {
     let database = connection(&app)?;
     let folder_id: i64 = database
-        .query_row("SELECT id FROM folders WHERE name = ?1", params![folder], |row| row.get(0))
+        .query_row(
+            "SELECT id FROM folders WHERE name = ?1",
+            params![folder],
+            |row| row.get(0),
+        )
         .map_err(|error| error.to_string())?;
     database
         .execute(
@@ -132,7 +140,8 @@ pub fn list_cached_emails(app: AppHandle) -> Result<Vec<CachedEmail>, String> {
             })
         })
         .map_err(|error| error.to_string())?;
-    rows.collect::<SqlResult<Vec<_>>>().map_err(|error| error.to_string())
+    rows.collect::<SqlResult<Vec<_>>>()
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
