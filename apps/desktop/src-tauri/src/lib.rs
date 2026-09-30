@@ -1,4 +1,6 @@
 mod storage;
+#[path = "../../services/sendemail.rs"]
+mod sendemail;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -22,7 +24,9 @@ pub fn run() {
             storage::initialize_local_storage,
             storage::cache_email,
             storage::list_cached_emails,
-            storage::set_local_setting
+            storage::set_local_setting,
+            sendemail::send_email,
+            sendemail::list_sent_emails
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

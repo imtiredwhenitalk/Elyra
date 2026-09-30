@@ -1,4 +1,6 @@
-const messages = [
+import { invoke } from "@tauri-apps/api/core";
+
+let messages = [
   { sender: "Maya Chen", initials: "MC", subject: "The quieter way to work", preview: "I’ve been thinking about the new rhythm we discussed...", time: "9:42 AM", tag: "Important", category: "important", color: "coral", unread: true, starred: true },
   { sender: "Elyra Security", initials: "ES", subject: "New sign-in protected", preview: "A new sign-in was protected with your device key.", time: "8:16 AM", tag: "Security", category: "security", color: "gold", unread: true, starred: false },
   { sender: "Linear", initials: "L", subject: "Your weekly product digest", preview: "Here’s what changed across your active projects this week.", time: "Yesterday", tag: "Updates", category: "updates", color: "teal", unread: true, starred: false },
@@ -48,6 +50,11 @@ function normalizeAssetUrls() {
   });
 }
 
+async function sendEmail(to, subject, body) {
+  await invoke("send_email", { to, subject, body });
+  alert("Email sent");
+}
+
 function renderMessages() {
   const query = document.querySelector("#search-input").value.toLowerCase();
   const list = document.querySelector("#message-list");
@@ -59,14 +66,54 @@ function renderMessages() {
   list.innerHTML = visible.length ? visible.map((message) => `<article class="message-row ${message.unread ? "unread" : ""}" data-message-id="${messages.indexOf(message)}"><input type="checkbox" aria-label="Select ${escapeHtml(message.subject)}" /><button class="star ${message.starred ? "selected" : ""}" aria-label="Star ${escapeHtml(message.subject)}" type="button">★</button><span class="sender-avatar ${message.color}">${escapeHtml(message.initials)}</span><div class="message-copy"><div><b>${escapeHtml(message.sender)}</b><span class="message-time">${escapeHtml(message.time)}</span></div><p><strong>${escapeHtml(message.subject)}</strong> <span>${escapeHtml(message.preview)}</span></p></div><span class="message-tag ${message.color}">${escapeHtml(message.tag)}</span></article>`).join("") : `<div class="empty-state"><span>⌕</span><h3>No messages found</h3><p>Try another search or mailbox.</p></div>`;
 }
 
+function mapCachedEmail(email) {
+  const sender = email.sender || "Unknown sender";
+  const initials = sender.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+  const colors = ["coral", "gold", "teal", "blue", "violet"];
+  const color = colors[Math.abs(sender.length + email.id) % colors.length];
+  return {
+    sender,
+    initials,
+    subject: email.subject,
+    preview: email.body_text,
+    time: "Just now",
+    tag: email.folder,
+    category: email.folder.toLowerCase(),
+    color,
+    unread: !email.is_read,
+    starred: email.is_starred
+  };
+}
+
+async function refreshMessages(button) {
+  button.disabled = true;
+  button.classList.add("spin");
+  try {
+    const cachedEmails = await invoke("list_cached_emails");
+    if (cachedEmails.length) messages = cachedEmails.map(mapCachedEmail);
+    renderMessages();
+    document.querySelector("#view-subtitle").textContent = `${messages.filter((message) => message.unread).length} unread messages · Last synced just now`;
+  } catch (error) {
+    console.error("Failed to refresh messages", error);
+  } finally {
+    button.disabled = false;
+    button.classList.remove("spin");
+  }
+}
+
 function showMessage(message) {
   selectedMessage = message;
   document.querySelector("#message-list").hidden = true;
   const viewer = document.querySelector("#message-viewer");
   viewer.hidden = false;
-  viewer.innerHTML = `<div class="viewer-toolbar"><button class="back-button" id="close-viewer" type="button">← Back to ${escapeHtml(currentFilter)}</button><div><button class="viewer-icon" title="Archive" type="button"><img class="action-icon" src="${assetUrl("archive.svg")}" alt="" /></button><button class="viewer-icon" title="Move to trash" id="viewer-trash" type="button"><img class="action-icon" src="${assetUrl("trash.svg")}" alt="" /></button><button class="viewer-icon" title="More actions" type="button">•••</button></div></div><div class="viewer-heading"><div class="sender-avatar ${message.color}">${escapeHtml(message.initials)}</div><div><h2>${escapeHtml(message.subject)}</h2><p><b>${escapeHtml(message.sender)}</b> &lt;${escapeHtml(message.sender.toLowerCase().replace(" ", "."))}@example.com&gt;</p></div><span class="message-time">${escapeHtml(message.time)}</span></div><div class="viewer-actions"><button type="button" id="viewer-star">${message.starred ? "★ Starred" : "☆ Star"}</button><button type="button">↗ Reply</button><button type="button">↪ Forward</button></div><div class="viewer-body"><p>Hi Alex,</p><p>${escapeHtml(message.preview)} I wanted to share a little more context here so you can review it when you have a quiet moment.</p><div class="inline-image"><span>▧</span><b>Inline image preview</b><small>Rendered safely in local preview mode</small></div><p>Thanks,<br />${escapeHtml(message.sender)}</p></div><div class="attachment-card"><img class="attachment-icon" src="${assetUrl("clip.svg")}" alt="" /><span><b>message-notes.pdf</b><small>PDF · 248 KB</small></span><button type="button" title="Download attachment">↓</button></div>`;
+  const senderEmail = `${message.sender.toLowerCase().replace(" ", ".")}@example.com`;
+  viewer.innerHTML = `<div class="viewer-toolbar"><button class="back-button" id="close-viewer" type="button">← Back to ${escapeHtml(currentFilter)}</button><div><button class="viewer-icon" title="Archive" type="button"><img class="action-icon" src="${assetUrl("archive.svg")}" alt="" /></button><button class="viewer-icon" title="Move to trash" id="viewer-trash" type="button"><img class="action-icon" src="${assetUrl("trash.svg")}" alt="" /></button><button class="viewer-icon" title="More actions" type="button">•••</button></div></div><div class="viewer-heading"><div class="sender-avatar ${message.color}">${escapeHtml(message.initials)}</div><div><h2>${escapeHtml(message.subject)}</h2><p><b>${escapeHtml(message.sender)}</b> &lt;${escapeHtml(senderEmail)}&gt;</p></div><span class="message-time">${escapeHtml(message.time)}</span></div><div class="viewer-actions"><button type="button" id="viewer-star">${message.starred ? "★ Starred" : "☆ Star"}</button><button type="button" id="viewer-reply">↗ Reply</button><button type="button">↪ Forward</button></div><div class="viewer-body"><p>Hi Alex,</p><p>${escapeHtml(message.preview)} I wanted to share a little more context here so you can review it when you have a quiet moment.</p><div class="inline-image"><span>▧</span><b>Inline image preview</b><small>Rendered safely in local preview mode</small></div><p>Thanks,<br />${escapeHtml(message.sender)}</p></div><div class="attachment-card"><img class="attachment-icon" src="${assetUrl("clip.svg")}" alt="" /><span><b>message-notes.pdf</b><small>PDF · 248 KB</small></span><button type="button" title="Download attachment">↓</button></div>`;
   document.querySelector("#close-viewer").addEventListener("click", () => { viewer.hidden = true; document.querySelector("#message-list").hidden = false; });
   document.querySelector("#viewer-star").addEventListener("click", (event) => { message.starred = !message.starred; event.currentTarget.textContent = message.starred ? "★ Starred" : "☆ Star"; renderMessages(); });
+  document.querySelector("#viewer-reply").addEventListener("click", async () => {
+    const body = window.prompt("Write your reply", "");
+    if (body) await sendEmail(senderEmail, `Re: ${message.subject}`, body);
+  });
   document.querySelector("#viewer-trash").addEventListener("click", () => { message.category = "trash"; viewer.hidden = true; renderMessages(); document.querySelector("#message-list").hidden = false; });
 }
 
@@ -81,6 +128,15 @@ window.addEventListener("DOMContentLoaded", () => {
   normalizeAssetUrls();
   document.addEventListener("click", normalizeAssetUrls);
   document.querySelector("#search-input").addEventListener("input", renderMessages);
+  document.querySelector("#compose-button").addEventListener("click", async () => {
+    const to = window.prompt("Recipient email", "");
+    if (!to) return;
+    const subject = window.prompt("Subject", "");
+    if (subject === null) return;
+    const body = window.prompt("Message", "");
+    if (body === null) return;
+    await sendEmail(to, subject, body);
+  });
   document.querySelector("#message-list").addEventListener("click", (event) => { const row = event.target.closest(".message-row"); if (row && !event.target.closest("button, input")) showMessage(messages[Number(row.dataset.messageId)]); });
   document.querySelectorAll("[data-filter]").forEach((item) => item.addEventListener("click", () => {
     document.querySelectorAll("[data-filter]").forEach((navItem) => navItem.classList.remove("active"));
@@ -98,7 +154,7 @@ window.addEventListener("DOMContentLoaded", () => {
     document.querySelector("#view-subtitle").textContent = isChanges ? "A record of what is ready and what comes next" : isProfile ? "Your identity and connected account overview" : isSettings ? "Control how Elyra works on this device" : "4 unread messages · Last synced just now";
     if (!isChanges && !isProfile && !isSettings) renderMessages();
   }));
-  document.querySelector("#refresh-button").addEventListener("click", (event) => { event.currentTarget.classList.add("spin"); renderMessages(); setTimeout(() => event.currentTarget.classList.remove("spin"), 500); });
+  document.querySelector("#refresh-button").addEventListener("click", (event) => refreshMessages(event.currentTarget));
   document.querySelectorAll("#connect-account, #add-account").forEach((button) => button.addEventListener("click", () => alert("OAuth connection flow will be added in the next integration step.")));
   const openSettings = () => {
     document.querySelectorAll("[data-filter]").forEach((navItem) => navItem.classList.remove("active"));

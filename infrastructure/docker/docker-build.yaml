@@ -1,0 +1,10 @@
+docker_build_image:
+   sendemail:
+      context: ../../apps/desktop/services/sendemail
+      container_name: build project 
+      command: cargo run --release
+      check: cargo check
+      test: cargo test
+      startup_config:
+         startup: true
+         startup-auto: false

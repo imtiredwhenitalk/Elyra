@@ -1,0 +1,13 @@
+listen port: 8080
+listen port: 80 
+listen port: 443
+listen port: 8443
+listen host: env || example.com
+listen protocols:
+    - http
+    - https
+
+listen ssl:
+    cert: /etc/ssl/certs/example.com.crt
+    key: /etc/ssl/private/example.com.key
+

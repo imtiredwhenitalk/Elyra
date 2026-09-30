@@ -1,0 +1,48 @@
+services: 
+  sendemail:
+    build:
+      context: ../../apps/desktop/services/sendemail
+      dockerfile: Dockerfile
+      container_name: sendemail
+  sendemail-app-dev:
+    build:
+      context: ../../apps/desktop/services/sendemail
+      dockerfile: Dockerfile
+      startup-auto: false
+  tauri:
+    build:
+      context: ../../apps/desktop/services/tauri/src-tauri
+      dockerfile: Dockerfile
+      startup: true
+      shared:
+        - ../../apps/desktop/services/sendemail
+        - ../../apps/desktop/services/tauri/src-tauri
+  tauri-app-dev:
+    build:
+      context: ../../apps/desktop/services/tauri/src-tauri
+      dockerfile: Dockerfile
+      startup-auto: false
+      shared:
+        - ../../apps/desktop/services/sendemail
+        - ../../apps/desktop/services/tauri/src-tauri
+  tauri-app-build:
+    build:
+      context: ../../apps/desktop/services/tauri/src-tauri
+      dockerfile: Dockerfile
+      startup-auto: false
+      shared:
+        - ../../apps/desktop/services/sendemail
+        - ../../apps/desktop/services/tauri/src-tauri
+  tauri-app-run:
+    build:
+      context: ../../apps/desktop/services/tauri/src-tauri
+      dockerfile: Dockerfile
+      startup-auto: false
+      shared:
+        - ../../apps/desktop/services/sendemail
+        - ../../apps/desktop/services/tauri/src-tauri
+  database:
+    build:
+      context: ../../apps/desktop/services/database
+      dockerfile: Dockerfile
+      container_name: database
