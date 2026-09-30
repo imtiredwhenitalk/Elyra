@@ -44,6 +44,11 @@ function saveSettings(settings) {
   localStorage.setItem(settingsKey, JSON.stringify(settings));
 }
 
+function setPanelHidden(selector, hidden) {
+  const panel = document.querySelector(selector);
+  if (panel) panel.hidden = hidden;
+}
+
 function normalizeAssetUrls() {
   document.querySelectorAll('img[src^="/src/assets/"]').forEach((image) => {
     image.src = image.getAttribute("src").replace("/src/assets/", "/assets/");
@@ -53,6 +58,18 @@ function normalizeAssetUrls() {
 async function sendEmail(to, subject, body) {
   await invoke("send_email", { to, subject, body });
   alert("Email sent");
+}
+
+async function listSentEmails() {
+  const sentEmails = await invoke("list_sent_emails");
+  console.log("Sent emails:", sentEmails);
+  return sentEmails;
+}
+
+async function composeEmail(to, subject, body) {
+  await sendEmail(to, subject, body);
+  const sentEmails = await listSentEmails();
+  console.log("Updated sent emails:", sentEmails);
 }
 
 function renderMessages() {
@@ -112,7 +129,14 @@ function showMessage(message) {
   document.querySelector("#viewer-star").addEventListener("click", (event) => { message.starred = !message.starred; event.currentTarget.textContent = message.starred ? "★ Starred" : "☆ Star"; renderMessages(); });
   document.querySelector("#viewer-reply").addEventListener("click", async () => {
     const body = window.prompt("Write your reply", "");
-    if (body) await sendEmail(senderEmail, `Re: ${message.subject}`, body);
+    if (body) {
+      try {
+        await composeEmail(senderEmail, `Re: ${message.subject}`, body);
+      } catch (error) {
+        console.error("Failed to send reply", error);
+        alert("Unable to send the reply. Check your SMTP settings.");
+      }
+    }
   });
   document.querySelector("#viewer-trash").addEventListener("click", () => { message.category = "trash"; viewer.hidden = true; renderMessages(); document.querySelector("#message-list").hidden = false; });
 }
@@ -135,7 +159,22 @@ window.addEventListener("DOMContentLoaded", () => {
     if (subject === null) return;
     const body = window.prompt("Message", "");
     if (body === null) return;
-    await sendEmail(to, subject, body);
+    try {
+      await composeEmail(to, subject, body);
+    } catch (error) {
+      console.error("Failed to send email", error);
+      alert("Unable to send the email. Check your SMTP settings.");
+    }
+  });
+  document.querySelector("#message-list").addEventListener("change", (event) => {
+    const row = event.target.closest(".message-row");
+    if (row) {
+      const message = messages[Number(row.dataset.messageId)];
+      if (event.target.type === "checkbox") {
+        message.unread = !event.target.checked;
+        renderMessages();
+      }
+    }
   });
   document.querySelector("#message-list").addEventListener("click", (event) => { const row = event.target.closest(".message-row"); if (row && !event.target.closest("button, input")) showMessage(messages[Number(row.dataset.messageId)]); });
   document.querySelectorAll("[data-filter]").forEach((item) => item.addEventListener("click", () => {
@@ -146,13 +185,31 @@ window.addEventListener("DOMContentLoaded", () => {
     const isChanges = currentFilter === "changes";
     const isProfile = currentFilter === "profile";
     const isSettings = currentFilter === "settings";
-    document.querySelector("#message-list").hidden = isChanges;
-    document.querySelector("#changes-panel").hidden = !isChanges;
-    document.querySelector("#profile-panel").hidden = !isProfile;
-    document.querySelector("#settings-panel").hidden = !isSettings;
+    const isInbox = currentFilter === "inbox";
+    const isStarred = currentFilter === "starred";
+    const isSpam = currentFilter === "spam";
+    const isTrash = currentFilter === "trash";
+    const isImportant = currentFilter === "important";
+    const isUpdates = currentFilter === "updates";
+    const isPersonal = currentFilter === "personal";
+    const compose = currentFilter === "compose";
+      const isDedicatedPanel = isChanges || isProfile || isSettings || compose;
+      document.querySelector("#message-list").hidden = isDedicatedPanel;
+      setPanelHidden("#changes-panel", !isChanges);
+      setPanelHidden("#profile-panel", !isProfile);
+      setPanelHidden("#settings-panel", !isSettings);
+      setPanelHidden("#compose-panel", !compose);
+      setPanelHidden("#inbox-panel", !isInbox);
+      setPanelHidden("#starred-panel", !isStarred);
+      setPanelHidden("#spam-panel", !isSpam);
+      setPanelHidden("#trash-panel", !isTrash);
+      setPanelHidden("#important-panel", !isImportant);
+      setPanelHidden("#updates-panel", !isUpdates);
+      setPanelHidden("#personal-panel", !isPersonal);
+    document.querySelector("#view-subtitle").hidden = isChanges || isProfile || isSettings;
     document.querySelector("#view-title").textContent = isChanges ? "Changes" : isProfile ? "Profile" : isSettings ? "Settings" : item.textContent.trim().replace(/\d+$/, "");
     document.querySelector("#view-subtitle").textContent = isChanges ? "A record of what is ready and what comes next" : isProfile ? "Your identity and connected account overview" : isSettings ? "Control how Elyra works on this device" : "4 unread messages · Last synced just now";
-    if (!isChanges && !isProfile && !isSettings) renderMessages();
+    if (!isDedicatedPanel) renderMessages();
   }));
   document.querySelector("#refresh-button").addEventListener("click", (event) => refreshMessages(event.currentTarget));
   document.querySelectorAll("#connect-account, #add-account").forEach((button) => button.addEventListener("click", () => alert("OAuth connection flow will be added in the next integration step.")));
