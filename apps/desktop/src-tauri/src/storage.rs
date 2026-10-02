@@ -25,9 +25,13 @@ fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(directory.join("elyra.sqlite3"))
 }
 
-fn connection(app: &AppHandle) -> Result<Connection, String> {
+pub(crate) fn connection(app: &AppHandle) -> Result<Connection, String> {
     let path = database_path(app)?;
-    Connection::open(path).map_err(|error| error.to_string())
+    let database = Connection::open(path).map_err(|error| error.to_string())?;
+    database
+        .execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA secure_delete = ON;")
+        .map_err(|error| error.to_string())?;
+    Ok(database)
 }
 
 pub fn initialize(app: &AppHandle) -> Result<(), String> {

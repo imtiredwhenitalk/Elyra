@@ -93,3 +93,11 @@ Moved browser-loaded security modules into `apps/desktop/src` and replaced unsup
 The Tauri dev window now starts with a static frontend that can resolve every runtime module without a bundler.
 
 Validation: [OK] editor diagnostics; [OK] `cargo check`; [OK] Tauri dev process starts.
+
+[200 OK] Added a local security posture and audit layer:
+
+Added Rust security controls for SQLite foreign keys, WAL journaling, secure deletion, posture checks, and bounded local audit retention.
+Added `get_security_status` and `list_audit_events` Tauri commands and connected them to Security Lab with explicit unavailable/error state handling.
+Documented the threat model, trust boundaries, audit limitations, and production requirements in `docs/security/ARCHITECTURE.md`.
+
+Validation: [OK] `cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml --target-dir apps/desktop/src-tauri/target-validation`; JavaScript check should be rerun with the desktop npm command in a shell where `npm.cmd` resolves correctly.

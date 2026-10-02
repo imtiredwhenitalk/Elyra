@@ -186,6 +186,18 @@ button {
 .security-toggle { display: flex; align-items: center; gap: 7px; padding-top: 7px; color: #5b7567; font-size: 10px; white-space: nowrap; }
 .security-toggle input { accent-color: #3d806b; }
 .security-card { margin-top: 18px; padding: 16px; border: 1px solid #d8e6da; border-radius: 9px; background: #f3f9f2; }
+.security-status-panel, .audit-panel { margin-top: 14px; padding: 14px; border: 1px solid #d8e6da; border-radius: 9px; background: #fbfdfb; }
+.security-status-panel { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.security-status-panel div { display: grid; gap: 4px; }
+.security-status-panel small, .security-status-panel span { color: #81988a; font-size: 10px; }
+.security-status-panel strong { color: #37805d; font-size: 15px; }
+.security-status-panel strong[data-status="attention"] { color: #af6654; }
+.audit-panel h3 { margin: 0 0 2px; color: #426653; font-size: 12px; }
+.audit-panel p { margin: 0; color: #81988a; font-size: 10px; }
+.audit-events { display: grid; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; }
+.audit-events li { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; padding-top: 8px; border-top: 1px solid #e4eee5; color: #4c6758; font-size: 10px; }
+.audit-events li small { grid-column: 2; color: #92a298; }
+.audit-outcome { font-size: 8px; text-transform: uppercase; }.audit-outcome.success { color: #37805d; }.audit-outcome.warning, .audit-outcome.failure { color: #af6654; }
 .security-card-heading { display: flex; align-items: center; gap: 10px; }
 .security-card-heading h3 { margin: 0 0 2px; color: #426653; font-size: 12px; }
 .security-card-heading p { margin: 0; color: #81988a; font-size: 10px; }
@@ -198,3 +210,4 @@ button {
 .security-action { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 10px 12px; border-radius: 7px; color: #fff; background: #39755f; font-size: 10px; box-shadow: none; }.security-action:disabled { cursor: wait; opacity: .65; }
 .security-note { margin: 9px 0 0; color: #99a89f; font-size: 9px; }
 body[data-theme="dark"] .security-page-section, body[data-theme="midnight"] .security-page-section { border-color: #385044; } body[data-theme="dark"] .security-page-heading h3, body[data-theme="midnight"] .security-page-heading h3 { color: #e2eee5; } body[data-theme="dark"] .security-card, body[data-theme="midnight"] .security-card { border-color: #3c594a; background: #26382f; } body[data-theme="dark"] .security-card-body div, body[data-theme="midnight"] .security-card-body div { border-color: #3c594a; background: #202e28; }
+body[data-theme="dark"] .security-status-panel, body[data-theme="midnight"] .security-status-panel, body[data-theme="dark"] .audit-panel, body[data-theme="midnight"] .audit-panel { border-color: #3c594a; background: #202e28; }

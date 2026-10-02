@@ -63,8 +63,8 @@ Elyra (Repository Root)
 │   └── security/                 # Threat models & security rules
 └── infrastructure/               # DevOps & Deployment
     ├── deployment/               # CI/CD pipelines & release scripts
-    └── docker/                   # Dockerfiles & docker-compose setups
-
+    └── docker/                    # Dockerfiles & docker-compose setups
+    
 ### Architecture Elyra
 
                          ┌─────────────────────┐
