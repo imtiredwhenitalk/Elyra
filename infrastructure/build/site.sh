@@ -10,7 +10,8 @@ Usage: ./infrastructure/build/site.sh <command>
 
 Commands:
 	check    Check frontend JavaScript syntax
-	build    Build the Tauri desktop installer
+	build    Build the Tauri desktop installer (MSI and NSIS)
+	web      Validate the public static website files
 	clean    Remove generated desktop bundle output
 EOF
 }
@@ -26,11 +27,18 @@ case "$command" in
 		;;
 	build)
 		if command -v npm >/dev/null 2>&1; then
-			npm run build
+			npm run release:desktop
 		else
 			echo "npm is required for the desktop build." >&2
 			exit 127
 		fi
+		;;
+	web)
+		test -f web/index.html
+		test -f web/styles.css
+		test -f web/Dockerfile
+		test -f infrastructure/web/nginx.conf
+		echo "Website files are present."
 		;;
 	clean)
 		rm -rf apps/desktop/src-tauri/target/release/bundle
@@ -38,4 +46,3 @@ case "$command" in
 		;;
 	*) usage; exit 64 ;;
 esac
-

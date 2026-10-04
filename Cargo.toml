@@ -1,0 +1,20 @@
+[workspace]
+members = [
+    "packages/crypto",
+    "server",
+    "apps/launcher",
+    "apps/desktop/src-tauri",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+version = "0.1.0"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

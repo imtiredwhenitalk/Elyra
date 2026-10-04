@@ -1,3 +1,8 @@
+[200 OK] Fixed browser-safe preview mode and local-only fallback flows:
+
+Added stable relative asset and module loading for browser preview sessions, plus a desktop/runtime fallback that keeps local storage, message sending, and encryption checks usable without Tauri.
+Validation: [OK] browser preview loads with relative assets; JS syntax check passed.
+
 [200 OK] Built Elyra’s desktop inbox prototype:
 
 Replaced Tauri starter screen with privacy-focused inbox UI.
@@ -101,3 +106,40 @@ Added `get_security_status` and `list_audit_events` Tauri commands and connected
 Documented the threat model, trust boundaries, audit limitations, and production requirements in `docs/security/ARCHITECTURE.md`.
 
 Validation: [OK] `cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml --target-dir apps/desktop/src-tauri/target-validation`; JavaScript check should be rerun with the desktop npm command in a shell where `npm.cmd` resolves correctly.
+[200 OK] Added reusable crypto, shared packages, and server foundation:
+
+Added the `elyra-crypto` Rust package with AES-256-GCM authenticated encryption,
+OS-random keys, zeroization, payload validation, fingerprints, and tamper
+detection tests. Added `@elyra/types` contracts and `@elyra/ui` primitives.
+Added the Rust server with PostgreSQL migrations, Argon2id password hashing,
+JWT sessions, authenticated user endpoints, health checks, and sync cursors.
+
+Validation: frontend syntax check passed; Rust validation was started but the
+Windows Application Control policy blocked a dependency build-script executable.
+[200 OK] Added optimized standalone release and website deployment:
+
+Configured Tauri to produce Windows MSI and NSIS installers with per-user
+installation and embedded WebView bootstrapper. Added a standalone public
+website, Nginx reverse proxy, production API container, Docker build cache
+exclusions, hardened private service networking, and a Rust Windows launcher
+that downloads the MSI over HTTPS and starts `msiexec`.
+
+Validation: Tauri JSON, Cargo metadata, Rust formatting, frontend syntax, and
+git diff checks passed. Docker and Rust dependency executables are unavailable
+under the current Windows Application Control policy.
+[200 OK] Added account authentication and in-app notifications:
+
+Added register/login UI with local preview sessions and Rust API integration.
+Added authenticated notification delivery by recipient email, notification
+inbox, unread badges, read state, validation, and PostgreSQL persistence.
+
+Validation: frontend syntax and diagnostics passed; Rust formatting was applied.
+[200 OK] Polished desktop UI and reduced frontend weight:
+
+Removed unused Tauri starter CSS and external Google Fonts loading, added a
+responsive compact layout for medium screens, improved notification badge
+handling, and added a keyboard command palette with quick compose, filters,
+notifications, and settings actions via Ctrl/Cmd+K.
+
+Validation: browser command palette opened successfully; JS syntax,
+diagnostics, Tauri JSON, and diff checks passed.

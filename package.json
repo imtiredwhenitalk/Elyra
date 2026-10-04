@@ -5,6 +5,11 @@
   "scripts": {
     "build": "npm --prefix apps/desktop run build",
     "check": "npm --prefix apps/desktop run check",
-    "tauri": "npm --prefix apps/desktop run tauri"
+    "tauri": "npm --prefix apps/desktop run tauri",
+    "server:check": "cargo check -p elyra-server",
+    "crypto:test": "cargo test -p elyra-crypto",
+    "launcher:build": "cargo build --release -p elyra-launcher",
+    "release:desktop": "npm --prefix apps/desktop run build",
+    "release:all": "npm run check && npm run release:desktop && npm run launcher:build"
   }
 }

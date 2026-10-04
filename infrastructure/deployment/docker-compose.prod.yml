@@ -1,6 +1,38 @@
 name: elyra-prod
 
 services:
+    api:
+        build:
+            context: ../..
+            dockerfile: server/Dockerfile
+        restart: unless-stopped
+        environment:
+            DATABASE_URL: postgres://${POSTGRES_USER:-elyra}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-elyra}
+            ELYRA_JWT_SECRET: ${ELYRA_JWT_SECRET:?ELYRA_JWT_SECRET must be set}
+            ELYRA_SERVER_ADDR: 0.0.0.0:8787
+            RUST_LOG: ${RUST_LOG:-elyra_server=info,tower_http=info}
+        depends_on:
+            postgres:
+                condition: service_healthy
+        healthcheck:
+            test: ["CMD", "sh", "-c", "wget -q -O - http://127.0.0.1:8787/health | grep -q '\"status\":\"ok\"'"]
+            interval: 10s
+            timeout: 5s
+            retries: 12
+        networks: [elyra]
+
+    web:
+        build:
+            context: ../..
+            dockerfile: web/Dockerfile
+        restart: unless-stopped
+        ports:
+            - "${WEB_PORT:-8080}:80"
+        depends_on:
+            api:
+                condition: service_healthy
+        networks: [elyra]
+
     postgres:
         image: postgres:16-alpine
         restart: unless-stopped
@@ -39,4 +71,3 @@ volumes:
 networks:
     elyra:
         driver: bridge
-

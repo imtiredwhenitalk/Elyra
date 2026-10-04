@@ -1,5 +1,13 @@
 import { mountSecurityPage } from "./pages/SecurityPage.js";
 import { invoke } from "./services/tauri.js";
+import {
+  createNotification,
+  getSession,
+  listNotifications,
+  loginAccount,
+  markNotificationRead,
+  registerAccount,
+} from "./services/account.js";
 
 let messages = [
   { sender: "Maya Chen", initials: "MC", subject: "The quieter way to work", preview: "I’ve been thinking about the new rhythm we discussed...", time: "9:42 AM", tag: "Important", category: "important", color: "coral", unread: true, starred: true },
@@ -31,8 +39,66 @@ function escapeHtml(value) {
   }[character]));
 }
 
+function openCommandPalette() {
+  const palette = document.querySelector("#command-palette");
+  const input = document.querySelector("#command-input");
+  const list = document.querySelector("#command-list");
+  const actions = [
+    { label: "Compose a message", hint: "New email", run: () => openComposer() },
+    { label: "Show unread mail", hint: "Filter", run: () => { quickFilter = "unread"; renderMessages(); } },
+    { label: "Show starred mail", hint: "Filter", run: () => { quickFilter = "starred"; renderMessages(); } },
+    { label: "Open notifications", hint: "Inbox", run: openNotifications },
+    { label: "Open settings", hint: "Preferences", run: () => document.querySelector("#settings-button").click() },
+  ];
+  const renderActions = () => {
+    const query = input.value.trim().toLowerCase();
+    const visible = actions.filter((action) => action.label.toLowerCase().includes(query));
+    list.innerHTML = visible.map((action, index) => `<button class="command-item ${index === 0 ? "selected" : ""}" type="button"><span>${escapeHtml(action.label)}</span><small>${escapeHtml(action.hint)}</small></button>`).join("");
+    list.querySelectorAll(".command-item").forEach((item, index) => item.addEventListener("click", () => {
+      palette.hidden = true;
+      visible[index].run();
+    }));
+  };
+  palette.hidden = false;
+  input.value = "";
+  renderActions();
+  input.focus();
+  input.oninput = renderActions;
+  input.onkeydown = (event) => {
+    const items = [...list.querySelectorAll(".command-item")];
+    const current = items.findIndex((item) => item.classList.contains("selected"));
+    if (event.key === "Escape") palette.hidden = true;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!items.length) return;
+      const next = event.key === "ArrowDown" ? (current + 1) % items.length : (current - 1 + items.length) % items.length;
+      items.forEach((item, index) => item.classList.toggle("selected", index === next));
+    }
+    if (event.key === "Enter" && current >= 0) items[current].click();
+  };
+}
+
 function assetUrl(name) {
-  return `/assets/${name}`;
+  return new URL(`./assets/${name}`, window.location.href).toString();
+}
+
+function isBrowserPreviewMode() {
+  return !(window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke);
+}
+
+function updatePreviewModeBanner() {
+  const badge = document.querySelector(".secure-badge");
+  const privacyCard = document.querySelector(".privacy-card p");
+  const isPreview = isBrowserPreviewMode();
+  if (badge) {
+    badge.textContent = isPreview ? "● Browser preview" : "● Local preview";
+    badge.title = isPreview ? "Running without the desktop runtime" : "Running inside the Elyra desktop app";
+  }
+  if (privacyCard) {
+    privacyCard.textContent = isPreview
+      ? "Your inbox is running in browser preview mode with local-only storage fallback."
+      : "Your messages stay on this device in preview mode.";
+  }
 }
 
 function loadSettings() {
@@ -70,6 +136,98 @@ function showToast(message, tone = "default") {
     toast.classList.remove("visible");
     setTimeout(() => toast.remove(), 220);
   }, 2600);
+}
+
+function showAuthModal(mode = "login") {
+  const gate = document.querySelector("#auth-gate");
+  gate.hidden = false;
+  gate.innerHTML = `<form class="auth-modal" id="auth-form"><div class="compose-modal-header"><div><span class="eyebrow">Elyra account</span><h2>${mode === "login" ? "Welcome back" : "Create your account"}</h2></div><button class="modal-close" id="close-auth" type="button" aria-label="Close">×</button></div>${mode === "register" ? '<label>Display name<input name="displayName" required maxlength="120" placeholder="Alex Smith" /></label>' : ""}<label>Email<input name="email" type="email" autocomplete="email" required placeholder="you@example.com" /></label><label>Password<input name="password" type="password" minlength="12" autocomplete="${mode === "login" ? "current-password" : "new-password"}" required placeholder="At least 12 characters" /></label><p class="auth-error" id="auth-error" role="alert"></p><div class="compose-modal-footer"><button class="text-button" id="auth-switch" type="button">${mode === "login" ? "Create an account" : "I already have an account"}</button><span class="compose-hint">Local preview or Elyra server account</span><button class="send-button" type="submit">${mode === "login" ? "Sign in" : "Register"} <span>→</span></button></div></form>`;
+  gate.querySelector("#close-auth").addEventListener("click", () => { gate.hidden = true; });
+  gate.querySelector("#auth-switch").addEventListener("click", () => showAuthModal(mode === "login" ? "register" : "login"));
+  gate.querySelector("#auth-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const submit = form.querySelector("[type=submit]");
+    const errorNode = form.querySelector("#auth-error");
+    submit.disabled = true;
+    errorNode.textContent = "";
+    try {
+      await (mode === "login"
+        ? loginAccount({ email: data.get("email"), password: data.get("password") })
+        : registerAccount({ email: data.get("email"), password: data.get("password"), displayName: data.get("displayName") }));
+      gate.hidden = true;
+      updateAccountUi();
+      await refreshNotifications();
+      showToast(mode === "login" ? "Signed in" : "Account created", "success");
+    } catch (error) {
+      errorNode.textContent = error.message;
+      submit.disabled = false;
+    }
+  });
+}
+
+function updateAccountUi() {
+  const session = getSession();
+  const accountButton = document.querySelector(".account-button");
+  const topAvatar = document.querySelector(".top-actions .avatar");
+  if (!session) return;
+  const initials = session.user.displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+  if (accountButton) accountButton.innerHTML = `<span class="avatar small">${escapeHtml(initials)}</span><span><b>${escapeHtml(session.user.displayName)}</b><small>${escapeHtml(session.user.email)}</small></span><span>⌄</span>`;
+  if (topAvatar) topAvatar.textContent = initials;
+}
+
+async function refreshNotifications() {
+  const notifications = await listNotifications();
+  const unread = notifications.filter((notification) => !notification.is_read).length;
+  const badge = document.querySelector(".notification-count");
+  if (badge) {
+    badge.textContent = String(unread);
+    badge.hidden = unread === 0;
+  }
+  return notifications;
+}
+
+async function openNotifications() {
+  const popover = document.querySelector("#notification-popover");
+  try {
+    const notifications = await refreshNotifications();
+    popover.innerHTML = `<div class="notification-header"><div><span class="eyebrow">Inbox</span><h3>Notifications</h3></div><button class="modal-close" id="close-notifications" type="button">×</button></div>${notifications.length ? notifications.map((notification) => `<button class="notification-item ${notification.is_read ? "" : "unread"}" data-notification-id="${escapeHtml(notification.id)}" type="button"><b>${escapeHtml(notification.title)}</b><span>${escapeHtml(notification.body)}</span><small>${new Date(notification.created_at).toLocaleString()}</small></button>`).join("") : '<p class="empty-notifications">No notifications yet.</p>'}`;
+    popover.hidden = false;
+    popover.querySelector("#close-notifications").addEventListener("click", () => { popover.hidden = true; });
+    popover.querySelectorAll("[data-notification-id]").forEach((item) => item.addEventListener("click", async () => {
+      await markNotificationRead(item.dataset.notificationId);
+      item.classList.remove("unread");
+      await refreshNotifications();
+    }));
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+function openNotificationComposer() {
+  const modal = document.createElement("div");
+  modal.className = "modal-backdrop";
+  modal.innerHTML = `<form class="compose-modal" id="notification-form"><div class="compose-modal-header"><div><span class="eyebrow">Private delivery</span><h2>Send notification</h2></div><button class="modal-close" type="button" aria-label="Close">×</button></div><label>Recipient email<input name="recipient" type="email" required placeholder="friend@example.com" /></label><label>Title<input name="title" required maxlength="160" placeholder="A quick update" /></label><label class="body-field">Message<textarea name="body" required maxlength="4000" rows="6" placeholder="Write a notification..."></textarea></label><p class="auth-error" data-notification-error role="alert"></p><div class="compose-modal-footer"><span class="compose-hint">The recipient must have an Elyra account.</span><button class="send-button" type="submit">Send notification <span>→</span></button></div></form>`;
+  document.body.append(modal);
+  modal.querySelector(".modal-close").addEventListener("click", () => modal.remove());
+  modal.addEventListener("click", (event) => { if (event.target === modal) modal.remove(); });
+  modal.querySelector("form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const submit = form.querySelector("[type=submit]");
+    const errorNode = form.querySelector("[data-notification-error]");
+    submit.disabled = true;
+    try {
+      await createNotification({ recipientEmail: data.get("recipient"), title: data.get("title"), body: data.get("body") });
+      modal.remove();
+      showToast("Notification delivered", "success");
+    } catch (error) {
+      errorNode.textContent = error.message;
+      submit.disabled = false;
+    }
+  });
 }
 
 function openComposer(initial = {}) {
@@ -234,6 +392,8 @@ function showMessage(message) {
 
 window.addEventListener("DOMContentLoaded", () => {
   const settings = loadSettings();
+  updatePreviewModeBanner();
+  updateAccountUi();
   mountSecurityPage(document.querySelector("#settings-panel"));
   const theme = settings.theme || "light";
   document.body.dataset.theme = theme;
@@ -252,12 +412,18 @@ window.addEventListener("DOMContentLoaded", () => {
     showToast(`Showing ${quickFilter} messages`);
   });
   document.querySelector("#compose-button").addEventListener("click", () => openComposer());
+  document.querySelector("#command-palette").addEventListener("click", (event) => {
+    if (event.target.id === "command-palette") event.currentTarget.hidden = true;
+  });
   document.addEventListener("keydown", (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();
-      document.querySelector("#search-input").focus();
+      openCommandPalette();
     }
-    if (event.key === "Escape") document.querySelector("#compose-modal")?.remove();
+    if (event.key === "Escape") {
+      document.querySelector("#compose-modal")?.remove();
+      document.querySelector("#command-palette").hidden = true;
+    }
   });
   document.querySelector("#message-list").addEventListener("change", (event) => {
     const row = event.target.closest(".message-row");
@@ -314,7 +480,16 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!isDedicatedPanel) renderMessages();
   }));
   document.querySelector("#refresh-button").addEventListener("click", (event) => refreshMessages(event.currentTarget));
-  document.querySelector(".top-actions .icon-button").addEventListener("click", () => showToast("You are all caught up", "success"));
+  document.querySelector(".notification-button").addEventListener("click", openNotifications);
+  document.querySelector("#notification-button").addEventListener("click", () => {
+    if (getSession()) openNotificationComposer();
+    else showAuthModal("login");
+  });
+  refreshNotifications().catch((error) => console.error("Failed to load notifications", error));
+  window.setInterval(() => {
+    refreshNotifications().catch((error) => console.error("Notification polling failed", error));
+  }, 30000);
+  if (!getSession()) showAuthModal("login");
   document.querySelector(".top-actions .avatar").addEventListener("click", () => openSettings());
   document.querySelectorAll("#connect-account, #add-account").forEach((button) => button.addEventListener("click", () => alert("OAuth connection flow will be added in the next integration step.")));
   const openSettings = () => {

@@ -28,3 +28,15 @@ Elyra is currently under active development. Features, architecture, and APIs ma
 ### Desktop build
 
 Use `npm.cmd run check` for the frontend syntax check and `npm.cmd run build` to create the Windows Tauri installer. Sending mail requires `ELYRA_SMTP_FROM`, `ELYRA_SMTP_HOST`, `ELYRA_SMTP_USERNAME`, and `ELYRA_SMTP_PASSWORD` in the process environment.
+
+### Server and shared packages
+
+The Rust workspace now includes the reusable [`elyra-crypto`](packages/crypto)
+package and the authenticated [`server`](server) service. The server uses
+PostgreSQL for account metadata and sync cursors, Argon2id for password
+hashing, and signed access tokens. It never receives local encryption keys.
+
+Run `cargo run -p elyra-server` after starting the PostgreSQL service and
+configuring the variables from [`server/.env.example`](server/.env.example).
+Shared TypeScript contracts live in [`packages/types`](packages/types), and
+framework-neutral UI primitives live in [`packages/ui`](packages/ui).
