@@ -5,10 +5,17 @@
 The desktop client uses defense in depth around a local-first trust boundary:
 
 - Rust/Tauri is the privileged boundary. Browser JavaScript can request allowlisted commands but does not receive filesystem access.
-- SQLite is created under the platform app-local data directory, with foreign keys, WAL journaling, and `secure_delete` enabled for every connection.
+- SQLite is created at `%LOCALAPPDATA%\Elyra\elyra.sqlite3` on Windows, with foreign keys, WAL journaling, and `secure_delete` enabled for every connection.
 - Sensitive cryptographic operations run in Rust with AES-256-GCM, OS randomness, fresh nonces, strict key sizes, and authentication-tag validation.
 - Security posture checks are exposed through `get_security_status`; the Security Lab renders pass/fail state and does not fabricate a healthy result when the backend is unavailable.
 - Audit records are stored locally in `audit_events`, contain event type/outcome/details only, and are capped at 500 records. Keys, tokens, message bodies, and passwords must never be written to the audit log.
+
+### Current development limitation
+
+The cloud access token is currently stored in the Rust-owned `settings.cloud_session`
+row and is never exposed to the webview. This is an interim implementation, not
+the production design: move the token to the OS credential store before shipping
+cloud sync to real users. Until then, treat the local database as sensitive.
 
 ## Threat model
 

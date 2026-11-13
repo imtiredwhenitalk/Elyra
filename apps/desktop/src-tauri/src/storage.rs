@@ -16,10 +16,13 @@ pub struct CachedEmail {
     pub is_starred: bool,
 }
 
-fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
+    // Keep the data directory human-friendly on Windows: %LOCALAPPDATA%\Elyra.
     let directory = app
         .path()
-        .app_local_data_dir()
+        .local_data_dir()
+        .map(|base| base.join("Elyra"))
+        .or_else(|_| app.path().app_local_data_dir())
         .map_err(|error| error.to_string())?;
     fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
     Ok(directory.join("elyra.sqlite3"))
@@ -159,6 +162,60 @@ pub fn set_local_setting(app: AppHandle, key: String, value: String) -> Result<(
              ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             params![key, value],
         )
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn get_local_settings(app: AppHandle) -> Result<serde_json::Value, String> {
+    let database = connection(&app)?;
+    let mut statement = database
+        .prepare("SELECT key, value FROM settings WHERE key NOT LIKE 'cloud_%'")
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|error| error.to_string())?;
+    let mut values = serde_json::Map::new();
+    for row in rows {
+        let (key, raw) = row.map_err(|error| error.to_string())?;
+        let value = serde_json::from_str(&raw).unwrap_or(serde_json::Value::String(raw));
+        values.insert(key, value);
+    }
+    Ok(serde_json::Value::Object(values))
+}
+
+#[tauri::command]
+pub fn set_local_settings(app: AppHandle, values: serde_json::Value) -> Result<(), String> {
+    let object = values
+        .as_object()
+        .ok_or_else(|| "Settings must be a JSON object".to_string())?;
+    let database = connection(&app)?;
+    for (key, value) in object {
+        if key.starts_with("cloud_") {
+            continue;
+        }
+        let raw = match value {
+            serde_json::Value::String(text) => text.clone(),
+            other => other.to_string(),
+        };
+        database
+            .execute(
+                "INSERT INTO settings (key, value) VALUES (?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![key, raw],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_local_setting(app: AppHandle, key: String) -> Result<(), String> {
+    let database = connection(&app)?;
+    database
+        .execute("DELETE FROM settings WHERE key = ?1", params![key])
         .map(|_| ())
         .map_err(|error| error.to_string())
 }

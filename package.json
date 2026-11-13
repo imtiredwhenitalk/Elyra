@@ -1,7 +1,7 @@
 {
   "name": "elyra",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "scripts": {
     "build": "npm --prefix apps/desktop run build",
     "check": "npm --prefix apps/desktop run check",

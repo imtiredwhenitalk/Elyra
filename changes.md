@@ -141,5 +141,29 @@ responsive compact layout for medium screens, improved notification badge
 handling, and added a keyboard command palette with quick compose, filters,
 notifications, and settings actions via Ctrl/Cmd+K.
 
-Validation: browser command palette opened successfully; JS syntax,
+Validation: browser command palette opened successfully; JS syntax, 
 diagnostics, Tauri JSON, and diff checks passed.
+[200 OK] Shipped the Rust-first 0.2.0 rebuild:
+
+Moved mailbox behavior into a Rust SQLite engine with schema migration, demo
+seeding, search, filters, stats, drafts, bulk actions, snooze, attachments,
+sent-mail recording, export, and unit tests. Added a Rust cloud bridge for
+registration, login, sessions, notifications, and sync while keeping access
+tokens inside Rust. Added Rust diagnostics and changelog commands.
+
+Replaced image-based icons with one inline SVG sprite using `currentColor`,
+removed unused Noun Project assets, and rebuilt the desktop UI with four themes,
+four accents, density options, bulk actions, a command palette, a richer reading
+pane, and immediate preference persistence.
+
+Added a Windows release workflow that builds MSI/NSIS bundles, publishes stable
+asset names and SHA-256 checksums, and rewrote the portable launcher with MSI
+magic validation, checksum verification, install/update/uninstall flows. Rebuilt
+the public website and corrected installer scope and data-path documentation.
+
+Validation: [OK] `npm.cmd --prefix apps/desktop run check`; [OK] all inline icon
+names and static selectors cross-checked; [OK] workflow JSON/YAML reviewed.
+Rust compilation could not run locally because the Rust toolchain and MSVC build
+tools are unavailable in this environment; CI now tests the non-Tauri crates on
+Linux and checks the Tauri crate on Windows.
+

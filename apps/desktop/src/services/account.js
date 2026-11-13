@@ -1,3 +1,5 @@
+import { invoke, isDesktopRuntime } from "./tauri.js";
+
 const sessionKey = "elyra-session";
 const usersKey = "elyra-preview-users";
 const notificationsKey = "elyra-preview-notifications";
@@ -16,7 +18,7 @@ function writeJson(key, value) {
 }
 
 function browserPreview() {
-  return !(window.__TAURI__?.core?.invoke) && !window.__ELYRA_API_URL__;
+  return !isDesktopRuntime() && !window.__ELYRA_API_URL__;
 }
 
 async function passwordDigest(password) {
@@ -39,15 +41,43 @@ async function request(path, options = {}) {
   return body;
 }
 
+function mirrorSession(session) {
+  const mirrored = {
+    accessToken: session.access_token || session.accessToken || null,
+    expiresAt: session.expires_at || session.expiresAt || null,
+    user: session.user,
+  };
+  writeJson(sessionKey, mirrored);
+  return mirrored;
+}
+
 export function getSession() {
   return readJson(sessionKey, null);
 }
 
-export function clearSession() {
+export async function restoreSession() {
+  if (!isDesktopRuntime()) return getSession();
+  try {
+    const session = await invoke("cloud_session");
+    if (session) return mirrorSession(session);
+    localStorage.removeItem(sessionKey);
+    return null;
+  } catch {
+    return getSession();
+  }
+}
+
+export async function clearSession() {
   localStorage.removeItem(sessionKey);
+  if (isDesktopRuntime()) {
+    await invoke("cloud_logout").catch(() => {});
+  }
 }
 
 export async function registerAccount({ email, password, displayName }) {
+  if (isDesktopRuntime()) {
+    return mirrorSession(await invoke("cloud_register", { email, password, displayName }));
+  }
   if (browserPreview()) {
     const users = readJson(usersKey, []);
     if (users.some((user) => user.email.toLowerCase() === email.toLowerCase())) {
@@ -64,11 +94,13 @@ export async function registerAccount({ email, password, displayName }) {
     method: "POST",
     body: JSON.stringify({ email, password, display_name: displayName }),
   });
-  writeJson(sessionKey, { accessToken: session.access_token, expiresAt: session.expires_at, user: session.user });
-  return getSession();
+  return mirrorSession(session);
 }
 
 export async function loginAccount({ email, password }) {
+  if (isDesktopRuntime()) {
+    return mirrorSession(await invoke("cloud_login", { email, password }));
+  }
   if (browserPreview()) {
     const user = readJson(usersKey, []).find((item) => item.email.toLowerCase() === email.toLowerCase());
     if (!user || user.passwordHash !== await passwordDigest(password)) throw new Error("Invalid email or password");
@@ -80,11 +112,13 @@ export async function loginAccount({ email, password }) {
     method: "POST",
     body: JSON.stringify({ email, password, display_name: "Elyra user" }),
   });
-  writeJson(sessionKey, { accessToken: session.access_token, expiresAt: session.expires_at, user: session.user });
-  return getSession();
+  return mirrorSession(session);
 }
 
 export async function listNotifications() {
+  if (isDesktopRuntime()) {
+    return invoke("cloud_list_notifications");
+  }
   if (browserPreview()) {
     const session = getSession();
     return readJson(notificationsKey, []).filter((item) => item.recipientEmail === session?.user?.email);
@@ -93,6 +127,9 @@ export async function listNotifications() {
 }
 
 export async function createNotification({ recipientEmail, title, body }) {
+  if (isDesktopRuntime()) {
+    return invoke("cloud_send_notification", { recipientEmail, title, body });
+  }
   if (browserPreview()) {
     const session = getSession();
     const users = readJson(usersKey, []);
@@ -122,6 +159,9 @@ export async function createNotification({ recipientEmail, title, body }) {
 }
 
 export async function markNotificationRead(id) {
+  if (isDesktopRuntime()) {
+    return invoke("cloud_mark_notification_read", { id });
+  }
   if (browserPreview()) {
     const notifications = readJson(notificationsKey, []);
     writeJson(notificationsKey, notifications.map((item) => item.id === id ? { ...item, is_read: true } : item));

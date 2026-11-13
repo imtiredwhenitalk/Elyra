@@ -1,3 +1,6 @@
 # UI assets architecture
 
-Static icons and visual assets used by the desktop UI belong here. Assets should be referenced through the frontend distribution path and remain independent of Rust code.
+This folder holds generated application icons used by the Tauri bundle. Interface
+glyphs are not stored here: they live in the inline SVG sprite in `index.html` so
+they inherit `currentColor` and theme tokens. Keep runtime assets independent of
+Rust code.

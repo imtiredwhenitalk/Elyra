@@ -1,0 +1,108 @@
+name: Release Windows
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-windows
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            apps/desktop -> target
+
+      - name: Read app version
+        id: version
+        shell: pwsh
+        run: |
+          $config = Get-Content "apps/desktop/src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json
+          "version=$($config.version)" >> $env:GITHUB_OUTPUT
+
+      - name: Install frontend dependencies
+        working-directory: apps/desktop
+        run: npm ci
+
+      - name: Build desktop bundles
+        working-directory: apps/desktop
+        run: npm run build
+
+      - name: Build launcher
+        run: cargo build --release -p elyra-launcher
+
+      - name: Collect release assets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $dist = Join-Path $PWD "dist"
+          New-Item -ItemType Directory -Force -Path $dist | Out-Null
+
+          $candidates = Get-ChildItem -Path $PWD -Recurse -File -Filter "*.msi" |
+            Where-Object { $_.FullName -notmatch "node_modules" } |
+            Sort-Object LastWriteTime -Descending
+          if (-not $candidates) { throw "The desktop build did not produce an MSI." }
+          $msi = $candidates | Select-Object -First 1
+          Copy-Item $msi.FullName (Join-Path $dist "Elyra-latest-x64.msi")
+          Write-Host "MSI: $($msi.FullName)"
+
+          $setup = Get-ChildItem -Path $PWD -Recurse -File -Filter "*-setup.exe" |
+            Where-Object { $_.FullName -notmatch "node_modules" } |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+          if ($setup) {
+            Copy-Item $setup.FullName (Join-Path $dist "Elyra-latest-x64-setup.exe")
+            Write-Host "NSIS: $($setup.FullName)"
+          } else {
+            Write-Warning "No NSIS installer was produced; the MSI is still published."
+          }
+
+          $launcher = Get-ChildItem -Path $PWD -Recurse -File -Filter "elyra-launcher.exe" |
+            Where-Object { $_.FullName -notmatch "node_modules" } |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+          if (-not $launcher) { throw "The launcher build did not produce elyra-launcher.exe." }
+          Copy-Item $launcher.FullName (Join-Path $dist "Elyra-Launcher-x64.exe")
+          Write-Host "Launcher: $($launcher.FullName)"
+
+          $hash = (Get-FileHash (Join-Path $dist "Elyra-latest-x64.msi") -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  Elyra-latest-x64.msi" | Set-Content -Encoding ascii (Join-Path $dist "Elyra-latest-x64.msi.sha256")
+
+          Get-ChildItem $dist | Format-Table Name, Length
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref_name, 'v') && github.ref_name || format('v{0}', steps.version.outputs.version) }}
+          name: Elyra ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            dist/Elyra-latest-x64.msi
+            dist/Elyra-latest-x64.msi.sha256
+            dist/Elyra-latest-x64-setup.exe
+            dist/Elyra-Launcher-x64.exe

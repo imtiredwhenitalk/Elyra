@@ -1,10 +1,11 @@
 use lettre::message::Mailbox;
 use lettre::{Message, SmtpTransport, Transport};
-use rusqlite::{params, Connection};
+use rusqlite::params;
 use serde::Serialize;
-use std::fs;
-use std::path::PathBuf;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
+
+use crate::mailbox;
+use crate::storage;
 
 #[derive(Debug, Serialize)]
 pub struct SendEmail {
@@ -13,60 +14,28 @@ pub struct SendEmail {
     pub body: String,
 }
 
-fn local_save_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let directory = app
-        .path()
-        .app_local_data_dir()
-        .map_err(|error| error.to_string())?;
-    fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
-    Ok(directory.join("elyra.sqlite3"))
-}
-
-fn send_email_connection(app: &AppHandle) -> Result<Connection, String> {
-    let path = local_save_path(app)?;
-    Connection::open(path).map_err(|error| error.to_string())
-}
-
-fn save_send_email(app: &AppHandle, email: &SendEmail) -> Result<(), String> {
-    let conn = send_email_connection(app)?;
-    conn.execute(
-        "INSERT INTO send_email (recipient, subject, body) VALUES (?1, ?2, ?3)",
-        params![email.to, email.subject, email.body],
-    )
-    .map(|_| ())
-    .map_err(|error| error.to_string())
-}
-
 #[tauri::command]
 pub fn list_sent_emails(app: AppHandle) -> Result<Vec<SendEmail>, String> {
-    let conn = send_email_connection(&app)?;
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS send_email (
-            id INTEGER PRIMARY KEY,
-            recipient TEXT NOT NULL,
-            subject TEXT NOT NULL,
-            body TEXT NOT NULL
-        )",
-        [],
-    )
-    .map_err(|error| error.to_string())?;
-    let mut stmt = conn
-        .prepare("SELECT recipient, subject, body FROM send_email ORDER BY id DESC")
+    let database = storage::connection(&app)?;
+    let mut statement = database
+        .prepare(
+            "SELECT e.recipient, e.subject, e.body_text
+             FROM emails e JOIN folders f ON f.id = e.folder_id
+             WHERE lower(f.name) = 'sent' AND e.deleted_at IS NULL
+             ORDER BY e.received_at DESC, e.id DESC",
+        )
         .map_err(|error| error.to_string())?;
-    let email_iter = stmt
-        .query_map([], |row| {
+    let emails = statement
+        .query_map(params![], |row| {
             Ok(SendEmail {
                 to: row.get(0)?,
                 subject: row.get(1)?,
                 body: row.get(2)?,
             })
         })
+        .map_err(|error| error.to_string())?
+        .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(|error| error.to_string())?;
-
-    let mut emails = Vec::new();
-    for email in email_iter {
-        emails.push(email.map_err(|error| error.to_string())?);
-    }
     Ok(emails)
 }
 
@@ -104,5 +73,5 @@ pub fn send_email(app: AppHandle, to: String, subject: String, body: String) -> 
         .build();
 
     mailer.send(&message).map_err(|error| error.to_string())?;
-    save_send_email(&app, &SendEmail { to, subject, body })
+    mailbox::record_sent_email(&app, &to, &subject, &body)
 }

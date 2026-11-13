@@ -3,36 +3,406 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Elyra is a private, secure email workspace." />
-    <title>Elyra — Private email, by design</title>
+    <meta name="description" content="Elyra is a private, local-first email workspace for Windows. Mailbox logic runs in Rust, your messages stay in a local SQLite database, and the installer is one download away." />
+    <meta name="theme-color" content="#f4f1e8" />
+    <meta property="og:title" content="Elyra — Private email, built on Rust" />
+    <meta property="og:description" content="A calm desktop inbox with a Rust mailbox engine, local SQLite storage and a straightforward Windows installer." />
+    <meta property="og:type" content="website" />
+    <title>Elyra — Private email, built on Rust</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
+    <script>document.documentElement.classList.add("js");</script>
+    <script src="./app.js" defer></script>
   </head>
   <body>
-    <header class="site-header">
-      <a class="brand" href="./" aria-label="Elyra home"><span>e</span> Elyra</a>
-      <nav aria-label="Main navigation">
+    <header class="site-header" data-header>
+      <a class="brand" href="./" aria-label="Elyra home">
+        <span class="brand-mark" aria-hidden="true">e</span>
+        <span class="brand-name">Elyra</span>
+      </a>
+      <nav class="site-nav" data-nav aria-label="Main navigation">
+        <a href="#product">Product</a>
         <a href="#privacy">Privacy</a>
-        <a href="#features">Features</a>
-        <a class="header-button" href="#download">Download</a>
+        <a href="#download">Download</a>
+        <a href="#changes">Changes</a>
+        <a class="nav-github" href="https://github.com/imtiredwhenitalk/Elyra" target="_blank" rel="noreferrer">
+          GitHub
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" /></svg>
+        </a>
       </nav>
+      <a class="button button-small button-solid" href="#download">Get Elyra</a>
+      <button class="menu-button" type="button" data-menu aria-label="Open menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
     </header>
+
     <main>
       <section class="hero">
-        <p class="eyebrow">Your email. Your privacy. Your control.</p>
-        <h1>A calmer inbox for a more private life.</h1>
-        <p class="hero-copy">Elyra brings your accounts, security, and everyday communication into one fast desktop workspace.</p>
-        <div class="hero-actions" id="download">
-          <a class="button primary" href="./downloads/Elyra.msi">Download for Windows</a>
-          <a class="button secondary" href="#features">Explore Elyra</a>
+        <div class="hero-glow" aria-hidden="true"></div>
+        <div class="hero-copy reveal">
+          <p class="eyebrow"><span class="eyebrow-dot"></span> Windows desktop · v0.2.0</p>
+          <h1>Your inbox,<br /><em>back on your side.</em></h1>
+          <p class="lede">
+            Elyra is a quiet, local-first email workspace. Filtering, search, drafts and
+            statistics run in a Rust engine, while your messages stay in a SQLite
+            database on your PC — not someone else's cloud.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-solid button-large" href="#download" data-primary-download>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14" /></svg>
+              Download for Windows
+            </a>
+            <a class="button button-quiet button-large" href="#product">See what's inside</a>
+          </div>
+          <p class="hero-note">
+            MSI installer · Windows 10/11 · 64-bit · no account required to start
+          </p>
+          <ul class="hero-proof" aria-label="Key properties">
+            <li><b>Rust</b><span>mailbox engine</span></li>
+            <li><b>Local</b><span>SQLite storage</span></li>
+            <li><b>Private</b><span>by default</span></li>
+          </ul>
         </div>
-        <p class="download-note">Windows 10/11 · Desktop data stays local by default</p>
+
+        <div class="hero-preview reveal" aria-hidden="true">
+          <div class="preview-glow"></div>
+          <div class="preview-window">
+            <div class="preview-titlebar">
+              <span class="window-dots"><i></i><i></i><i></i></span>
+              <span>Elyra — Private inbox</span>
+              <span class="preview-secure">● local</span>
+            </div>
+            <div class="preview-body">
+              <aside class="preview-sidebar">
+                <span class="preview-brand">e <b>Elyra</b></span>
+                <span class="preview-compose">＋ Compose</span>
+                <span class="preview-nav active"><i></i>Inbox <b>4</b></span>
+                <span class="preview-nav"><i></i>Starred</span>
+                <span class="preview-nav"><i></i>Snoozed</span>
+                <span class="preview-nav"><i></i>Sent</span>
+                <span class="preview-nav"><i></i>Drafts <b>2</b></span>
+                <span class="preview-label">Spaces</span>
+                <span class="preview-nav"><i class="coral"></i>Important</span>
+                <span class="preview-nav"><i class="teal"></i>Updates</span>
+              </aside>
+              <div class="preview-main">
+                <div class="preview-top">
+                  <span><small>Local-first email</small><b>Good to see you, Alex</b></span>
+                  <span class="preview-avatar">AS</span>
+                </div>
+                <div class="preview-search">⌕ &nbsp;Search people, subjects and messages</div>
+                <div class="preview-heading"><b>Inbox</b><span>18 messages · just now</span></div>
+                <div class="preview-row unread">
+                  <span class="preview-check"></span>
+                  <span class="preview-face coral">MC</span>
+                  <span class="preview-copy"><b>Maya Chen</b><small>The quieter way to work</small><em>Fewer meetings, longer focus blocks, and a calmer inbox…</em></span>
+                  <span class="preview-time">12m</span>
+                </div>
+                <div class="preview-row unread">
+                  <span class="preview-check"></span>
+                  <span class="preview-face gold">ES</span>
+                  <span class="preview-copy"><b>Elyra Security</b><small>New sign-in protected</small><em>Protected with your device key. No action is needed.</em></span>
+                  <span class="preview-time">48m</span>
+                </div>
+                <div class="preview-row">
+                  <span class="preview-check"></span>
+                  <span class="preview-face teal">L</span>
+                  <span class="preview-copy"><b>Linear</b><small>Your weekly product digest</small><em>Inbox workspace reached the review milestone.</em></span>
+                  <span class="preview-time">3h</span>
+                </div>
+                <div class="preview-row">
+                  <span class="preview-check"></span>
+                  <span class="preview-face violet">JB</span>
+                  <span class="preview-copy"><b>Jon Bell</b><small>Re: Q4 planning notes</small><em>The smaller scope feels right. I added two notes…</em></span>
+                  <span class="preview-time">5h</span>
+                </div>
+              </div>
+              <aside class="preview-detail">
+                <span class="preview-badge">◆ Rust core online</span>
+                <div class="preview-privacy"><b>Privacy first</b><small>Messages stay in a local SQLite database.</small></div>
+                <span class="preview-label">At a glance</span>
+                <div class="preview-stats"><span><b>18</b><small>Messages</small></span><span><b>4</b><small>Unread</small></span><span><b>7</b><small>Starred</small></span><span><b>3</b><small>Files</small></span></div>
+                <span class="preview-label">Connected accounts</span>
+                <span class="preview-account"><i class="gmail">G</i><b>Personal</b><em>●</em></span>
+                <span class="preview-account"><i class="proton">P</i><b>Private</b><em>●</em></span>
+              </aside>
+            </div>
+          </div>
+        </div>
       </section>
-      <section class="feature-grid" id="features">
-        <article><span class="feature-icon">⌾</span><h2>Private by default</h2><p>Local encrypted cache, OS-level secret boundaries, and no server-side encryption keys.</p></article>
-        <article><span class="feature-icon">✦</span><h2>One focused inbox</h2><p>Unified accounts, smart spaces, quick filters, search, and a message viewer built for focus.</p></article>
-        <article id="privacy"><span class="feature-icon">✓</span><h2>Secure foundations</h2><p>Rust core, authenticated encryption, Argon2id accounts, and auditable sync boundaries.</p></article>
+
+      <section class="ticker" aria-label="Technology overview">
+        <span>Rust mailbox engine</span><i></i>
+        <span>Tauri desktop shell</span><i></i>
+        <span>SQLite local database</span><i></i>
+        <span>AES-256-GCM crypto</span><i></i>
+        <span>MSI + NSIS installers</span>
+      </section>
+
+      <section class="section product" id="product">
+        <div class="section-heading reveal">
+          <p class="eyebrow">The product</p>
+          <h2>An email workspace that respects the machine it runs on.</h2>
+          <p>
+            Most mail clients treat the browser as the product and your computer as a
+            cache. Elyra reverses that. The desktop app owns the data, the Rust core
+            owns the logic, and the interface stays out of the way.
+          </p>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature-card feature-wide reveal">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h7"/><circle cx="18" cy="12" r="3"/></svg>
+            </div>
+            <div>
+              <span class="card-index">01</span>
+              <h3>The mailbox engine is Rust, not JavaScript</h3>
+              <p>
+                Filtering, full-text search, folder mutations, bulk actions, drafts,
+                snooze, export and statistics are Tauri commands backed by SQLite.
+                The webview only renders what the core returns.
+              </p>
+            </div>
+            <div class="code-strip">
+              <code>list_mailbox</code><code>bulk_update_messages</code><code>export_mailbox</code>
+            </div>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon coral">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5.4c0 4.3-3 7.2-7 8.6-4-1.4-7-4.3-7-8.6V6l7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+            </div>
+            <span class="card-index">02</span>
+            <h3>Private by architecture</h3>
+            <p>
+              Messages, settings and security events live in a local database.
+              Secrets are validated by the Rust crypto layer. Cloud sync is optional,
+              never the default.
+            </p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon gold">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+            </div>
+            <span class="card-index">03</span>
+            <h3>Search that keeps up</h3>
+            <p>
+              Instant quick filters for unread, starred and attachments. Full-text
+              search across senders, subjects, previews and bodies without shipping a
+              single message to a search service.
+            </p>
+          </article>
+
+          <article class="feature-card reveal">
+            <div class="feature-icon teal">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="7" cy="17" r="2"/></svg>
+            </div>
+            <span class="card-index">04</span>
+            <h3>Built for long sessions</h3>
+            <p>
+              Four themes, accent colours, density controls, a command palette and a
+              reading pane designed for wide screens. Reduce-motion support is one
+              toggle away.
+            </p>
+          </article>
+
+          <article class="feature-card feature-wide reveal">
+            <div class="feature-icon violet">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m4 8 8 5 8-5"/></svg>
+            </div>
+            <div>
+              <span class="card-index">05</span>
+              <h3>Your local workspace, portable</h3>
+              <p>
+                Export your mailbox as a readable JSON backup. Reset the demo data,
+                inspect the SQLite path and check the exact engine version from the
+                built-in diagnostics panel.
+              </p>
+            </div>
+            <div class="mini-terminal">
+              <span><b>$</b> elyra --diagnostics</span>
+              <span class="dim">engine&nbsp;&nbsp; Rust + Tauri + SQLite</span>
+              <span class="dim">storage&nbsp; %LOCALAPPDATA%\Elyra\elyra.sqlite3</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section privacy" id="privacy">
+        <div class="privacy-card reveal">
+          <div class="privacy-copy">
+            <p class="eyebrow">Privacy, concretely</p>
+            <h2>No mystery servers between you and your mail.</h2>
+            <p>
+              Elyra does not need an account to open a local workspace. The desktop
+              build creates the database on first launch and keeps every mailbox
+              decision on the device. When cloud features are enabled, the Rust bridge
+              sends only what you explicitly ask for.
+            </p>
+            <a class="text-link" href="https://github.com/imtiredwhenitalk/Elyra" target="_blank" rel="noreferrer">
+              Inspect the source <span>→</span>
+            </a>
+          </div>
+          <ul class="privacy-list">
+            <li><span>01</span><div><b>Local SQLite by default</b><small>WAL journal, foreign keys and secure deletion.</small></div></li>
+            <li><span>02</span><div><b>Rust crypto boundary</b><small>AES-256-GCM round-trips without browser keys.</small></div></li>
+            <li><span>03</span><div><b>No tracking by default</b><small>The website is static and loads no analytics scripts.</small></div></li>
+            <li><span>04</span><div><b>Explicit cloud opt-in</b><small>Notifications and account sync require your action.</small></div></li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section download" id="download">
+        <div class="download-copy reveal">
+          <p class="eyebrow">Download</p>
+          <h2>Three clicks to a local inbox.</h2>
+          <p>
+            Download the MSI, run it, and Elyra opens with a demo mailbox you can
+            explore. The MSI installs for all users and may ask for administrator
+            approval. Prefer no elevation? Use the NSIS setup, which installs
+            per-user by default.
+          </p>
+          <ol class="steps">
+            <li><span>1</span><div><b>Download the MSI</b><small>Stable name: Elyra-latest-x64.msi</small></div></li>
+            <li><span>2</span><div><b>Run the installer</b><small>Windows Installer handles upgrades in place.</small></div></li>
+            <li><span>3</span><div><b>Open Elyra</b><small>The Rust core seeds your first local mailbox.</small></div></li>
+          </ol>
+        </div>
+
+        <div class="download-card reveal">
+          <div class="download-card-head">
+            <span class="platform-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3V5.5ZM12 4.1 21 2.8v8.7h-9V4.1ZM3 12.5h7.5v7.1L3 18.5v-6ZM12 12.5h9v8.7l-9-1.3v-7.4Z"/></svg>
+            </span>
+            <div><b>Elyra for Windows</b><small>Version 0.2.0 · 64-bit</small></div>
+            <span class="download-badge">Latest</span>
+          </div>
+
+          <a class="download-primary" href="https://github.com/imtiredwhenitalk/Elyra/releases/latest/download/Elyra-latest-x64.msi">
+            <span><b>Download MSI installer</b><small>Direct from GitHub Releases</small></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></svg>
+          </a>
+
+          <div class="download-secondary">
+            <a href="https://github.com/imtiredwhenitalk/Elyra/releases/latest/download/Elyra-Launcher-x64.exe">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="m9 10 3 2-3 2v-4Z"/></svg>
+              <span><b>Portable launcher</b><small>Downloads, verifies and installs</small></span>
+            </a>
+            <a href="https://github.com/imtiredwhenitalk/Elyra/releases/latest/download/Elyra-latest-x64-setup.exe">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6V3Z"/><path d="M14 3v5h4M9 13h6M9 17h4"/></svg>
+              <span><b>NSIS setup</b><small>No MSI policy required</small></span>
+            </a>
+          </div>
+
+          <div class="download-meta">
+            <span><b>Windows 10/11</b><small>64-bit · WebView2</small></span>
+            <span><b>Compact installer</b><small>exact size on the release page</small></span>
+            <span><b>MSI or NSIS</b><small>NSIS supports per-user install</small></span>
+          </div>
+
+          <p class="download-caveat">
+            Buttons resolve to the newest published GitHub Release. If a download is
+            not available yet, the release workflow is still publishing the build.
+          </p>
+          <a class="release-link" href="https://github.com/imtiredwhenitalk/Elyra/releases" target="_blank" rel="noreferrer">
+            Browse all releases <span>↗</span>
+          </a>
+        </div>
+      </section>
+
+      <section class="section changes" id="changes">
+        <div class="section-heading reveal">
+          <p class="eyebrow">What shipped</p>
+          <h2>Release 0.2.0 is the Rust-first rebuild.</h2>
+          <p>
+            This release moves the app's real behaviour out of browser JavaScript and
+            into a tested desktop core, then rebuilds the interface around it.
+          </p>
+        </div>
+        <div class="change-grid">
+          <article class="change-card reveal">
+            <span class="change-version">0.2.0</span>
+            <h3>Rust mailbox core</h3>
+            <p>Schema migration, demo seeding, search, folder filters, bulk actions, snooze, drafts, stats and JSON export now run as Tauri commands.</p>
+            <span class="change-tag">shipped</span>
+          </article>
+          <article class="change-card reveal">
+            <span class="change-version">0.2.0</span>
+            <h3>Interface rebuild</h3>
+            <p>A consistent inline SVG icon set, four themes, four accents, density options, a command palette and a much calmer reading pane.</p>
+            <span class="change-tag">shipped</span>
+          </article>
+          <article class="change-card reveal">
+            <span class="change-version">0.2.0</span>
+            <h3>Windows delivery</h3>
+            <p>A repeatable release workflow builds MSI and NSIS installers, publishes stable asset names, and adds a Rust launcher with SHA-256 verification.</p>
+            <span class="change-tag">shipped</span>
+          </article>
+          <article class="change-card next reveal">
+            <span class="change-version">next</span>
+            <h3>Provider sync</h3>
+            <p>Gmail and Outlook OAuth with PKCE, IMAP fetch, OS keychain storage for tokens and background sync are the next engineering milestone.</p>
+            <span class="change-tag next">planned</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="section faq" id="faq">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Questions</p>
+          <h2>Good to know before you install.</h2>
+        </div>
+        <div class="faq-list reveal">
+          <details open>
+            <summary>Does Elyra need an account?</summary>
+            <p>No. The desktop app opens a local workspace immediately. An Elyra account is only needed for optional cloud notifications and sync.</p>
+          </details>
+          <details>
+            <summary>Where is my mail stored?</summary>
+            <p>In a SQLite database in your Windows app-local data folder, usually <code>%LOCALAPPDATA%\Elyra\elyra.sqlite3</code>. The Settings panel shows the exact path.</p>
+          </details>
+          <details>
+            <summary>How large is the download?</summary>
+            <p>The app itself is compact, and the exact installer size is listed on the release page. Tauri uses the WebView2 runtime that ships with Windows 10 and 11; the installer embeds a bootstrapper if the runtime is missing.</p>
+          </details>
+          <details>
+            <summary>What about Gmail and Outlook?</summary>
+            <p>Provider OAuth and IMAP sync are the next milestone. Today Elyra is a complete local mailbox with demo data, drafts, export and a Rust security lab.</p>
+          </details>
+          <details>
+            <summary>Can I uninstall cleanly?</summary>
+            <p>Yes. Use Windows Settings → Apps → Elyra. Your local database can be removed separately from the app-local data folder if you want a full reset.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="cta reveal">
+        <div>
+          <p class="eyebrow">Ready when you are</p>
+          <h2>Give your inbox a quieter home.</h2>
+        </div>
+        <a class="button button-solid button-large" href="https://github.com/imtiredwhenitalk/Elyra/releases/latest/download/Elyra-latest-x64.msi">
+          Download Elyra
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></svg>
+        </a>
       </section>
     </main>
-    <footer><span>© 2026 Elyra</span><a href="./health">Service status</a></footer>
+
+    <footer class="site-footer">
+      <div class="footer-brand">
+        <span class="brand-mark" aria-hidden="true">e</span>
+        <div><b>Elyra</b><small>Private email, built on Rust.</small></div>
+      </div>
+      <div class="footer-links">
+        <a href="#product">Product</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#download">Download</a>
+        <a href="https://github.com/imtiredwhenitalk/Elyra" target="_blank" rel="noreferrer">Source</a>
+        <a href="https://github.com/imtiredwhenitalk/Elyra/actions" target="_blank" rel="noreferrer">Build status</a>
+      </div>
+      <p class="footer-note">© <span data-year>2026</span> Elyra. Built with Rust, Tauri and SQLite.</p>
+    </footer>
   </body>
 </html>

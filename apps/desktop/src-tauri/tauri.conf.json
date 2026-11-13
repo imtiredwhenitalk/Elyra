@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Elyra",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.elyra.desktop",
   "build": {
     "frontendDist": "../src",
@@ -11,9 +11,16 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Elyra",
-        "width": 800,
-        "height": 600
+        "title": "Elyra — Private inbox",
+        "width": 1360,
+        "height": 860,
+        "minWidth": 980,
+        "minHeight": 640,
+        "center": true,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true,
+        "theme": "Light"
       }
     ],
     "security": {
@@ -24,6 +31,12 @@
     "active": true,
     "targets": ["msi", "nsis"],
     "createUpdaterArtifacts": false,
+    "publisher": "Elyra",
+    "copyright": "© 2026 Elyra",
+    "category": "Productivity",
+    "shortDescription": "A private, local-first email workspace.",
+    "longDescription": "Elyra brings your inbox, privacy and everyday communication into one calm desktop workspace. Mailbox logic runs in Rust, data stays on your device by default, and the Windows installer is available as MSI or NSIS.",
+    "homepage": "https://github.com/imtiredwhenitalk/Elyra",
     "windows": {
       "webviewInstallMode": {
         "type": "embedBootstrapper"

@@ -4,50 +4,479 @@
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="styles.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>Elyra | Private inbox</title>
     <script type="module" src="./main.js" defer></script>
   </head>
 
-  <body>
+  <body data-theme="light" data-accent="moss" data-density="comfortable">
+    <svg class="icon-sprite" aria-hidden="true" focusable="false">
+      <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 5.5h16l1.2 7.5v5.5H2.8V13L4 5.5Z"/><path d="M2.8 13h5l1.7 2.6h5L16.2 13h5"/></symbol>
+      <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2.8" y="5" width="18.4" height="14" rx="2.4"/><path d="m3.5 6.5 8.5 6 8.5-6"/></symbol>
+      <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.6 2.6 5.3 5.9.8-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.8L12 3.6Z"/></symbol>
+      <symbol id="i-snooze" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3 1.8"/></symbol>
+      <symbol id="i-sent" viewBox="0 0 24 24"><path d="m21 3.5-8.1 17-2.7-6.5L3.5 11 21 3.5Z"/><path d="m10.2 14 4.2-4.2"/></symbol>
+      <symbol id="i-drafts" viewBox="0 0 24 24"><path d="M5 3.8h9.5L19 8.3v11.9H5V3.8Z"/><path d="M14 3.8v5h5"/><path d="M8.3 12.5h7.2M8.3 16h5.2"/></symbol>
+      <symbol id="i-archive" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="4.5" rx="1.2"/><path d="M4.8 9v10.5h14.4V9"/><path d="M9.5 13h5"/></symbol>
+      <symbol id="i-spam" viewBox="0 0 24 24"><path d="M12 2.9 21.1 12 12 21.1 2.9 12 12 2.9Z"/><path d="M12 7.3v5.4M12 16.3v.2"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 6.5h15M9.5 3.7h5l.8 2.8H8.7l.8-2.8Z"/><path d="M6.3 6.5 7.2 20h9.6l.9-13.5"/><path d="M10 10.3v6M14 10.3v6"/></symbol>
+      <symbol id="i-important" viewBox="0 0 24 24"><path d="M5 21V4.2c2.4-1.1 4.3-1.1 6.3 0s4 1.1 6.4 0V14c-2.4 1.1-4.3 1.1-6.4 0S7.4 12.9 5 14"/></symbol>
+      <symbol id="i-updates" viewBox="0 0 24 24"><path d="M4 10.5a8 8 0 0 1 16 0"/><path d="M4 10.5v5.2a1.8 1.8 0 0 0 1.8 1.8h1.7v-7H5.8A1.8 1.8 0 0 0 4 12.3v-1.8ZM20 10.5v5.2a1.8 1.8 0 0 1-1.8 1.8h-1.7v-7h1.7a1.8 1.8 0 0 1 1.8 1.8v-1.8Z"/></symbol>
+      <symbol id="i-security" viewBox="0 0 24 24"><path d="M12 2.8 20 6v5.6c0 4.7-3.2 7.8-8 9.6-4.8-1.8-8-4.9-8-9.6V6l8-3.2Z"/><path d="m8.7 12 2.1 2.1 4.5-4.4"/></symbol>
+      <symbol id="i-changes" viewBox="0 0 24 24"><path d="m12 3 1.6 4.7L18.5 9l-4.9 1.4L12 15l-1.6-4.6L5.5 9l4.9-1.3L12 3Z"/><path d="m18.5 14 .8 2.4 2.4.8-2.4.8-.8 2.4-.8-2.4-2.4-.8 2.4-.8.8-2.4Z"/></symbol>
+      <symbol id="i-profile" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20.3c.7-3.7 3.5-5.8 7.2-5.8s6.5 2.1 7.2 5.8"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+      <symbol id="i-compose" viewBox="0 0 24 24"><path d="M12 4.5H5.5v14h14V12"/><path d="m13.2 10.8 6.5-6.5 2 2-6.5 6.5-2.8.8.8-2.8Z"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.3"/><path d="m15.2 15.2 5 5"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.2 6.4"/><path d="M20 4.5V11h-6.4"/></symbol>
+      <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 9.4a6 6 0 0 0-12 0c0 6-2.4 7.1-2.4 7.1h16.8S18 15.4 18 9.4Z"/><path d="M10 20h4"/></symbol>
+      <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+      <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+      <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m4.5 12.5 5 5 10-11"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.4 21 20H3L12 3.4Z"/><path d="M12 9v4.7M12 17v.2"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.7"/><path d="M12 10.8v5M12 7.8v.2"/></symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.7"/><path d="M3.5 12h17M12 3.3c2.4 2.2 3.7 5.5 3.7 8.7S14.4 18.5 12 20.7c-2.4-2.2-3.7-5.5-3.7-8.7S9.6 5.5 12 3.3Z"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2.8 20 6v5.6c0 4.7-3.2 7.8-8 9.6-4.8-1.8-8-4.9-8-9.6V6l8-3.2Z"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.8" y="10" width="14.4" height="10" rx="2"/><path d="M8.2 10V7.6a3.8 3.8 0 0 1 7.6 0V10"/></symbol>
+      <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7.2 18.2a4.2 4.2 0 0 1-.5-8.4A5.6 5.6 0 0 1 17.5 11a3.6 3.6 0 0 1-.4 7.2H7.2Z"/></symbol>
+      <symbol id="i-paperclip" viewBox="0 0 24 24"><path d="m8.3 12.8 5.5-5.5a3.4 3.4 0 0 1 4.8 4.8l-7.1 7.1a5 5 0 0 1-7.1-7.1l7.1-7.1"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3.8v11.4M7.4 11l4.6 4.6 4.6-4.6"/><path d="M4.5 19.5h15"/></symbol>
+      <symbol id="i-send" viewBox="0 0 24 24"><path d="m21 3.5-8.1 17-2.7-6.5L3.5 11 21 3.5Z"/><path d="m10.2 14 4.2-4.2"/></symbol>
+      <symbol id="i-draft" viewBox="0 0 24 24"><path d="M5 3.8h9.5L19 8.3v11.9H5V3.8Z"/><path d="M14 3.8v5h5"/></symbol>
+      <symbol id="i-reply" viewBox="0 0 24 24"><path d="M9.5 5 4 10.5 9.5 16"/><path d="M4.5 10.5h9.7c3.2 0 5.3 2 5.3 5.3v2.7"/></symbol>
+      <symbol id="i-forward" viewBox="0 0 24 24"><path d="m14.5 5 5.5 5.5-5.5 5.5"/><path d="M19.5 10.5H9.8c-3.2 0-5.3 2-5.3 5.3v2.7"/></symbol>
+      <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20H5V5h9"/><path d="m14.5 8.5 6.5-4.5 1 3-9.2 9.2-3.3.8.8-3.3 4.2-5.2Z"/></symbol>
+      <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+      <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3.2a8.8 8.8 0 0 0 0 17.6c1.5 0 2.3-.8 2.3-1.9 0-1.4-1.3-1.7-1.3-3 0-1 .8-1.8 2.2-1.8h1.4c2.4 0 4.2-1.7 4.2-4.1 0-3.8-3.7-6.8-8.8-6.8Z"/><circle cx="7.4" cy="11" r="1"/><circle cx="10" cy="7.2" r="1"/><circle cx="15" cy="7.6" r="1"/><circle cx="17.5" cy="11.6" r="1"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.7"/><path d="M12 7.3V12l3 1.8"/></symbol>
+      <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M4 12h15M14 7l5 5-5 5"/></symbol>
+      <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M20 12H5M10 7l-5 5 5 5"/></symbol>
+      <symbol id="i-command" viewBox="0 0 24 24"><path d="M9 7.5V6a2.5 2.5 0 1 0-2.5 2.5H18a2.5 2.5 0 1 0-2.5-2.5v12a2.5 2.5 0 1 0 2.5-2.5H6a2.5 2.5 0 1 0 2.5 2.5v.5"/></symbol>
+      <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5.6" rx="7.5" ry="3"/><path d="M4.5 5.6v12.8c0 1.6 3.4 3 7.5 3s7.5-1.4 7.5-3V5.6"/><path d="M4.5 12c0 1.6 3.4 3 7.5 3s7.5-1.4 7.5-3"/></symbol>
+      <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M17 12v3M20 12v2"/></symbol>
+      <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="1.8"/><path d="M8.5 20h7M12 16.5V20"/></symbol>
+      <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3.5 5.5h17l-6.6 7.6v6.3l-3.8 1.8v-8.1L3.5 5.5Z"/></symbol>
+      <symbol id="i-tag" viewBox="0 0 24 24"><path d="M4 4h7l9 9-6.6 6.6L4 10.8V4Z"/><circle cx="8" cy="8" r="1.3"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-user-plus" viewBox="0 0 24 24"><circle cx="9.5" cy="8" r="3.4"/><path d="M3.5 20c.6-3.5 3.1-5.4 6-5.4s5.4 1.9 6 5.4"/><path d="M18 8v6M15 11h6"/></symbol>
+    </svg>
+
     <main class="app-shell">
-      <aside class="sidebar">
-        <div class="brand"><span class="brand-mark">e</span><span>Elyra</span></div>
-        <button class="compose-button" id="compose-button" type="button"><span>+</span> Compose</button>
-        <nav class="mail-nav" aria-label="Mailbox">
-          <button class="nav-item active" type="button" data-filter="inbox"><img class="nav-icon" src="./assets/mail.svg" alt="" /> Inbox <strong>4</strong></button>
-          <button class="nav-item" type="button" data-filter="starred"><img class="nav-icon" src="./assets/mail_star.svg" alt="" /> Starred</button>
-          <button class="nav-item" type="button" data-filter="snoozed"><img class="nav-icon" src="./assets/snooze.svg" alt="" /> Snoozed</button>
-          <button class="nav-item" type="button" data-filter="sent"><img class="nav-icon" src="./assets/send.svg" alt="" /> Sent</button>
-          <button class="nav-item" type="button" data-filter="drafts"><img class="nav-icon" src="./assets/sendmail.svg" alt="" /> Drafts <strong>2</strong></button>
-          <button class="nav-item" type="button" data-filter="spam"><img class="nav-icon" src="./assets/spam.svg" alt="" /> Spam <strong>1</strong></button>
-          <button class="nav-item" type="button" data-filter="trash"><img class="nav-icon" src="./assets/trash.svg" alt="" /> Trash</button>
+      <aside class="sidebar" aria-label="Workspace navigation">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">e</span>
+          <span class="brand-copy"><b>Elyra</b><small>Private workspace</small></span>
+        </div>
+
+        <button class="compose-button" id="compose-button" type="button">
+          <svg class="icon" aria-hidden="true"><use href="#i-compose"></use></svg>
+          <span>Compose</span>
+          <kbd>C</kbd>
+        </button>
+
+        <nav class="mail-nav" aria-label="Mailboxes">
+          <button class="nav-item active" type="button" data-filter="inbox">
+            <svg class="icon" aria-hidden="true"><use href="#i-inbox"></use></svg>
+            <span>Inbox</span>
+            <strong data-count="inbox" hidden>0</strong>
+          </button>
+          <button class="nav-item" type="button" data-filter="starred">
+            <svg class="icon" aria-hidden="true"><use href="#i-star"></use></svg>
+            <span>Starred</span>
+            <strong data-count="starred" hidden>0</strong>
+          </button>
+          <button class="nav-item" type="button" data-filter="snoozed">
+            <svg class="icon" aria-hidden="true"><use href="#i-snooze"></use></svg>
+            <span>Snoozed</span>
+            <strong data-count="snoozed" hidden>0</strong>
+          </button>
+          <button class="nav-item" type="button" data-filter="sent">
+            <svg class="icon" aria-hidden="true"><use href="#i-sent"></use></svg>
+            <span>Sent</span>
+            <strong data-count="sent" hidden>0</strong>
+          </button>
+          <button class="nav-item" type="button" data-filter="drafts">
+            <svg class="icon" aria-hidden="true"><use href="#i-drafts"></use></svg>
+            <span>Drafts</span>
+            <strong data-count="drafts" hidden>0</strong>
+          </button>
+          <button class="nav-item" type="button" data-filter="archive">
+            <svg class="icon" aria-hidden="true"><use href="#i-archive"></use></svg>
+            <span>Archive</span>
+            <strong data-count="archive" hidden>0</strong>
+          </button>
+          <button class="nav-item" type="button" data-filter="spam">
+            <svg class="icon" aria-hidden="true"><use href="#i-spam"></use></svg>
+            <span>Spam</span>
+            <strong data-count="spam" hidden>0</strong>
+          </button>
+          <button class="nav-item" type="button" data-filter="trash">
+            <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>
+            <span>Trash</span>
+            <strong data-count="trash" hidden>0</strong>
+          </button>
         </nav>
+
         <div class="sidebar-section-label">Spaces</div>
         <nav class="mail-nav" aria-label="Spaces">
-          <button class="nav-item" type="button" data-filter="important"><span class="space-dot coral"></span> Important</button>
-          <button class="nav-item" type="button" data-filter="updates"><span class="space-dot teal"></span> Updates</button>
-          <button class="nav-item" type="button" data-filter="security"><span class="space-dot gold"></span> Security</button>
+          <button class="nav-item" type="button" data-filter="important">
+            <span class="space-dot coral"></span>
+            <span>Important</span>
+            <strong data-count="important" hidden>0</strong>
+          </button>
+          <button class="nav-item" type="button" data-filter="updates">
+            <span class="space-dot teal"></span>
+            <span>Updates</span>
+            <strong data-count="updates" hidden>0</strong>
+          </button>
+          <button class="nav-item" type="button" data-filter="security">
+            <span class="space-dot gold"></span>
+            <span>Security</span>
+            <strong data-count="security" hidden>0</strong>
+          </button>
         </nav>
+
         <div class="sidebar-bottom">
-          <button class="nav-item" type="button" data-filter="changes"><span class="nav-icon">✦</span> Changes</button>
-          <button class="account-button" type="button" data-filter="profile"><span class="avatar small">AS</span><span><b>Alex Smith</b><small>3 accounts</small></span><span>⌄</span></button>
+          <button class="nav-item quiet" type="button" data-filter="changes">
+            <svg class="icon" aria-hidden="true"><use href="#i-changes"></use></svg>
+            <span>What's new</span>
+          </button>
+          <button class="nav-item quiet" type="button" data-filter="settings">
+            <svg class="icon" aria-hidden="true"><use href="#i-settings"></use></svg>
+            <span>Settings</span>
+          </button>
+          <button class="account-button" type="button" data-filter="profile" aria-label="Open profile">
+            <span class="avatar small">AS</span>
+            <span class="account-copy"><b>Alex Smith</b><small>alex@elyra.com</small></span>
+            <span class="account-chevron"><svg class="icon" aria-hidden="true"><use href="#i-chevron-down"></use></svg></span>
+          </button>
         </div>
       </aside>
+
       <section class="inbox-panel">
-        <header class="topbar"><div class="page-heading"><p class="eyebrow">Wednesday, September 28</p><h1>Good morning, Alex</h1></div><div class="top-actions"><button class="icon-button notification-button" title="Notifications" type="button"><img class="action-icon" src="./assets/notification.svg" alt="" /><span class="notification-count" hidden>0</span></button><button class="avatar" title="Account settings" type="button">AS</button></div></header>
-        <div class="toolbar"><label class="search-box"><span>⌕</span><input id="search-input" type="search" placeholder="Search mail" /><kbd>⌘ K</kbd></label><button class="filter-button" id="filter-button" type="button">All mail <span>⌄</span></button></div>
-        <div class="inbox-content"><div class="content-header"><div><h2 id="view-title">Inbox</h2><p id="view-subtitle">4 unread messages · Last synced just now</p></div><div class="header-actions"><button class="icon-button" title="Refresh" id="refresh-button" type="button"><img class="action-icon" src="./assets/resfresh.svg" alt="" /></button><button class="icon-button" title="More options" type="button">•••</button></div></div><div class="message-list" id="message-list" aria-live="polite"></div><div class="changes-panel" id="changes-panel" hidden><div class="change-icon">✦</div><h3>Changes &amp; roadmap</h3><p>The current build is a local UI prototype with realistic test emails. Provider OAuth and secure token storage are the next integration points.</p><div class="change-row"><span class="status-dot ready"></span><span><b>Inbox workspace</b><small>Ready for review</small></span></div><div class="change-row"><span class="status-dot next"></span><span><b>OAuth provider connections</b><small>Planned integration</small></span></div><div class="change-row"><span class="status-dot next"></span><span><b>Encrypted local cache</b><small>Planned integration</small></span></div></div><div class="profile-panel" id="profile-panel" hidden><div class="profile-hero"><span class="avatar large">AS</span><div><h3>Alex Smith</h3><p>alex.smith@gmail.com</p><span class="profile-status">● Privacy mode enabled</span></div></div><div class="domain-card"><span class="domain-icon">@</span><span><b>Custom Elyra address</b><small>alex@elyra.com</small></span><span class="domain-state">Reserved</span></div><div class="profile-stat-grid"><div><b>3</b><small>Connected accounts</small></div><div><b>1,248</b><small>Messages protected</small></div><div><b>100%</b><small>Local encryption</small></div></div><button class="profile-action" type="button" id="profile-settings">Open account settings <span>→</span></button></div><div class="settings-panel" id="settings-panel" hidden><div class="settings-nav"><button class="settings-tab active" type="button">General</button><button class="settings-tab" type="button">Privacy</button><button class="settings-tab" type="button">Notifications</button></div><div class="settings-form"><label>Display name<input value="Alex Smith" /></label><label>Elyra domain handle<input value="alex@elyra.com" /></label><label>Theme<select id="theme-select"><option value="light">Light garden</option><option value="dark">Dark moss</option><option value="midnight">Midnight</option><option value="oled">OLED black</option></select></label><div class="setting-toggle"><span><b>Local-only preview</b><small>Keep test email data on this device</small></span><input type="checkbox" checked /></div><div class="setting-toggle"><span><b>Desktop notifications</b><small>Show new message alerts</small></span><input type="checkbox" checked /></div><button class="save-button" type="button" id="save-settings">Save changes</button></div></div><article class="message-viewer" id="message-viewer" hidden></article></div>
+        <header class="topbar">
+          <div class="page-heading">
+            <p class="eyebrow">Local-first email</p>
+            <h1>Good to see you, <span id="welcome-name">Alex</span></h1>
+          </div>
+          <div class="top-actions">
+            <button class="icon-button notification-button" type="button" title="Notifications" aria-label="Open notifications">
+              <svg class="icon" aria-hidden="true"><use href="#i-bell"></use></svg>
+              <span class="notification-count" hidden>0</span>
+            </button>
+            <button class="avatar" type="button" data-filter="profile" title="Account settings">AS</button>
+          </div>
+        </header>
+
+        <div class="toolbar">
+          <label class="search-box">
+            <svg class="icon" aria-hidden="true"><use href="#i-search"></use></svg>
+            <input id="search-input" type="search" placeholder="Search people, subjects and messages" autocomplete="off" />
+            <kbd>/</kbd>
+          </label>
+          <button class="filter-button" id="filter-button" type="button">
+            All mail <svg class="icon" aria-hidden="true"><use href="#i-chevron-down"></use></svg>
+          </button>
+        </div>
+
+        <div class="inbox-content">
+          <div class="content-header">
+            <div>
+              <h2 id="view-title">Inbox</h2>
+              <p id="view-subtitle">Loading local mailbox…</p>
+            </div>
+            <div class="header-actions" id="content-actions">
+              <label class="select-all" title="Select all messages">
+                <input type="checkbox" id="select-all" />
+                <span>Select all</span>
+              </label>
+              <button class="icon-button" id="refresh-button" type="button" title="Refresh mailbox" aria-label="Refresh mailbox">
+                <svg class="icon" aria-hidden="true"><use href="#i-refresh"></use></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="bulk-bar" id="bulk-bar" hidden>
+            <span class="bulk-count" id="bulk-count">0 selected</span>
+            <div class="bulk-actions">
+              <button type="button" data-bulk="read"><svg class="icon"><use href="#i-mail"></use></svg>Read</button>
+              <button type="button" data-bulk="unread"><svg class="icon"><use href="#i-mail"></use></svg>Unread</button>
+              <button type="button" data-bulk="star"><svg class="icon"><use href="#i-star"></use></svg>Star</button>
+              <button type="button" data-bulk="archive"><svg class="icon"><use href="#i-archive"></use></svg>Archive</button>
+              <button type="button" data-bulk="spam"><svg class="icon"><use href="#i-spam"></use></svg>Spam</button>
+              <button type="button" data-bulk="restore"><svg class="icon"><use href="#i-inbox"></use></svg>Restore</button>
+              <button type="button" data-bulk="trash"><svg class="icon"><use href="#i-trash"></use></svg>Trash</button>
+              <button type="button" class="danger-text" data-bulk="delete"><svg class="icon"><use href="#i-x"></use></svg>Delete</button>
+            </div>
+          </div>
+
+          <div class="message-list" id="message-list" aria-live="polite"></div>
+          <div class="message-viewer" id="message-viewer" hidden></div>
+
+          <section class="changes-panel" id="changes-panel" data-panel="changes" hidden>
+            <div class="panel-heading">
+              <div>
+                <span class="eyebrow">Release notes</span>
+                <h3>What changed in Elyra</h3>
+                <p>Shipped improvements and the next pieces of the local-first roadmap.</p>
+              </div>
+              <span class="panel-chip">Rust powered</span>
+            </div>
+            <div class="changes-list" id="changes-list"></div>
+          </section>
+
+          <section class="profile-panel" id="profile-panel" data-panel="profile" hidden>
+            <div class="profile-hero">
+              <span class="avatar large" id="profile-initials">AS</span>
+              <div class="profile-identity">
+                <span class="eyebrow">Your workspace</span>
+                <h3 id="profile-name">Alex Smith</h3>
+                <p id="profile-email">alex@elyra.com</p>
+                <span class="profile-session-state" id="profile-session-state"></span>
+              </div>
+            </div>
+
+            <div class="domain-card">
+              <span class="domain-icon"><svg class="icon"><use href="#i-globe"></use></svg></span>
+              <span class="domain-copy">
+                <b>Personal Elyra address</b>
+                <small id="domain-preview">alex@elyra.com</small>
+              </span>
+              <button class="ghost-button" type="button" id="domain-copy">Copy</button>
+            </div>
+
+            <div class="profile-stat-grid">
+              <div><b id="profile-total">0</b><small>Messages protected</small></div>
+              <div><b id="profile-unread">0</b><small>Waiting for you</small></div>
+              <div><b id="profile-starred">0</b><small>Starred</small></div>
+              <div><b id="profile-accounts">1</b><small>Connected accounts</small></div>
+            </div>
+
+            <div class="panel-actions-row">
+              <button class="primary-button" type="button" id="profile-settings">
+                <svg class="icon"><use href="#i-settings"></use></svg>
+                Open settings
+              </button>
+              <button class="ghost-button" type="button" id="manage-account">
+                <svg class="icon"><use href="#i-cloud"></use></svg>
+                Manage account
+              </button>
+            </div>
+          </section>
+
+          <section class="settings-panel" id="settings-panel" data-panel="settings" hidden>
+            <div class="panel-heading">
+              <div>
+                <span class="eyebrow">Preferences</span>
+                <h3>Make Elyra yours</h3>
+                <p>Everything here is stored in the local SQLite database by the Rust core.</p>
+              </div>
+              <span class="panel-chip">Device only</span>
+            </div>
+
+            <form class="settings-form" id="settings-form">
+              <fieldset class="settings-section">
+                <legend>Identity</legend>
+                <div class="field-grid">
+                  <label>Display name
+                    <input id="display-name" type="text" maxlength="120" autocomplete="name" placeholder="Alex Smith" />
+                  </label>
+                  <label>Elyra address
+                    <input id="domain-handle" type="email" maxlength="180" autocomplete="email" placeholder="alex@elyra.com" />
+                  </label>
+                </div>
+                <label>Signature
+                  <textarea id="signature" rows="3" placeholder="Sent from Elyra"></textarea>
+                </label>
+              </fieldset>
+
+              <fieldset class="settings-section">
+                <legend>Appearance</legend>
+                <div class="field-grid three">
+                  <label>Theme
+                    <select id="theme-select">
+                      <option value="light">Warm light</option>
+                      <option value="dark">Forest dark</option>
+                      <option value="midnight">Midnight blue</option>
+                      <option value="oled">OLED black</option>
+                    </select>
+                  </label>
+                  <label>Accent
+                    <select id="accent-select">
+                      <option value="moss">Moss</option>
+                      <option value="ocean">Ocean</option>
+                      <option value="ember">Ember</option>
+                      <option value="violet">Violet</option>
+                    </select>
+                  </label>
+                  <label>Density
+                    <select id="density-select">
+                      <option value="comfortable">Comfortable</option>
+                      <option value="compact">Compact</option>
+                    </select>
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset class="settings-section">
+                <legend>Behaviour</legend>
+                <label class="setting-toggle">
+                  <span><b>Local-only mode</b><small>Keep mail on this device. Cloud features stay optional.</small></span>
+                  <input id="local-only" type="checkbox" checked />
+                </label>
+                <label class="setting-toggle">
+                  <span><b>Desktop notifications</b><small>Show a native alert when new mail arrives.</small></span>
+                  <input id="desktop-notifications" type="checkbox" checked />
+                </label>
+                <label class="setting-toggle">
+                  <span><b>Reduce motion</b><small>Turn off interface animations and transitions.</small></span>
+                  <input id="reduce-motion" type="checkbox" />
+                </label>
+              </fieldset>
+
+              <fieldset class="settings-section">
+                <legend>Elyra Cloud</legend>
+                <div class="account-state" id="settings-auth-state">
+                  <span class="status-dot"></span> Local-only — connect Elyra Cloud for notifications
+                </div>
+                <div class="panel-actions-row">
+                  <button class="ghost-button" type="button" id="open-auth">
+                    <svg class="icon"><use href="#i-cloud"></use></svg>
+                    Connect account
+                  </button>
+                  <button class="text-button" type="button" id="sign-out">Sign out</button>
+                </div>
+              </fieldset>
+
+              <fieldset class="settings-section">
+                <legend>Local data</legend>
+                <div class="panel-actions-row wrap">
+                  <button class="ghost-button" type="button" id="reset-demo">
+                    <svg class="icon"><use href="#i-refresh"></use></svg>
+                    Reset demo mailbox
+                  </button>
+                  <button class="ghost-button" type="button" id="export-mailbox">
+                    <svg class="icon"><use href="#i-download"></use></svg>
+                    Export JSON backup
+                  </button>
+                  <button class="ghost-button" type="button" id="refresh-diagnostics">
+                    <svg class="icon"><use href="#i-database"></use></svg>
+                    Refresh diagnostics
+                  </button>
+                </div>
+                <div class="diagnostics-grid" id="diagnostics-grid"></div>
+              </fieldset>
+
+              <div class="settings-footer">
+                <p>Appearance changes save immediately. Identity and behaviour changes save when you press Save changes.</p>
+                <button class="primary-button" type="button" id="save-settings">
+                  <svg class="icon"><use href="#i-check"></use></svg>
+                  Save changes
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
       </section>
-      <aside class="detail-panel"><div class="detail-top"><span class="secure-badge">● Local preview</span><button class="icon-button" title="Settings" id="settings-button" type="button">⚙</button></div><div class="privacy-card"><div class="shield">⌾</div><div><b>Privacy first</b><p>Your messages stay on this device in preview mode.</p></div></div><div class="accounts-heading"><h3>Connected accounts</h3><button type="button" id="add-account">+</button></div><div class="connected-account"><span class="provider-icon gmail">G</span><span><b>Personal</b><small>alex.smith@gmail.com</small></span><span class="sync-dot"></span></div><div class="connected-account"><span class="provider-icon proton">P</span><span><b>Private</b><small>alex@proton.me</small></span><span class="sync-dot"></span></div><button class="connect-button" type="button" id="connect-account">Connect account <span>→</span></button><button class="connect-button notification-compose-button" type="button" id="notification-button">Send notification <span>→</span></button></aside>
+
+      <aside class="detail-panel" aria-label="Workspace details">
+        <div class="detail-top">
+          <span class="secure-badge">
+            <svg class="icon"><use href="#i-shield"></use></svg>
+            Rust core online
+          </span>
+          <button class="icon-button" id="settings-button" type="button" title="Settings" aria-label="Open settings">
+            <svg class="icon"><use href="#i-settings"></use></svg>
+          </button>
+        </div>
+
+        <div class="privacy-card">
+          <span class="shield"><svg class="icon"><use href="#i-lock"></use></svg></span>
+          <div>
+            <b>Privacy first</b>
+            <p>Your messages stay in a local SQLite database protected by the Rust core.</p>
+          </div>
+        </div>
+
+        <section class="detail-section">
+          <div class="detail-section-heading">
+            <h3>At a glance</h3>
+            <span class="sync-status" id="sync-status">Synced just now</span>
+          </div>
+          <div class="mini-stats">
+            <div><b id="stat-total">0</b><small>Messages</small></div>
+            <div><b id="stat-unread">0</b><small>Unread</small></div>
+            <div><b id="stat-starred">0</b><small>Starred</small></div>
+            <div><b id="stat-attachments">0</b><small>Files</small></div>
+          </div>
+          <div class="storage-card">
+            <div class="storage-heading"><span>Local storage</span><b id="storage-label">0 B local</b></div>
+            <div class="storage-meter" id="storage-meter"><span></span></div>
+          </div>
+        </section>
+
+        <section class="detail-section">
+          <div class="detail-section-heading">
+            <h3>Connected accounts</h3>
+            <button class="icon-button tiny" type="button" id="add-account" title="Add account" aria-label="Add account">
+              <svg class="icon"><use href="#i-plus"></use></svg>
+            </button>
+          </div>
+          <div class="connected-account">
+            <span class="provider-icon gmail">G</span>
+            <span class="account-copy"><b>Personal</b><small>alex.smith@gmail.com</small></span>
+            <span class="sync-dot"></span>
+          </div>
+          <div class="connected-account">
+            <span class="provider-icon proton">P</span>
+            <span class="account-copy"><b>Private</b><small>alex@proton.me</small></span>
+            <span class="sync-dot"></span>
+          </div>
+          <div class="connected-account">
+            <span class="provider-icon elyra">E</span>
+            <span class="account-copy"><b>Elyra local</b><small>alex@elyra.com</small></span>
+            <span class="sync-dot"></span>
+          </div>
+          <button class="connect-button" type="button" id="connect-account">
+            Connect account
+            <svg class="icon"><use href="#i-arrow-right"></use></svg>
+          </button>
+        </section>
+
+        <section class="detail-section cloud-section">
+          <div class="detail-section-heading">
+            <h3>Elyra Cloud</h3>
+            <span class="status-dot"></span>
+          </div>
+          <p class="detail-note">Notifications and account sync are optional and handled by the Rust bridge.</p>
+          <button class="connect-button" type="button" id="notification-button">
+            Send a notification
+            <svg class="icon"><use href="#i-send"></use></svg>
+          </button>
+        </section>
+
+        <div class="detail-footer">
+          <kbd>Ctrl</kbd><kbd>K</kbd>
+          <span>Quick actions</span>
+        </div>
+      </aside>
     </main>
+
     <div class="auth-gate" id="auth-gate" hidden></div>
     <div class="notification-popover" id="notification-popover" hidden></div>
     <div class="command-palette-backdrop" id="command-palette" hidden>
       <div class="command-palette" role="dialog" aria-modal="true" aria-label="Quick actions">
-        <div class="command-search"><span>⌕</span><input id="command-input" type="search" placeholder="Search actions..." autocomplete="off" /></div>
+        <div class="command-search">
+          <svg class="icon"><use href="#i-command"></use></svg>
+          <input id="command-input" type="search" placeholder="Search actions…" autocomplete="off" />
+          <kbd>Esc</kbd>
+        </div>
         <div class="command-list" id="command-list"></div>
-        <p class="command-hint"><kbd>↑</kbd><kbd>↓</kbd> navigate <kbd>Enter</kbd> select <kbd>Esc</kbd> close</p>
+        <p class="command-hint"><kbd>↑</kbd><kbd>↓</kbd> navigate <kbd>Enter</kbd> select</p>
       </div>
     </div>
+    <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
   </body>
 </html>
