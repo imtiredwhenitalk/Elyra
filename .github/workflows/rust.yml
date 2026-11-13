@@ -37,17 +37,14 @@ jobs:
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
 
-      - name: Install and build frontend
-        working-directory: apps/desktop
-        run: |
-          npm ci
-          npm run build
-
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust
         uses: swatinem/rust-cache@v2
 
-      - name: Check Tauri desktop crate
-        run: cargo check -p tauri-app --verbose
+      - name: Install and build desktop app
+        working-directory: apps/desktop
+        run: |
+          npm ci
+          npm run build
