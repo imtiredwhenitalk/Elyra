@@ -169,7 +169,7 @@ fn session_from_response(value: serde_json::Value) -> Result<CloudSession, Strin
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cloud_register(
     app: AppHandle,
     email: String,
@@ -191,7 +191,7 @@ pub fn cloud_register(
     Ok(CloudSessionView::from(&session))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cloud_login(
     app: AppHandle,
     email: String,
@@ -212,12 +212,12 @@ pub fn cloud_login(
     Ok(CloudSessionView::from(&session))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cloud_session(app: AppHandle) -> Result<Option<CloudSessionView>, String> {
     Ok(load_session(&app)?.as_ref().map(CloudSessionView::from))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cloud_logout(app: AppHandle) -> Result<(), String> {
     let database = storage::connection(&app)?;
     database
@@ -226,7 +226,7 @@ pub fn cloud_logout(app: AppHandle) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cloud_list_notifications(app: AppHandle) -> Result<serde_json::Value, String> {
     let session = require_session(&app)?;
     let url = format!("{}/v1/notifications", api_base(&app)?);
@@ -238,7 +238,7 @@ pub fn cloud_list_notifications(app: AppHandle) -> Result<serde_json::Value, Str
     parse_response(response)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cloud_send_notification(
     app: AppHandle,
     recipient_email: String,
@@ -260,7 +260,7 @@ pub fn cloud_send_notification(
     parse_response(response)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cloud_mark_notification_read(app: AppHandle, id: String) -> Result<(), String> {
     let session = require_session(&app)?;
     let url = format!("{}/v1/notifications/{}/read", api_base(&app)?, id);
@@ -272,7 +272,7 @@ pub fn cloud_mark_notification_read(app: AppHandle, id: String) -> Result<(), St
     parse_response(response).map(|_| ())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cloud_sync_cursor(app: AppHandle) -> Result<serde_json::Value, String> {
     let session = require_session(&app)?;
     let url = format!("{}/v1/sync/cursor", api_base(&app)?);
@@ -284,7 +284,7 @@ pub fn cloud_sync_cursor(app: AppHandle) -> Result<serde_json::Value, String> {
     parse_response(response)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cloud_update_cursor(app: AppHandle, cursor: Option<String>) -> Result<(), String> {
     let session = require_session(&app)?;
     let url = format!("{}/v1/sync/cursor", api_base(&app)?);
@@ -299,7 +299,7 @@ pub fn cloud_update_cursor(app: AppHandle, cursor: Option<String>) -> Result<(),
     parse_response(response).map(|_| ())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cloud_health(app: AppHandle) -> Result<serde_json::Value, String> {
     let url = format!("{}/health", api_base(&app)?);
     let response = client()?

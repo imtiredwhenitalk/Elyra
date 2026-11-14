@@ -44,7 +44,7 @@ automatically fetches `<url>.sha256` when installing from a URL.
 
 ## Local data
 
-The desktop database lives at `%LOCALAPPDATA%\Elyra\elyra.sqlite3` on Windows.
+The desktop database lives at `%LOCALAPPDATA%\com.elyra.desktop\elyra.sqlite3` on Windows.
 The exact path is shown in **Settings → Diagnostics**. SQLite uses WAL journaling,
 foreign keys, and secure deletion.
 

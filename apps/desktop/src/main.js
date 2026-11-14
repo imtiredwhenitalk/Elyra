@@ -88,7 +88,14 @@ function formatBytes(bytes) {
 
 function formatSync(value) {
   if (!value) return "not synced yet";
-  return "just now";
+  const parsed = new Date(`${String(value).replace(" ", "T")}Z`);
+  if (Number.isNaN(parsed.getTime())) return "recently";
+  const minutes = Math.max(0, Math.floor((Date.now() - parsed.getTime()) / 60_000));
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return parsed.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
 function debounce(callback, delay = 180) {

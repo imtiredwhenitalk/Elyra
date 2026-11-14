@@ -102,7 +102,4 @@ jobs:
           name: Elyra ${{ steps.version.outputs.version }}
           generate_release_notes: true
           files: |
-            dist/Elyra-latest-x64.msi
-            dist/Elyra-latest-x64.msi.sha256
-            dist/Elyra-latest-x64-setup.exe
-            dist/Elyra-Launcher-x64.exe
+            dist/Elyra-*

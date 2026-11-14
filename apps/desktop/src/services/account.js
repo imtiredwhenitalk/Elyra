@@ -42,10 +42,18 @@ async function request(path, options = {}) {
 }
 
 function mirrorSession(session) {
+  const user = session.user
+    ? {
+        id: session.user.id,
+        email: session.user.email,
+        displayName: session.user.displayName || session.user.display_name || "",
+        createdAt: session.user.createdAt || session.user.created_at || null,
+      }
+    : null;
   const mirrored = {
     accessToken: session.access_token || session.accessToken || null,
     expiresAt: session.expires_at || session.expiresAt || null,
-    user: session.user,
+    user,
   };
   writeJson(sessionKey, mirrored);
   return mirrored;

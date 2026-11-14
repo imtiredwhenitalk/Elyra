@@ -32,3 +32,4 @@
 * Rewrote the portable launcher as a verifier/installer CLI.
 * Rewrote the public website and added `web/app.js` plus a matching favicon.
 * Corrected installer and data-path documentation.
+* Moved the database to the app-local identifier folder and moved blocking network commands off the main thread.

@@ -159,8 +159,8 @@
               <span class="card-index">01</span>
               <h3>The mailbox engine is Rust, not JavaScript</h3>
               <p>
-                Filtering, full-text search, folder mutations, bulk actions, drafts,
-                snooze, export and statistics are Tauri commands backed by SQLite.
+                Filtering, search, folder mutations, bulk actions, drafts, snooze,
+                export and statistics are Tauri commands backed by SQLite.
                 The webview only renders what the core returns.
               </p>
             </div>
@@ -189,8 +189,8 @@
             <span class="card-index">03</span>
             <h3>Search that keeps up</h3>
             <p>
-              Instant quick filters for unread, starred and attachments. Full-text
-              search across senders, subjects, previews and bodies without shipping a
+              Instant quick filters for unread, starred and attachments. Search
+              across senders, subjects, previews and bodies without shipping a
               single message to a search service.
             </p>
           </article>
@@ -224,7 +224,7 @@
             <div class="mini-terminal">
               <span><b>$</b> elyra --diagnostics</span>
               <span class="dim">engine&nbsp;&nbsp; Rust + Tauri + SQLite</span>
-              <span class="dim">storage&nbsp; %LOCALAPPDATA%\Elyra\elyra.sqlite3</span>
+              <span class="dim">storage&nbsp; %LOCALAPPDATA%\com.elyra.desktop\elyra.sqlite3</span>
             </div>
           </article>
         </div>
@@ -309,6 +309,9 @@
           <a class="release-link" href="https://github.com/imtiredwhenitalk/Elyra/releases" target="_blank" rel="noreferrer">
             Browse all releases <span>↗</span>
           </a>
+          <a class="release-link" href="https://github.com/imtiredwhenitalk/Elyra/releases/latest/download/Elyra-latest-x64.msi.sha256" target="_blank" rel="noreferrer">
+            Verify with SHA-256 <span>↗</span>
+          </a>
         </div>
       </section>
 
@@ -361,7 +364,7 @@
           </details>
           <details>
             <summary>Where is my mail stored?</summary>
-            <p>In a SQLite database in your Windows app-local data folder, usually <code>%LOCALAPPDATA%\Elyra\elyra.sqlite3</code>. The Settings panel shows the exact path.</p>
+            <p>In a SQLite database in your Windows app-local data folder, usually <code>%LOCALAPPDATA%\com.elyra.desktop\elyra.sqlite3</code>. The Settings panel shows the exact path.</p>
           </details>
           <details>
             <summary>How large is the download?</summary>
@@ -370,6 +373,10 @@
           <details>
             <summary>What about Gmail and Outlook?</summary>
             <p>Provider OAuth and IMAP sync are the next milestone. Today Elyra is a complete local mailbox with demo data, drafts, export and a Rust security lab.</p>
+          </details>
+          <details>
+            <summary>Windows showed a SmartScreen warning. Is that expected?</summary>
+            <p>The release builds are not code-signed yet, so Windows may ask you to confirm the publisher. Choose “More info” → “Run anyway” only if you downloaded the file from this repository’s Releases page. You can also compare the published SHA-256 checksum before installing.</p>
           </details>
           <details>
             <summary>Can I uninstall cleanly?</summary>

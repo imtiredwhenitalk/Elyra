@@ -43,7 +43,7 @@ fn required_setting(name: &str) -> Result<String, String> {
     std::env::var(name).map_err(|_| format!("SMTP setting {name} is not configured"))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn send_email(app: AppHandle, to: String, subject: String, body: String) -> Result<(), String> {
     let recipient: Mailbox = to
         .parse()
@@ -62,7 +62,7 @@ pub fn send_email(app: AppHandle, to: String, subject: String, body: String) -> 
     let message = Message::builder()
         .from(from)
         .to(recipient)
-        .subject(&subject)
+        .subject(subject.clone())
         .body(body.clone())
         .map_err(|error| error.to_string())?;
     let credentials = lettre::transport::smtp::authentication::Credentials::new(username, password);

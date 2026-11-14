@@ -17,12 +17,12 @@ pub struct CachedEmail {
 }
 
 pub(crate) fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
-    // Keep the data directory human-friendly on Windows: %LOCALAPPDATA%\Elyra.
+    // Tauri resolves this to %LOCALAPPDATA%\com.elyra.desktop on Windows. Using
+    // the app-local directory keeps the database out of the NSIS install folder
+    // and lets the installer's "delete app data" option remove it cleanly.
     let directory = app
         .path()
-        .local_data_dir()
-        .map(|base| base.join("Elyra"))
-        .or_else(|_| app.path().app_local_data_dir())
+        .app_local_data_dir()
         .map_err(|error| error.to_string())?;
     fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
     Ok(directory.join("elyra.sqlite3"))

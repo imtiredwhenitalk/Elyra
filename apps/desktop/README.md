@@ -27,7 +27,7 @@ bundler step. Browser preview falls back to `localStorage` through
 
 ## Local data
 
-`%LOCALAPPDATA%\Elyra\elyra.sqlite3` on Windows. Settings → Diagnostics shows the
+`%LOCALAPPDATA%\com.elyra.desktop\elyra.sqlite3` on Windows. Settings → Diagnostics shows the
 resolved path, SQLite version, database size, and mailbox counts.
 
 ## Sending mail

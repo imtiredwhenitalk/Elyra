@@ -167,3 +167,18 @@ Rust compilation could not run locally because the Rust toolchain and MSVC build
 tools are unavailable in this environment; CI now tests the non-Tauri crates on
 Linux and checks the Tauri crate on Windows.
 
+[200 OK] Hardened the 0.2.0 release follow-up:
+
+Moved the SQLite database to the app-local identifier directory
+(`%LOCALAPPDATA%\com.elyra.desktop\elyra.sqlite3`) so it no longer shares the
+NSIS per-user install folder and the installer's delete-app-data option removes
+it. Marked blocking cloud and SMTP commands as async so network work cannot
+freeze the webview, switched SMTP TLS from `tokio1-rustls-tls` to the blocking
+`rustls-tls` backend, normalized mirrored cloud profiles to camelCase, and
+corrected the data paths in the website, README and architecture docs. Added
+SmartScreen guidance and a SHA-256 verification link to the download page.
+
+Validation: [OK] `npm.cmd --prefix apps/desktop run check`; [OK] node syntax
+checks for the website and service modules; [OK] HTML tag-balance and anchor
+checks; [OK] Rust SQL placeholder, command argument and Tauri async-command
+review.
