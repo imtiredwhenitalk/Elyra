@@ -650,7 +650,7 @@ fn sync_inbox(
     let inbox_folder = mailbox::folder_id(&database, "Inbox")?;
     let mut imported = 0_i64;
 
-    for fetch in fetches {
+    for fetch in &fetches {
         let Some(raw) = fetch.body() else {
             continue;
         };
@@ -819,7 +819,7 @@ pub fn sync_email_account(
 
 #[tauri::command(async)]
 pub fn sync_all_accounts(app: AppHandle, limit: Option<u32>) -> Result<SyncSummary, String> {
-    let accounts = list_email_accounts(&app)?;
+    let accounts = list_email_accounts(app.clone())?;
     let mut results = Vec::new();
     let mut imported = 0_i64;
     for account in accounts {

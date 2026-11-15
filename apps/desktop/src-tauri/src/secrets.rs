@@ -17,13 +17,13 @@ mod platform {
             .map_err(|error| format!("Could not open the OS keychain: {error}"))
     }
 
-    pub(super) fn set_secret(user: &str, value: &str) -> Result<(), String> {
+    pub(crate) fn set_secret(user: &str, value: &str) -> Result<(), String> {
         entry(user)?
             .set_password(value)
             .map_err(|error| format!("Could not save the secret in the OS keychain: {error}"))
     }
 
-    pub(super) fn get_secret(user: &str) -> Result<Option<String>, String> {
+    pub(crate) fn get_secret(user: &str) -> Result<Option<String>, String> {
         match entry(user)?.get_password() {
             Ok(value) => Ok(Some(value)),
             Err(keyring::Error::NoEntry) => Ok(None),
@@ -33,7 +33,7 @@ mod platform {
         }
     }
 
-    pub(super) fn delete_secret(user: &str) -> Result<(), String> {
+    pub(crate) fn delete_secret(user: &str) -> Result<(), String> {
         match entry(user)?.delete_credential() {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
             Err(error) => Err(format!(
@@ -42,7 +42,7 @@ mod platform {
         }
     }
 
-    pub(super) fn available() -> bool {
+    pub(crate) fn available() -> bool {
         match entry("availability-probe") {
             Ok(probe) => match probe.get_password() {
                 Ok(_) | Err(keyring::Error::NoEntry) => true,
@@ -55,19 +55,19 @@ mod platform {
 
 #[cfg(not(windows))]
 mod platform {
-    pub(super) fn set_secret(_user: &str, _value: &str) -> Result<(), String> {
+    pub(crate) fn set_secret(_user: &str, _value: &str) -> Result<(), String> {
         Err("The OS keychain is only available in the Windows desktop build".to_string())
     }
 
-    pub(super) fn get_secret(_user: &str) -> Result<Option<String>, String> {
+    pub(crate) fn get_secret(_user: &str) -> Result<Option<String>, String> {
         Err("The OS keychain is only available in the Windows desktop build".to_string())
     }
 
-    pub(super) fn delete_secret(_user: &str) -> Result<(), String> {
+    pub(crate) fn delete_secret(_user: &str) -> Result<(), String> {
         Err("The OS keychain is only available in the Windows desktop build".to_string())
     }
 
-    pub(super) fn available() -> bool {
+    pub(crate) fn available() -> bool {
         false
     }
 }
