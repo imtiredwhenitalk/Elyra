@@ -3,12 +3,14 @@ import { invoke, isDesktopRuntime } from "./services/tauri.js";
 import {
   clearSession,
   createNotification,
+  getApiBase,
   getSession,
   listNotifications,
   loginAccount,
   markNotificationRead,
   registerAccount,
   restoreSession,
+  setApiBase,
 } from "./services/account.js";
 
 const state = {
@@ -24,6 +26,11 @@ const state = {
   composeDraftId: null,
   session: null,
   diagnostics: null,
+  accounts: [],
+  presets: [],
+  editingAccountId: null,
+  apiBase: "",
+  cloudMailRelay: false,
 };
 
 const QUICK_FILTERS = ["all", "unread", "starred", "attachments"];
@@ -96,6 +103,333 @@ function formatSync(value) {
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
   return parsed.toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+const PROVIDER_LABELS = {
+  gmail: "Gmail",
+  outlook: "Outlook",
+  icloud: "iCloud",
+  yahoo: "Yahoo",
+  fastmail: "Fastmail",
+  proton: "Proton",
+  elyra: "Elyra local",
+  custom: "Custom",
+};
+
+function providerLabel(provider) {
+  return PROVIDER_LABELS[provider] || "Custom";
+}
+
+function providerLetter(provider) {
+  return providerLabel(provider).slice(0, 1).toUpperCase();
+}
+
+function providerClass(provider) {
+  return ["gmail", "proton", "elyra"].includes(provider) ? provider : "custom";
+}
+
+function accountStatus(account) {
+  if (account.syncError) {
+    return `<span class="account-status error" title="${escapeHtml(account.syncError)}">Sync error</span>`;
+  }
+  if (!account.imapHost) return `<span class="account-status muted">Local only</span>`;
+  if (!account.hasPassword) return `<span class="account-status warn">Password missing</span>`;
+  return `<span class="account-status">${account.lastSyncAt ? `Synced ${formatSync(account.lastSyncAt)}` : "Ready to sync"}</span>`;
+}
+
+function accountRow(account) {
+  return `
+    <div class="connected-account" data-account-id="${account.id}">
+      <span class="provider-icon ${providerClass(account.provider)}">${escapeHtml(providerLetter(account.provider))}</span>
+      <span class="account-copy">
+        <b>${escapeHtml(account.displayName || account.email)}</b>
+        <small>${escapeHtml(account.email)}</small>
+      </span>
+      ${accountStatus(account)}
+      <span class="account-actions">
+        <button class="icon-button tiny" type="button" data-account-action="sync" data-account-id="${account.id}" title="Sync now" aria-label="Sync ${escapeHtml(account.email)}">${icon("refresh")}</button>
+        <button class="icon-button tiny" type="button" data-account-action="edit" data-account-id="${account.id}" title="Edit account" aria-label="Edit ${escapeHtml(account.email)}">${icon("settings")}</button>
+        <button class="icon-button tiny danger-text" type="button" data-account-action="delete" data-account-id="${account.id}" title="Remove account" aria-label="Remove ${escapeHtml(account.email)}">${icon("trash")}</button>
+      </span>
+    </div>
+  `;
+}
+
+function renderComposeAccounts() {
+  const select = $("#compose-account");
+  if (!select) return;
+  const previous = select.value;
+  const sendable = (state.accounts || []).filter((account) => account.smtpHost);
+  select.innerHTML = `<option value="">Environment SMTP</option>${sendable
+    .map((account) => `<option value="${account.id}">${escapeHtml(account.email)}</option>`)
+    .join("")}`;
+  if (previous && [...select.options].some((option) => option.value === previous)) {
+    select.value = previous;
+  } else if (sendable.length) {
+    select.value = String(sendable[0].id);
+  }
+}
+
+function renderAccounts() {
+  const accounts = state.accounts || [];
+  const detail = $("#connected-accounts");
+  if (detail) {
+    detail.innerHTML = accounts.length
+      ? accounts.map(accountRow).join("")
+      : `<p class="detail-note">No mail accounts yet. Add one to sync an IMAP inbox.</p>`;
+  }
+  const settings = $("#settings-accounts");
+  if (settings) {
+    settings.innerHTML = accounts.length
+      ? accounts.map(accountRow).join("")
+      : `<p class="detail-note">Add an IMAP account to pull mail into the local mailbox.</p>`;
+  }
+  const count = $("#profile-accounts");
+  if (count) count.textContent = String(accounts.length);
+  const syncAll = $("#sync-all-accounts");
+  if (syncAll) syncAll.disabled = !accounts.some((account) => account.imapHost);
+  renderComposeAccounts();
+}
+
+async function loadAccounts() {
+  try {
+    state.accounts = await invoke("list_email_accounts");
+  } catch (error) {
+    console.error("Failed to load email accounts", error);
+    state.accounts = [];
+  }
+  renderAccounts();
+  return state.accounts;
+}
+
+async function loadProviderPresets() {
+  if (state.presets.length) return state.presets;
+  try {
+    state.presets = await invoke("provider_presets");
+  } catch (error) {
+    console.error("Failed to load provider presets", error);
+    state.presets = [];
+  }
+  return state.presets;
+}
+
+async function syncAccount(accountId, button) {
+  if (button) {
+    button.disabled = true;
+    button.classList.add("spinning");
+  }
+  try {
+    const result = await invoke("sync_email_account", { accountId, limit: 40 });
+    await loadAccounts();
+    await refreshStats();
+    await loadMailbox({ keepSelection: true });
+    const label = result.imported === 1 ? "1 new message" : `${result.imported} new messages`;
+    showToast(`Synced ${label}`, "success");
+  } catch (error) {
+    await loadAccounts();
+    showToast(error.message || "IMAP sync failed", "error");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.classList.remove("spinning");
+    }
+  }
+}
+
+async function syncAllAccounts() {
+  try {
+    return await invoke("sync_all_accounts", { limit: 40 });
+  } catch (error) {
+    console.error("Sync all failed", error);
+    return { accounts: [], imported: 0, failed: true };
+  }
+}
+
+function accountInputFromForm(form) {
+  const data = new FormData(form);
+  return {
+    id: state.editingAccountId,
+    provider: data.get("provider"),
+    email: data.get("email"),
+    displayName: data.get("displayName"),
+    username: data.get("username"),
+    password: data.get("password") || null,
+    imapHost: data.get("imapHost"),
+    imapPort: Number(data.get("imapPort")) || 993,
+    imapSecurity: data.get("imapSecurity"),
+    smtpHost: data.get("smtpHost"),
+    smtpPort: Number(data.get("smtpPort")) || 465,
+    smtpSecurity: data.get("smtpSecurity"),
+  };
+}
+
+function applyPreset(modal, presetId) {
+  const preset = state.presets.find((item) => item.id === presetId);
+  const form = modal.querySelector("form");
+  if (!preset || preset.id === "custom") {
+    form.elements.imapHost.value = "";
+    form.elements.imapPort.value = "993";
+    form.elements.imapSecurity.value = "tls";
+    form.elements.smtpHost.value = "";
+    form.elements.smtpPort.value = "465";
+    form.elements.smtpSecurity.value = "tls";
+    const hint = modal.querySelector("[data-account-hint]");
+    if (hint) hint.textContent = preset?.hint || "Enter the server settings from your provider.";
+    return;
+  }
+  form.elements.imapHost.value = preset.imapHost;
+  form.elements.imapPort.value = String(preset.imapPort);
+  form.elements.imapSecurity.value = preset.imapSecurity;
+  form.elements.smtpHost.value = preset.smtpHost;
+  form.elements.smtpPort.value = String(preset.smtpPort);
+  form.elements.smtpSecurity.value = preset.smtpSecurity;
+  const hint = modal.querySelector("[data-account-hint]");
+  if (hint) hint.textContent = preset.hint;
+}
+
+async function openAccountModal(accountId = null) {
+  await loadProviderPresets();
+  const account = state.accounts.find((item) => Number(item.id) === Number(accountId));
+  state.editingAccountId = account?.id || null;
+  const providers = [
+    ...state.presets.filter((preset) => preset.id !== "custom"),
+    { id: "elyra", label: "Elyra local", hint: "A local Elyra workspace account. Add IMAP settings to sync a real inbox." },
+    ...state.presets.filter((preset) => preset.id === "custom"),
+  ];
+  const selectedProvider = account?.provider || "gmail";
+  const modal = document.createElement("div");
+  modal.className = "modal-backdrop";
+  modal.id = "account-modal";
+  modal.innerHTML = `
+    <form class="modal-card account-modal" id="account-form">
+      <div class="modal-header">
+        <div><span class="eyebrow">Mail account</span><h2>${account ? "Edit account" : "Connect a mailbox"}</h2></div>
+        <button class="icon-button" data-close type="button" aria-label="Close">${icon("x")}</button>
+      </div>
+      <div class="field-grid">
+        <label>Provider
+          <select name="provider" id="account-provider">
+            ${providers.map((preset) => `<option value="${preset.id}" ${preset.id === selectedProvider ? "selected" : ""}>${escapeHtml(preset.label)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Email address
+          <input name="email" type="email" required autocomplete="email" value="${escapeHtml(account?.email || "")}" placeholder="you@example.com" />
+        </label>
+      </div>
+      <div class="field-grid">
+        <label>Display name
+          <input name="displayName" value="${escapeHtml(account?.displayName || "")}" placeholder="Personal" />
+        </label>
+        <label>Username
+          <input name="username" autocomplete="username" value="${escapeHtml(account?.username || "")}" placeholder="Usually the email address" />
+        </label>
+      </div>
+      <label>Password
+        <input name="password" type="password" autocomplete="current-password" placeholder="${account?.hasPassword ? "Stored in the OS keychain — leave blank to keep" : "IMAP / app password"}" />
+      </label>
+      <p class="account-hint" data-account-hint></p>
+
+      <fieldset class="account-server">
+        <legend>Incoming mail (IMAP)</legend>
+        <div class="field-grid three">
+          <label>Server<input name="imapHost" value="${escapeHtml(account?.imapHost || "")}" placeholder="imap.example.com" /></label>
+          <label>Port<input name="imapPort" type="number" min="1" max="65535" value="${account?.imapPort || 993}" /></label>
+          <label>Security
+            <select name="imapSecurity">
+              <option value="tls" ${account?.imapSecurity !== "starttls" ? "selected" : ""}>TLS</option>
+              <option value="starttls" ${account?.imapSecurity === "starttls" ? "selected" : ""}>STARTTLS</option>
+            </select>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="account-server">
+        <legend>Outgoing mail (SMTP)</legend>
+        <div class="field-grid three">
+          <label>Server<input name="smtpHost" value="${escapeHtml(account?.smtpHost || "")}" placeholder="smtp.example.com" /></label>
+          <label>Port<input name="smtpPort" type="number" min="1" max="65535" value="${account?.smtpPort || 465}" /></label>
+          <label>Security
+            <select name="smtpSecurity">
+              <option value="tls" ${account?.smtpSecurity !== "starttls" ? "selected" : ""}>TLS</option>
+              <option value="starttls" ${account?.smtpSecurity === "starttls" ? "selected" : ""}>STARTTLS</option>
+            </select>
+          </label>
+        </div>
+      </fieldset>
+
+      <p class="test-result" data-test-result></p>
+      <p class="form-error" data-error role="alert"></p>
+      <div class="modal-footer">
+        ${account ? `<button class="text-button danger-text" type="button" data-delete-account>${icon("trash")} Remove</button>` : ""}
+        <button class="ghost-button" type="button" data-test-account>${icon("refresh")} Test connection</button>
+        <span class="modal-hint">${isDesktopRuntime() ? "Secrets are stored in the Windows Credential Manager" : "Browser preview stores account settings locally"}</span>
+        <button class="primary-button" type="submit">${icon("check")} ${account ? "Save account" : "Connect account"}</button>
+      </div>
+    </form>
+  `;
+  document.body.append(modal);
+  const form = modal.querySelector("form");
+  const hint = () => modal.querySelector("[data-account-hint]");
+  const initialPreset = state.presets.find((preset) => preset.id === selectedProvider);
+  if (initialPreset) hint().textContent = initialPreset.hint;
+  modal.querySelector("#account-provider").addEventListener("change", (event) => applyPreset(modal, event.target.value));
+  modal.querySelector("[data-close]").addEventListener("click", () => modal.remove());
+  modal.addEventListener("click", (event) => { if (event.target === modal) modal.remove(); });
+
+  modal.querySelector("[data-test-account]").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const result = modal.querySelector("[data-test-result]");
+    const error = modal.querySelector("[data-error]");
+    button.disabled = true;
+    result.textContent = "Testing IMAP and SMTP…";
+    result.className = "test-result";
+    error.textContent = "";
+    try {
+      const outcome = await invoke("test_email_settings", { account: accountInputFromForm(form) });
+      result.textContent = `${outcome.imapOk ? "IMAP ready" : "IMAP failed"} · ${outcome.smtpOk ? "SMTP ready" : "SMTP failed"} — ${outcome.detail}`;
+      result.classList.add(outcome.imapOk && outcome.smtpOk ? "success" : "error");
+    } catch (testError) {
+      result.textContent = testError.message || "Connection test failed";
+      result.classList.add("error");
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  modal.querySelector("[data-delete-account]")?.addEventListener("click", async () => {
+    if (!account) return;
+    if (!window.confirm(`Remove ${account.email} and its local messages from Elyra?`)) return;
+    try {
+      await invoke("delete_email_account", { id: account.id });
+      modal.remove();
+      await loadAccounts();
+      await refreshStats();
+      await loadMailbox();
+      showToast("Account removed", "success");
+    } catch (deleteError) {
+      modal.querySelector("[data-error]").textContent = deleteError.message || "Could not remove the account";
+    }
+  });
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const error = modal.querySelector("[data-error]");
+    const submit = form.querySelector("[type=submit]");
+    error.textContent = "";
+    submit.disabled = true;
+    try {
+      await invoke("save_email_account", { account: accountInputFromForm(form) });
+      modal.remove();
+      await loadAccounts();
+      await refreshStats();
+      showToast(account ? "Account updated" : "Mailbox connected", "success");
+    } catch (saveError) {
+      error.textContent = saveError.message || "Could not save the account";
+      submit.disabled = false;
+    }
+  });
+
+  form.elements.email.focus();
 }
 
 function debounce(callback, delay = 180) {
@@ -314,7 +648,7 @@ function updateStats(stats) {
   set("#stat-starred", String(stats.starred));
   set("#stat-attachments", String(stats.attachments));
   set("#stat-storage", formatBytes(stats.storage_bytes));
-  set("#stat-accounts", String(stats.accounts ?? 3));
+  set("#stat-accounts", String(stats.accounts ?? state.accounts.length));
   set("#storage-label", `${formatBytes(stats.storage_bytes)} local`);
   const meter = $("#storage-meter");
   if (meter) meter.style.setProperty("--value", `${Math.min(100, Math.max(4, (stats.storage_bytes / (50 * 1024 * 1024)) * 100))}%`);
@@ -341,10 +675,19 @@ async function refreshMailbox(button) {
     button.classList.add("spinning");
   }
   try {
+    const summary = await syncAllAccounts();
+    const failed = (summary.accounts || []).filter((account) => account.error);
     const stats = await invoke("refresh_mailbox");
     updateStats(stats);
+    await loadAccounts();
     await loadMailbox({ keepSelection: true });
-    showToast("Mailbox is up to date", "success");
+    if (failed.length) {
+      showToast(`${failed.length} account${failed.length === 1 ? "" : "s"} could not sync`, "error");
+    } else if (summary.imported > 0) {
+      showToast(`Synced ${summary.imported} new message${summary.imported === 1 ? "" : "s"}`, "success");
+    } else {
+      showToast("Mailbox is up to date", "success");
+    }
   } catch (error) {
     console.error("Refresh failed", error);
     showToast("Refresh failed", "error");
@@ -389,7 +732,7 @@ function renderProfile() {
     "#profile-total": String(state.stats.total),
     "#profile-unread": String(state.stats.unread),
     "#profile-starred": String(state.stats.starred),
-    "#profile-accounts": String(state.stats.accounts ?? 3),
+    "#profile-accounts": String(state.accounts.length || state.stats.accounts || 0),
   };
   Object.entries(nodes).forEach(([selector, value]) => {
     const node = $(selector);
@@ -417,6 +760,7 @@ async function renderDiagnostics() {
       <div><small>SQLite</small><strong>${escapeHtml(info.sqlite_version)}</strong></div>
       <div><small>Database</small><strong title="${escapeHtml(info.database_path)}">${formatBytes(info.database_bytes)}</strong></div>
       <div><small>Cloud API</small><strong>${info.cloud_configured ? "Configured" : "Local default"}</strong></div>
+      <div><small>OS keychain</small><strong>${info.keychain_available ? "Connected" : "Unavailable"}</strong></div>
       <div class="diag-path"><small>Data location</small><code>${escapeHtml(info.database_path)}</code></div>
     `;
   } catch (error) {
@@ -444,11 +788,12 @@ function renderSettings() {
   toggle("#local-only", settings.local_only ?? "true");
   toggle("#desktop-notifications", settings.desktop_notifications ?? "true");
   toggle("#reduce-motion", settings.reduce_motion ?? "false");
+  bind("#api-url-input", state.apiBase || "");
   const authState = $("#settings-auth-state");
   if (authState) {
     authState.innerHTML = state.session
-      ? `<span class="status-dot online"></span> Signed in as ${escapeHtml(state.session.user.displayName)}`
-      : `<span class="status-dot"></span> Local-only — connect Elyra Cloud for notifications`;
+      ? `<span class="status-dot online"></span> Signed in as ${escapeHtml(state.session.user.displayName)}${state.cloudMailRelay ? " · mail relay ready" : ""}`
+      : `<span class="status-dot"></span> Local-only — connect Elyra Cloud for notifications and server mail relay`;
   }
   renderDiagnostics();
 }
@@ -525,28 +870,50 @@ async function openNotifications() {
   }
 }
 
-function showAuthModal(mode = "login") {
+async function refreshCloudMailStatus() {
+  if (!state.session || !isDesktopRuntime()) {
+    state.cloudMailRelay = false;
+    return false;
+  }
+  try {
+    const status = await invoke("cloud_mail_status");
+    state.cloudMailRelay = Boolean(status?.configured);
+  } catch {
+    state.cloudMailRelay = false;
+  }
+  return state.cloudMailRelay;
+}
+
+function showAuthModal(mode = "login", { onboarding = false } = {}) {
   const gate = $("#auth-gate");
   gate.hidden = false;
   gate.innerHTML = `
     <form class="modal-card auth-modal" id="auth-form">
       <div class="modal-header">
-        <div><span class="eyebrow">Elyra account</span><h2>${mode === "login" ? "Welcome back" : "Create your account"}</h2></div>
+        <div><span class="eyebrow">${onboarding ? "Welcome to Elyra" : "Elyra account"}</span><h2>${mode === "login" ? "Welcome back" : "Create your account"}</h2></div>
         <button class="icon-button" id="close-auth" type="button" aria-label="Close">${icon("x")}</button>
       </div>
+      ${onboarding ? `<p class="auth-intro">Register once to send mail to any address through your Elyra server, receive notifications, and keep your account in sync. You can also continue offline.</p>` : ""}
       ${mode === "register" ? `<label>Display name<input name="displayName" required maxlength="120" placeholder="Alex Smith" /></label>` : ""}
       <label>Email<input name="email" type="email" autocomplete="email" required placeholder="you@example.com" /></label>
       <label>Password<input name="password" type="password" minlength="12" autocomplete="${mode === "login" ? "current-password" : "new-password"}" required placeholder="At least 12 characters" /></label>
+      <label>Server URL<input name="apiUrl" type="url" value="${escapeHtml(state.apiBase && state.apiBase !== "http://127.0.0.1:8787" ? state.apiBase : "")}" placeholder="https://your-server.example/api" /></label>
+      <p class="auth-server-hint">Use the address of your Elyra server. Local development defaults to http://127.0.0.1:8787.</p>
       <p class="form-error" id="auth-error" role="alert"></p>
       <div class="modal-footer">
         <button class="text-button" id="auth-switch" type="button">${mode === "login" ? "Create an account" : "I already have an account"}</button>
-        <span class="modal-hint">${isDesktopRuntime() ? "Rust cloud bridge" : "Browser preview"}</span>
+        ${onboarding ? `<button class="text-button" id="auth-skip" type="button">Continue offline</button>` : ""}
+        <span class="modal-hint">${isDesktopRuntime() ? "Secrets stay in the OS keychain" : "Browser preview"}</span>
         <button class="primary-button" type="submit">${mode === "login" ? "Sign in" : "Register"} ${icon("arrow-right")}</button>
       </div>
     </form>
   `;
   $("#close-auth").addEventListener("click", () => { gate.hidden = true; });
-  $("#auth-switch").addEventListener("click", () => showAuthModal(mode === "login" ? "register" : "login"));
+  $("#auth-switch").addEventListener("click", () => showAuthModal(mode === "login" ? "register" : "login", { onboarding }));
+  $("#auth-skip")?.addEventListener("click", () => {
+    localStorage.setItem("elyra-onboarding-skipped", "1");
+    gate.hidden = true;
+  });
   $("#auth-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -556,14 +923,17 @@ function showAuthModal(mode = "login") {
     submit.disabled = true;
     errorNode.textContent = "";
     try {
+      state.apiBase = await setApiBase(data.get("apiUrl"));
       await (mode === "login"
         ? loginAccount({ email: data.get("email"), password: data.get("password") })
         : registerAccount({ email: data.get("email"), password: data.get("password"), displayName: data.get("displayName") }));
       state.session = getSession();
+      localStorage.removeItem("elyra-onboarding-skipped");
       gate.hidden = true;
       updateAccountUi();
+      await refreshCloudMailStatus();
       renderSettings();
-      await refreshNotifications();
+      await refreshNotifications().catch(() => {});
       showToast(mode === "login" ? "Signed in" : "Account created", "success");
     } catch (error) {
       errorNode.textContent = error.message;
@@ -628,6 +998,7 @@ function openComposer(initial = {}) {
           <div><span class="eyebrow">New message</span><h2>${initial.draftId ? "Edit draft" : "Write with intention"}</h2></div>
           <button class="icon-button" id="close-compose" type="button" aria-label="Close">${icon("x")}</button>
         </div>
+        <label>From<select name="accountId" id="compose-account"></select></label>
         <label>To<input name="to" type="email" autocomplete="email" placeholder="name@example.com" /></label>
         <label>Subject<input name="subject" placeholder="A clear subject" /></label>
         <label class="body-field">Message<textarea name="body" rows="10" placeholder="Write your message..."></textarea></label>
@@ -640,6 +1011,7 @@ function openComposer(initial = {}) {
       </form>
     `;
     document.body.append(modal);
+    renderComposeAccounts();
     modal.addEventListener("click", (event) => {
       if (event.target === modal || event.target.closest("#close-compose")) modal.remove();
     });
@@ -683,7 +1055,12 @@ function openComposer(initial = {}) {
       submit.disabled = true;
       submit.innerHTML = `${icon("refresh")} Sending…`;
       try {
-        await invoke("send_email", { to: data.get("to"), subject: data.get("subject"), body: data.get("body") });
+        await invoke("send_email", {
+          to: data.get("to"),
+          subject: data.get("subject"),
+          body: data.get("body"),
+          accountId: data.get("accountId") ? Number(data.get("accountId")) : null,
+        });
         if (state.composeDraftId) await invoke("delete_draft", { id: state.composeDraftId }).catch(() => {});
         modal.remove();
         state.composeDraftId = null;
@@ -703,6 +1080,7 @@ function openComposer(initial = {}) {
   form.elements.body.value = initial.body || state.settings.signature || "";
   modal.querySelector("h2").textContent = initial.draftId ? "Edit draft" : "Write with intention";
   modal.querySelector("#delete-draft").hidden = !initial.draftId;
+  renderComposeAccounts();
   modal.hidden = false;
   form.elements.to.focus();
 }
@@ -926,8 +1304,8 @@ function bindEvents() {
   $("#refresh-button").addEventListener("click", (event) => refreshMailbox(event.currentTarget));
   $(".notification-button").addEventListener("click", openNotifications);
   $("#notification-button")?.addEventListener("click", openNotificationComposer);
-  $("#connect-account")?.addEventListener("click", () => showAuthModal("login"));
-  $("#add-account")?.addEventListener("click", () => showAuthModal("register"));
+  $("#connect-account")?.addEventListener("click", () => openAccountModal());
+  $("#add-account")?.addEventListener("click", () => openAccountModal());
   $("#manage-account")?.addEventListener("click", () => showPanel("profile"));
   $("#settings-button").addEventListener("click", () => showPanel("settings"));
   $("#profile-settings")?.addEventListener("click", () => showPanel("settings"));
@@ -945,11 +1323,34 @@ function bindEvents() {
 
   $("#settings-panel").addEventListener("click", (event) => {
     if (event.target.closest("#save-settings")) saveSettingsFromForm();
+    if (event.target.closest("#save-api-url")) saveApiUrl();
     if (event.target.closest("#reset-demo")) resetDemo();
     if (event.target.closest("#export-mailbox")) exportMailbox();
     if (event.target.closest("#refresh-diagnostics")) renderDiagnostics();
     if (event.target.closest("#sign-out")) signOut();
     if (event.target.closest("#open-auth")) showAuthModal("login");
+    if (event.target.closest("#add-mail-account")) openAccountModal();
+    if (event.target.closest("#sync-all-accounts")) refreshMailbox($("#sync-all-accounts"));
+  });
+
+  document.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-account-action]");
+    if (!action) return;
+    const accountId = Number(action.dataset.accountId);
+    if (action.dataset.accountAction === "edit") openAccountModal(accountId);
+    if (action.dataset.accountAction === "sync") syncAccount(accountId, action);
+    if (action.dataset.accountAction === "delete") {
+      const account = state.accounts.find((item) => item.id === accountId);
+      if (!account || !window.confirm(`Remove ${account.email} and its local messages from Elyra?`)) return;
+      invoke("delete_email_account", { id: accountId })
+        .then(async () => {
+          await loadAccounts();
+          await refreshStats();
+          await loadMailbox();
+          showToast("Account removed", "success");
+        })
+        .catch((error) => showToast(error.message || "Could not remove the account", "error"));
+    }
   });
 
   $("#settings-form")?.addEventListener("submit", (event) => {
@@ -1090,6 +1491,25 @@ async function saveSettingsFromForm() {
   }
 }
 
+async function saveApiUrl() {
+  const input = $("#api-url-input");
+  const button = $("#save-api-url");
+  if (!input) return;
+  try {
+    state.apiBase = await setApiBase(input.value);
+    input.value = state.apiBase;
+    await refreshCloudMailStatus();
+    renderSettings();
+    if (button) {
+      button.innerHTML = `${icon("check")} Server saved`;
+      window.setTimeout(() => { button.innerHTML = `${icon("check")} Save server`; }, 1600);
+    }
+    showToast("Server URL saved", "success");
+  } catch (error) {
+    showToast(error.message || "Could not save the server URL", "error");
+  }
+}
+
 async function resetDemo() {
   if (!window.confirm("Reset the local demo mailbox? Your current local test messages will be replaced.")) return;
   try {
@@ -1112,6 +1532,7 @@ async function signOut() {
 
 async function boot() {
   state.session = await restoreSession();
+  state.apiBase = await getApiBase().catch(() => "");
   try {
     state.settings = await invoke("get_local_settings");
   } catch {
@@ -1128,12 +1549,17 @@ async function boot() {
   } catch (error) {
     console.error("Demo seed failed", error);
   }
+  await loadAccounts();
   await refreshStats();
   await loadMailbox();
+  await refreshCloudMailStatus();
   renderChanges();
   renderProfile();
   renderSettings();
   renderDiagnostics();
+  if (!state.session && !localStorage.getItem("elyra-onboarding-skipped")) {
+    showAuthModal("register", { onboarding: true });
+  }
   refreshNotifications().catch(() => {});
   window.setInterval(() => refreshNotifications().catch(() => {}), 30000);
 }

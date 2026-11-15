@@ -125,7 +125,7 @@ fn color_for(sender: &str) -> String {
     COLORS[seed % COLORS.len()].to_string()
 }
 
-fn preview_of(body: &str) -> String {
+pub(crate) fn preview_of(body: &str) -> String {
     let compact = body.split_whitespace().collect::<Vec<_>>().join(" ");
     if compact.chars().count() > 150 {
         let truncated = compact.chars().take(147).collect::<String>();
@@ -175,7 +175,7 @@ fn has_column(database: &Connection, table: &str, column: &str) -> Result<bool, 
     Ok(false)
 }
 
-fn ensure_column(
+pub(crate) fn ensure_column(
     database: &Connection,
     table: &str,
     column: &str,
@@ -204,7 +204,7 @@ fn ensure_folders(database: &Connection) -> Result<(), String> {
     Ok(())
 }
 
-fn folder_id(database: &Connection, name: &str) -> Result<i64, String> {
+pub(crate) fn folder_id(database: &Connection, name: &str) -> Result<i64, String> {
     database
         .query_row(
             "SELECT id FROM folders WHERE lower(name) = lower(?1)",
@@ -343,7 +343,7 @@ fn insert_message(
     Ok(database.last_insert_rowid())
 }
 
-fn insert_attachment(
+pub(crate) fn insert_attachment(
     database: &Connection,
     email_id: i64,
     name: &str,
@@ -1226,6 +1226,8 @@ pub fn export_mailbox(app: AppHandle) -> Result<serde_json::Value, String> {
 
 pub(crate) fn record_sent_email(
     app: &AppHandle,
+    account: Option<i64>,
+    sender: &str,
     to: &str,
     subject: &str,
     body: &str,
@@ -1236,10 +1238,11 @@ pub(crate) fn record_sent_email(
         .execute(
             "INSERT INTO emails (account_id, provider_id, sender, subject, body_text, preview,
                 folder_id, is_read, is_starred, received_at, tag, recipient, updated_at, size_bytes)
-             VALUES (?1, ?2, 'Alex Smith', ?3, ?4, ?5, ?6, 1, 0, ?7, 'Sent', ?8, ?7, ?9)",
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, 0, ?8, 'Sent', ?9, ?8, ?10)",
             params![
-                account_id(&database),
+                account.unwrap_or_else(|| account_id(&database)),
                 format!("sent-{}", Utc::now().timestamp_nanos_opt().unwrap_or_default()),
+                sender,
                 subject,
                 body,
                 preview_of(body),

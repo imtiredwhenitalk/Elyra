@@ -37,6 +37,7 @@ case "$command" in
     compose config --quiet
     docker compose -f "$ROOT_DIR/infrastructure/docker/docker-build.yaml" config --quiet
     POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-validation-only}" REDIS_PASSWORD="${REDIS_PASSWORD:-validation-only}" \
+      ELYRA_JWT_SECRET="${ELYRA_JWT_SECRET:-validation-only-32-character-secret}" \
       docker compose -f "$ROOT_DIR/infrastructure/deployment/docker-compose.prod.yml" config --quiet
     echo "Compose configuration is valid."
     ;;

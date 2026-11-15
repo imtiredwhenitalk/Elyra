@@ -182,3 +182,47 @@ Validation: [OK] `npm.cmd --prefix apps/desktop run check`; [OK] node syntax
 checks for the website and service modules; [OK] HTML tag-balance and anchor
 checks; [OK] Rust SQL placeholder, command argument and Tauri async-command
 review.
+
+[200 OK] Added OS keychain secret storage and IMAP provider sync (0.3.0):
+
+Moved Elyra Cloud sessions and IMAP/SMTP passwords from SQLite to the Windows
+Credential Manager through keyring-rs; legacy settings.cloud_session rows
+migrate to the keychain on first read and are then deleted. Added the secrets
+module plus the providers module for account CRUD, provider presets, IMAP and
+SMTP connection tests, and INBOX sync with local read/starred state preserved.
+Extended send_email to use a selected account's SMTP transport and keychain
+password, with the existing environment variables as fallback. Added dynamic
+account UI, an add/edit account modal with presets, per-account and sync-all
+actions, compose account selection, keychain diagnostics, and browser-preview
+fallbacks for every new command. Bumped the workspace, desktop, launcher, and
+website version to 0.3.0.
+
+Validation: [OK] `npm.cmd --prefix apps/desktop run check`; [OK] node syntax
+checks for main.js, tauri.js, and account.js; [OK] HTML tag-balance and
+selector review; [OK] Rust API review against keyring, imap, mail-parser and
+lettre docs. Rust compilation runs in GitHub Actions because the local Rust
+toolchain and MSVC build tools are unavailable.
+
+[200 OK] Added first-run registration, server mail relay, and server deployment (0.3.0):
+
+The desktop app now shows a registration onboarding modal on first launch unless
+the user chooses Continue offline; the auth modal also accepts a configurable
+server URL, stored in SQLite `settings.api_url` and editable later under
+Settings → Elyra Cloud. The Rust cloud bridge resolves the API base from
+`ELYRA_API_URL`, the stored setting, or the compile-time
+`ELYRA_DEFAULT_API_URL`. Added the server-side SMTP relay (`lettre`) with
+`GET /v1/mail/status` and `POST /v1/mail/send`; `send_email` falls back to it
+when no local account or `ELYRA_SMTP_*` environment is configured, so registered
+users can write to any external address. Added the production deployment path:
+`.env.prod.example`, `deploy.sh` with build/backup/health checks, an optional
+Caddy HTTPS profile, a GitHub Actions SSH deploy workflow gated by
+`ELYRA_DEPLOY_ENABLED`, and `docs/deploy/SERVER.md`. Updated the server and
+infrastructure READMEs, `.gitignore`, and the release workflow's
+`ELYRA_DEFAULT_API_URL` build variable.
+
+Validation: [OK] `npm.cmd --prefix apps/desktop run check`; [OK] node syntax
+checks for main.js, tauri.js, and account.js; [OK] `docker compose config`
+review for the production, development, and build files; [OK] HTML
+tag-balance and selector review; [OK] Rust mail relay, cloud relay, and send
+fallback review. Rust compilation runs in GitHub Actions because the local Rust
+toolchain and MSVC build tools are unavailable.

@@ -1,0 +1,24 @@
+# Public HTTPS entrypoint for the Elyra production stack.
+#
+# Enable with `ELYRA_ENABLE_TLS=1` in .env.prod (or `./deploy.sh --tls`).
+# Caddy obtains and renews a Let's Encrypt certificate automatically, so the
+# DNS A/AAAA record for ELYRA_DOMAIN must already point at this server and
+# ports 80/443 must be reachable from the internet.
+#
+# The Nginx container still serves the website and proxies /api to the Rust
+# API. Caddy only terminates TLS and forwards traffic to it.
+
+{$ELYRA_DOMAIN} {
+	encode zstd gzip
+
+	reverse_proxy web:80 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

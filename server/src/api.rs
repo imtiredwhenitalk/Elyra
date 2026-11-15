@@ -12,7 +12,7 @@ use std::sync::Arc;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use uuid::Uuid;
 
-use crate::{auth::AuthError, users::UserRecord, AppState};
+use crate::{auth::AuthError, mailer::MailError, users::UserRecord, AppState};
 
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
@@ -26,6 +26,8 @@ pub fn router(state: Arc<AppState>) -> Router {
             get(list_notifications).post(create_notification),
         )
         .route("/v1/notifications/:id/read", patch(mark_notification_read))
+        .route("/v1/mail/status", get(mail_status))
+        .route("/v1/mail/send", post(send_mail))
         .with_state(state)
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
@@ -263,6 +265,63 @@ async fn mark_notification_read(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[derive(Debug, Serialize)]
+struct MailStatus {
+    configured: bool,
+    from: Option<String>,
+}
+
+async fn mail_status(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Result<Json<MailStatus>, ApiError> {
+    authenticated_user(&state, &headers)?;
+    Ok(Json(MailStatus {
+        configured: state.mail.configured(),
+        from: state.mail.from_address(),
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+struct MailInput {
+    to: String,
+    subject: String,
+    body: String,
+}
+
+async fn send_mail(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+    Json(input): Json<MailInput>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let sender = authenticated_user(&state, &headers)?;
+    let to = input.to.trim();
+    if !to.contains('@') || to.len() > 320 {
+        return Err(ApiError::BadRequest(
+            "a valid recipient email is required".into(),
+        ));
+    }
+    let subject = input.subject.trim();
+    if subject.is_empty() || subject.len() > 200 {
+        return Err(ApiError::BadRequest("email subject is invalid".into()));
+    }
+    if input.body.trim().is_empty() || input.body.len() > 100_000 {
+        return Err(ApiError::BadRequest("email body is invalid".into()));
+    }
+    let reply_to = state
+        .users
+        .find_by_id(sender)
+        .await
+        .map_err(ApiError::Database)?
+        .map(|user| (user.email, user.display_name));
+    state
+        .mail
+        .send(to, subject, &input.body, reply_to)
+        .await
+        .map_err(ApiError::Mail)?;
+    Ok(Json(serde_json::json!({ "status": "sent" })))
+}
+
 fn validate_credentials(input: &Credentials) -> Result<(), ApiError> {
     if !input.email.contains('@') || input.email.len() > 320 {
         return Err(ApiError::BadRequest("a valid email is required".into()));
@@ -296,6 +355,7 @@ enum ApiError {
     Unauthorized,
     NotFound,
     Auth(AuthError),
+    Mail(MailError),
     Database(sqlx::Error),
 }
 
@@ -315,6 +375,22 @@ impl IntoResponse for ApiError {
                 "resource not found".into(),
             ),
             Self::Auth(error) => (StatusCode::UNAUTHORIZED, "auth_error", error.to_string()),
+            Self::Mail(error) => {
+                let message = error.to_string();
+                let (status, code) = match error {
+                    MailError::NotConfigured => {
+                        (StatusCode::SERVICE_UNAVAILABLE, "mail_not_configured")
+                    }
+                    MailError::InvalidRecipient => {
+                        (StatusCode::BAD_REQUEST, "invalid_recipient")
+                    }
+                    MailError::InvalidReplyTo => {
+                        (StatusCode::BAD_REQUEST, "invalid_reply_to")
+                    }
+                    _ => (StatusCode::BAD_GATEWAY, "mail_delivery_failed"),
+                };
+                (status, code, message)
+            }
             Self::Database(error) => {
                 tracing::error!(%error, "database request failed");
                 (

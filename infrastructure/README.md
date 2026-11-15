@@ -20,15 +20,21 @@ The desktop application remains a native Tauri build. Use `./infrastructure/buil
 
 ## Production
 
-Set `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, and `ELYRA_JWT_SECRET` in the deployment environment, then run:
+Set `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, and `ELYRA_JWT_SECRET` in
+`infrastructure/deployment/.env.prod` (copy it from `.env.prod.example`), then
+run:
 
 ```sh
-docker compose -f infrastructure/deployment/docker-compose.prod.yml up -d --build
+./infrastructure/deployment/deploy.sh
 ```
 
-Only the Nginx website port is published. The API, PostgreSQL, and Redis stay
-on the private `elyra` network. The website is available on `WEB_PORT`
-(default `8080`).
+Add `--tls` to enable the optional Caddy profile with automatic HTTPS. The full
+walkthrough — DNS, secrets, SMTP relay, desktop server URL, backups, and GitHub
+Actions deployment — is in [`docs/deploy/SERVER.md`](../docs/deploy/SERVER.md).
+
+Only the website port is published by default. The API, PostgreSQL, and Redis
+stay on the private `elyra` network. With Caddy enabled, only ports 80/443 are
+public and the website port should bind to `127.0.0.1`.
 
 ## Release artifacts
 

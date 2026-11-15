@@ -4,7 +4,7 @@
 use serde::Serialize;
 use tauri::AppHandle;
 
-use crate::{mailbox, storage};
+use crate::{mailbox, secrets, storage};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ChangeEntry {
@@ -26,11 +26,47 @@ pub struct AppDiagnostics {
     pub database_bytes: i64,
     pub mailbox: mailbox::MailboxStats,
     pub cloud_configured: bool,
+    pub keychain_available: bool,
 }
 
 #[tauri::command]
 pub fn get_changelog() -> Vec<ChangeEntry> {
     vec![
+        ChangeEntry {
+            version: "0.3.0",
+            date: "2026-11-14",
+            title: "OS keychain secrets",
+            detail: "Elyra Cloud sessions and IMAP passwords are now stored in the Windows Credential Manager through keyring-rs instead of SQLite.",
+            status: "ready",
+        },
+        ChangeEntry {
+            version: "0.3.0",
+            date: "2026-11-14",
+            title: "IMAP provider sync",
+            detail: "Connect Gmail, Outlook, iCloud, Yahoo, Fastmail or a custom IMAP server, test the connection, and pull the newest INBOX messages into the Rust mailbox.",
+            status: "ready",
+        },
+        ChangeEntry {
+            version: "0.3.0",
+            date: "2026-11-15",
+            title: "First-run registration",
+            detail: "Register once, choose your Elyra server URL, and continue offline if you prefer. The server URL can be changed later under Settings.",
+            status: "ready",
+        },
+        ChangeEntry {
+            version: "0.3.0",
+            date: "2026-11-15",
+            title: "Send to any address",
+            detail: "Registered users can send through the optional server SMTP relay when no local mail account is configured; replies return to the sender.",
+            status: "ready",
+        },
+        ChangeEntry {
+            version: "0.3.0",
+            date: "2026-11-15",
+            title: "Server deployment",
+            detail: "Production Compose stack, health-checked deploy script, optional automatic HTTPS with Caddy, and an opt-in GitHub Actions SSH deploy workflow.",
+            status: "ready",
+        },
         ChangeEntry {
             version: "0.2.0",
             date: "2026-11-14",
@@ -76,8 +112,8 @@ pub fn get_changelog() -> Vec<ChangeEntry> {
         ChangeEntry {
             version: "next",
             date: "planned",
-            title: "Provider sync",
-            detail: "Gmail and Outlook OAuth with PKCE, IMAP fetch, OS keychain token storage and background sync are next.",
+            title: "Provider OAuth and background sync",
+            detail: "Gmail and Outlook OAuth with PKCE plus scheduled background sync are the next provider milestones.",
             status: "next",
         },
     ]
@@ -103,6 +139,9 @@ pub fn get_app_diagnostics(app: AppHandle) -> Result<AppDiagnostics, String> {
         database_path: database_path.to_string_lossy().to_string(),
         database_bytes,
         mailbox: mailbox::stats(&app)?,
-        cloud_configured: std::env::var("ELYRA_API_URL").is_ok(),
+        cloud_configured: crate::cloud::api_base(&app)
+            .map(|url| url != "http://127.0.0.1:8787")
+            .unwrap_or(false),
+        keychain_available: secrets::available(),
     })
 }

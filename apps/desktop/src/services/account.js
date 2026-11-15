@@ -3,7 +3,36 @@ import { invoke, isDesktopRuntime } from "./tauri.js";
 const sessionKey = "elyra-session";
 const usersKey = "elyra-preview-users";
 const notificationsKey = "elyra-preview-notifications";
-const apiBase = (window.__ELYRA_API_URL__ || "http://127.0.0.1:8787").replace(/\/$/, "");
+const apiUrlKey = "elyra-api-url";
+const DEFAULT_API_BASE = "http://127.0.0.1:8787";
+let apiBase = (window.__ELYRA_API_URL__ || localStorage.getItem(apiUrlKey) || DEFAULT_API_BASE).replace(/\/$/, "");
+
+export async function getApiBase() {
+  if (isDesktopRuntime()) {
+    try {
+      apiBase = String(await invoke("cloud_api_url")).replace(/\/$/, "");
+    } catch {
+      // Keep the current value if the Rust bridge is unavailable.
+    }
+  }
+  return apiBase;
+}
+
+export async function setApiBase(url) {
+  const trimmed = String(url || "").trim().replace(/\/$/, "");
+  if (isDesktopRuntime()) {
+    apiBase = String(await invoke("cloud_set_api_url", { url: trimmed })).replace(/\/$/, "");
+  } else {
+    apiBase = trimmed || DEFAULT_API_BASE;
+    try {
+      if (trimmed) localStorage.setItem(apiUrlKey, apiBase);
+      else localStorage.removeItem(apiUrlKey);
+    } catch {
+      // Preview storage may be disabled.
+    }
+  }
+  return apiBase;
+}
 
 function readJson(key, fallback) {
   try {

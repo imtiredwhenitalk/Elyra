@@ -10,35 +10,49 @@ The desktop client uses defense in depth around a local-first trust boundary:
 - Security posture checks are exposed through `get_security_status`; the Security Lab renders pass/fail state and does not fabricate a healthy result when the backend is unavailable.
 - Audit records are stored locally in `audit_events`, contain event type/outcome/details only, and are capped at 500 records. Keys, tokens, message bodies, and passwords must never be written to the audit log.
 
-### Current development limitation
+### Secret storage
 
-The cloud access token is currently stored in the Rust-owned `settings.cloud_session`
-row and is never exposed to the webview. This is an interim implementation, not
-the production design: move the token to the OS credential store before shipping
-cloud sync to real users. Until then, treat the local database as sensitive.
+Cloud sessions and IMAP/SMTP passwords are stored in the OS keychain through
+`keyring-rs` (Windows Credential Manager on Windows). The keychain service is
+`com.elyra.desktop`; cloud sessions use the `cloud_session` entry and each mail
+account uses `imap-account-<id>`. SQLite only holds the legacy
+`settings.cloud_session` row, which is migrated to the keychain on first read and
+then deleted. Secrets are never written to the webview, logs, or audit trail.
+
+### Server trust boundary
+
+The Elyra server stores only account metadata, sync cursors, notifications, and
+the optional SMTP relay configuration. It never receives desktop encryption keys
+or IMAP passwords. When a signed-in user has no local SMTP account, outbound
+mail is sent through the server relay and therefore transits the server's SMTP
+provider; the message body is not persisted by the Elyra server. Users who do
+not want that path can configure their own IMAP/SMTP account or continue
+local-only. The relay is disabled unless the operator sets `ELYRA_SMTP_HOST`.
 
 ## Threat model
 
 Protected against:
 
 - Accidental plaintext exposure through the crypto boundary and malformed ciphertext.
+- Plaintext credential storage: cloud tokens and mailbox passwords live in the OS credential store, not SQLite.
 - Corruption caused by invalid SQLite relationships or unsafe local database settings.
 - Unbounded local audit growth.
 - UI-only security claims when the Rust command is unavailable.
 
 Not yet protected against:
 
-- A compromised operating-system user or malware with access to the app data directory.
-- Account takeover, OAuth token theft, or remote mailbox abuse. OAuth must use Authorization Code + PKCE and OS keychain storage before production use.
+- A compromised operating-system user or malware with access to the app data directory or the unlocked credential store.
+- Account takeover, OAuth token theft, or remote mailbox abuse. Provider OAuth must use Authorization Code + PKCE and the same keychain storage before production use. IMAP currently uses app passwords over TLS/STARTTLS only.
 - Full forensic tamper resistance. Local SQLite audit records are evidence for troubleshooting, not a trusted remote security log.
 
 ## Required controls before production
 
-1. Store account refresh tokens and encryption keys in the platform credential store (Windows Credential Manager, macOS Keychain, Linux Secret Service), never in SQLite, localStorage, URLs, or logs.
-2. Replace placeholder SMTP/OAuth flows with TLS certificate validation, PKCE, state/nonce validation, token rotation, and least-privilege scopes.
+1. Store account refresh tokens and encryption keys in the platform credential store (Windows Credential Manager, macOS Keychain, Linux Secret Service), never in SQLite, localStorage, URLs, or logs. Cloud sessions and IMAP passwords are already keychain-backed; provider OAuth tokens are next.
+2. Replace placeholder SMTP/OAuth flows with TLS certificate validation, PKCE, state/nonce validation, token rotation, and least-privilege scopes. IMAP/SMTP already require TLS or STARTTLS with certificate validation.
 3. Add authenticated database export/backup, secure deletion UX, lock-on-idle, and a recovery procedure.
-4. Add structured redaction tests and negative tests for every Tauri command boundary.
-5. Ship remote, append-only audit forwarding only after user consent and with PII minimization.
+4. Add rate limiting and abuse controls to registration and the server mail relay before opening the service to the public.
+5. Add structured redaction tests and negative tests for every Tauri command boundary.
+6. Ship remote, append-only audit forwarding only after user consent and with PII minimization.
 
 ## Operational checks
 

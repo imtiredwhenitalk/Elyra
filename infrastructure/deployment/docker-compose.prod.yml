@@ -11,6 +11,13 @@ services:
             ELYRA_JWT_SECRET: ${ELYRA_JWT_SECRET:?ELYRA_JWT_SECRET must be set}
             ELYRA_SERVER_ADDR: 0.0.0.0:8787
             RUST_LOG: ${RUST_LOG:-elyra_server=info,tower_http=info}
+            ELYRA_SMTP_HOST: ${ELYRA_SMTP_HOST:-}
+            ELYRA_SMTP_PORT: ${ELYRA_SMTP_PORT:-587}
+            ELYRA_SMTP_SECURITY: ${ELYRA_SMTP_SECURITY:-starttls}
+            ELYRA_SMTP_USERNAME: ${ELYRA_SMTP_USERNAME:-}
+            ELYRA_SMTP_PASSWORD: ${ELYRA_SMTP_PASSWORD:-}
+            ELYRA_SMTP_FROM: ${ELYRA_SMTP_FROM:-}
+            ELYRA_SMTP_FROM_NAME: ${ELYRA_SMTP_FROM_NAME:-Elyra}
         depends_on:
             postgres:
                 condition: service_healthy
@@ -27,10 +34,29 @@ services:
             dockerfile: web/Dockerfile
         restart: unless-stopped
         ports:
-            - "${WEB_PORT:-8080}:80"
+            - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8080}:80"
         depends_on:
             api:
                 condition: service_healthy
+        networks: [elyra]
+
+    caddy:
+        image: caddy:2-alpine
+        profiles: [tls]
+        restart: unless-stopped
+        environment:
+            ELYRA_DOMAIN: ${ELYRA_DOMAIN:?ELYRA_DOMAIN must be set when the tls profile is enabled}
+        ports:
+            - "80:80"
+            - "443:443"
+            - "443:443/udp"
+        volumes:
+            - ./Caddyfile:/etc/caddy/Caddyfile:ro
+            - elyra-prod-caddy-data:/data
+            - elyra-prod-caddy-config:/config
+        depends_on:
+            web:
+                condition: service_started
         networks: [elyra]
 
     postgres:
@@ -67,6 +93,8 @@ services:
 volumes:
     elyra-prod-postgres:
     elyra-prod-redis:
+    elyra-prod-caddy-data:
+    elyra-prod-caddy-config:
 
 networks:
     elyra:

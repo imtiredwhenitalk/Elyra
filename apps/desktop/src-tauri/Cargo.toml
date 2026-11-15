@@ -1,6 +1,6 @@
 [package]
 name = "tauri-app"
-version = "0.2.0"
+version = "0.3.0"
 description = "Elyra — a private, local-first email workspace."
 authors = ["Elyra"]
 edition = "2021"
@@ -25,3 +25,9 @@ aes-gcm = "0.10"
 base64 = "0.22"
 rand = "0.8"
 sha2 = "0.10"
+imap = "2.4"
+mail-parser = "1.0"
+native-tls = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }

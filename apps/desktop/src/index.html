@@ -337,9 +337,36 @@
               </fieldset>
 
               <fieldset class="settings-section">
+                <legend>Mail accounts</legend>
+                <p class="settings-note">IMAP passwords are stored in the Windows Credential Manager. Account settings and cached mail stay in the local SQLite database.</p>
+                <div class="account-settings-list" id="settings-accounts"></div>
+                <div class="panel-actions-row wrap">
+                  <button class="ghost-button" type="button" id="add-mail-account">
+                    <svg class="icon"><use href="#i-plus"></use></svg>
+                    Add mail account
+                  </button>
+                  <button class="ghost-button" type="button" id="sync-all-accounts">
+                    <svg class="icon"><use href="#i-refresh"></use></svg>
+                    Sync all now
+                  </button>
+                </div>
+              </fieldset>
+
+              <fieldset class="settings-section">
                 <legend>Elyra Cloud</legend>
                 <div class="account-state" id="settings-auth-state">
                   <span class="status-dot"></span> Local-only — connect Elyra Cloud for notifications
+                </div>
+                <div class="settings-field">
+                  <label for="api-url-input">Server URL</label>
+                  <div class="api-url-row">
+                    <input id="api-url-input" type="url" placeholder="https://your-server.example/api" autocomplete="url" spellcheck="false" />
+                    <button class="ghost-button" type="button" id="save-api-url">
+                      <svg class="icon"><use href="#i-check"></use></svg>
+                      Save server
+                    </button>
+                  </div>
+                  <p class="settings-note">Point the desktop app at your Elyra server. Leave blank to use the built-in default. Changes apply to the next sign-in, mail relay and notification request.</p>
                 </div>
                 <div class="panel-actions-row">
                   <button class="ghost-button" type="button" id="open-auth">
@@ -424,20 +451,12 @@
               <svg class="icon"><use href="#i-plus"></use></svg>
             </button>
           </div>
-          <div class="connected-account">
-            <span class="provider-icon gmail">G</span>
-            <span class="account-copy"><b>Personal</b><small>alex.smith@gmail.com</small></span>
-            <span class="sync-dot"></span>
-          </div>
-          <div class="connected-account">
-            <span class="provider-icon proton">P</span>
-            <span class="account-copy"><b>Private</b><small>alex@proton.me</small></span>
-            <span class="sync-dot"></span>
-          </div>
-          <div class="connected-account">
-            <span class="provider-icon elyra">E</span>
-            <span class="account-copy"><b>Elyra local</b><small>alex@elyra.com</small></span>
-            <span class="sync-dot"></span>
+          <div class="connected-accounts" id="connected-accounts">
+            <div class="connected-account">
+              <span class="provider-icon elyra">E</span>
+              <span class="account-copy"><b>Elyra local</b><small>alex@elyra.com</small></span>
+              <span class="account-status muted">Loading</span>
+            </div>
           </div>
           <button class="connect-button" type="button" id="connect-account">
             Connect account

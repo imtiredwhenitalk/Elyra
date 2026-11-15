@@ -10,7 +10,7 @@ use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
 
-use crate::storage;
+use crate::{secrets, storage};
 
 const SESSION_KEY: &str = "cloud_session";
 
@@ -78,7 +78,7 @@ struct CursorInput<'a> {
     cursor: Option<&'a str>,
 }
 
-fn api_base(app: &AppHandle) -> Result<String, String> {
+pub(crate) fn api_base(app: &AppHandle) -> Result<String, String> {
     if let Ok(value) = std::env::var("ELYRA_API_URL") {
         if !value.trim().is_empty() {
             return Ok(value.trim_end_matches('/').to_string());
@@ -91,10 +91,46 @@ fn api_base(app: &AppHandle) -> Result<String, String> {
         })
         .optional()
         .map_err(|error| error.to_string())?;
-    Ok(value
-        .unwrap_or_else(|| "http://127.0.0.1:8787".to_string())
-        .trim_end_matches('/')
-        .to_string())
+    if let Some(value) = value {
+        let value = value.trim_end_matches('/').to_string();
+        if !value.is_empty() {
+            return Ok(value);
+        }
+    }
+    if let Some(value) = option_env!("ELYRA_DEFAULT_API_URL") {
+        if !value.trim().is_empty() {
+            return Ok(value.trim_end_matches('/').to_string());
+        }
+    }
+    Ok("http://127.0.0.1:8787".to_string())
+}
+
+#[tauri::command]
+pub fn cloud_api_url(app: AppHandle) -> Result<String, String> {
+    api_base(&app)
+}
+
+#[tauri::command]
+pub fn cloud_set_api_url(app: AppHandle, url: String) -> Result<String, String> {
+    let trimmed = url.trim().trim_end_matches('/').to_string();
+    let database = storage::connection(&app)?;
+    if trimmed.is_empty() {
+        database
+            .execute("DELETE FROM settings WHERE key = 'api_url'", [])
+            .map_err(|error| error.to_string())?;
+    } else {
+        if !trimmed.starts_with("http://") && !trimmed.starts_with("https://") {
+            return Err("Server URL must start with http:// or https://".to_string());
+        }
+        database
+            .execute(
+                "INSERT INTO settings (key, value) VALUES ('api_url', ?1)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![trimmed],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    api_base(&app)
 }
 
 fn client() -> Result<reqwest::blocking::Client, String> {
@@ -129,17 +165,34 @@ fn parse_response(response: reqwest::blocking::Response) -> Result<serde_json::V
 fn save_session(app: &AppHandle, session: &CloudSession) -> Result<(), String> {
     let database = storage::connection(app)?;
     let raw = serde_json::to_string(session).map_err(|error| error.to_string())?;
-    database
-        .execute(
-            "INSERT INTO settings (key, value) VALUES (?1, ?2)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            params![SESSION_KEY, raw],
-        )
-        .map(|_| ())
-        .map_err(|error| error.to_string())
+    // The OS keychain is the primary store. If it is unavailable (for example
+    // on a locked-down machine) keep the legacy SQLite row so the user can
+    // still sign in; it is deleted again as soon as the keychain works.
+    match secrets::set_secret(secrets::cloud_session_user(), &raw) {
+        Ok(()) => {
+            database
+                .execute("DELETE FROM settings WHERE key = ?1", params![SESSION_KEY])
+                .map_err(|error| error.to_string())?;
+            Ok(())
+        }
+        Err(_) => database
+            .execute(
+                "INSERT INTO settings (key, value) VALUES (?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![SESSION_KEY, raw],
+            )
+            .map(|_| ())
+            .map_err(|error| error.to_string()),
+    }
 }
 
 fn load_session(app: &AppHandle) -> Result<Option<CloudSession>, String> {
+    if let Ok(Some(raw)) = secrets::get_secret(secrets::cloud_session_user()) {
+        return serde_json::from_str(&raw)
+            .map(Some)
+            .map_err(|error| error.to_string());
+    }
+
     let database = storage::connection(app)?;
     let raw: Option<String> = database
         .query_row(
@@ -150,7 +203,17 @@ fn load_session(app: &AppHandle) -> Result<Option<CloudSession>, String> {
         .optional()
         .map_err(|error| error.to_string())?;
     match raw {
-        Some(raw) => serde_json::from_str(&raw).map(Some).map_err(|error| error.to_string()),
+        Some(raw) => {
+            let session: CloudSession =
+                serde_json::from_str(&raw).map_err(|error| error.to_string())?;
+            // Migrate sessions written by 0.2.0 into the OS keychain.
+            if secrets::set_secret(secrets::cloud_session_user(), &raw).is_ok() {
+                database
+                    .execute("DELETE FROM settings WHERE key = ?1", params![SESSION_KEY])
+                    .map_err(|error| error.to_string())?;
+            }
+            Ok(Some(session))
+        }
         None => Ok(None),
     }
 }
@@ -219,11 +282,12 @@ pub fn cloud_session(app: AppHandle) -> Result<Option<CloudSessionView>, String>
 
 #[tauri::command(async)]
 pub fn cloud_logout(app: AppHandle) -> Result<(), String> {
+    let keychain_result = secrets::delete_secret(secrets::cloud_session_user());
     let database = storage::connection(&app)?;
     database
         .execute("DELETE FROM settings WHERE key = ?1", params![SESSION_KEY])
-        .map(|_| ())
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+    keychain_result
 }
 
 #[tauri::command(async)]
@@ -304,6 +368,45 @@ pub fn cloud_health(app: AppHandle) -> Result<serde_json::Value, String> {
     let url = format!("{}/health", api_base(&app)?);
     let response = client()?
         .get(url)
+        .send()
+        .map_err(|error| error.to_string())?;
+    parse_response(response)
+}
+
+#[derive(Debug, Serialize)]
+struct MailInput<'a> {
+    to: &'a str,
+    subject: &'a str,
+    body: &'a str,
+}
+
+/// Send mail through the Elyra server relay. Returns the display name of the
+/// signed-in sender so the local Sent folder can show who sent the message.
+pub(crate) fn relay_send(
+    app: &AppHandle,
+    to: &str,
+    subject: &str,
+    body: &str,
+) -> Result<String, String> {
+    let session = require_session(app)?;
+    let url = format!("{}/v1/mail/send", api_base(app)?);
+    let response = client()?
+        .post(url)
+        .bearer_auth(&session.access_token)
+        .json(&MailInput { to, subject, body })
+        .send()
+        .map_err(|error| error.to_string())?;
+    parse_response(response)?;
+    Ok(session.user.display_name)
+}
+
+#[tauri::command(async)]
+pub fn cloud_mail_status(app: AppHandle) -> Result<serde_json::Value, String> {
+    let session = require_session(&app)?;
+    let url = format!("{}/v1/mail/status", api_base(&app)?);
+    let response = client()?
+        .get(url)
+        .bearer_auth(&session.access_token)
         .send()
         .map_err(|error| error.to_string())?;
     parse_response(response)

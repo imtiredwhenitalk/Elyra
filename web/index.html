@@ -40,7 +40,7 @@
       <section class="hero">
         <div class="hero-glow" aria-hidden="true"></div>
         <div class="hero-copy reveal">
-          <p class="eyebrow"><span class="eyebrow-dot"></span> Windows desktop · v0.2.0</p>
+          <p class="eyebrow"><span class="eyebrow-dot"></span> Windows desktop · v0.3.0</p>
           <h1>Your inbox,<br /><em>back on your side.</em></h1>
           <p class="lede">
             Elyra is a quiet, local-first email workspace. Filtering, search, drafts and
@@ -276,7 +276,7 @@
             <span class="platform-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3V5.5ZM12 4.1 21 2.8v8.7h-9V4.1ZM3 12.5h7.5v7.1L3 18.5v-6ZM12 12.5h9v8.7l-9-1.3v-7.4Z"/></svg>
             </span>
-            <div><b>Elyra for Windows</b><small>Version 0.2.0 · 64-bit</small></div>
+            <div><b>Elyra for Windows</b><small>Version 0.3.0 · 64-bit</small></div>
             <span class="download-badge">Latest</span>
           </div>
 
@@ -318,35 +318,35 @@
       <section class="section changes" id="changes">
         <div class="section-heading reveal">
           <p class="eyebrow">What shipped</p>
-          <h2>Release 0.2.0 is the Rust-first rebuild.</h2>
+          <h2>Release 0.3.0 connects your inbox to Elyra.</h2>
           <p>
-            This release moves the app's real behaviour out of browser JavaScript and
-            into a tested desktop core, then rebuilds the interface around it.
+            Connect real IMAP accounts, register once to send mail through your own
+            Elyra server, and deploy that server with one command.
           </p>
         </div>
         <div class="change-grid">
           <article class="change-card reveal">
-            <span class="change-version">0.2.0</span>
-            <h3>Rust mailbox core</h3>
-            <p>Schema migration, demo seeding, search, folder filters, bulk actions, snooze, drafts, stats and JSON export now run as Tauri commands.</p>
+            <span class="change-version">0.3.0</span>
+            <h3>Keychain + IMAP sync</h3>
+            <p>Add Gmail, Outlook, iCloud, Yahoo, Fastmail, Proton Bridge or a custom server. Passwords stay in the Windows Credential Manager and INBOX sync preserves local read and starred state.</p>
             <span class="change-tag">shipped</span>
           </article>
           <article class="change-card reveal">
-            <span class="change-version">0.2.0</span>
-            <h3>Interface rebuild</h3>
-            <p>A consistent inline SVG icon set, four themes, four accents, density options, a command palette and a much calmer reading pane.</p>
+            <span class="change-version">0.3.0</span>
+            <h3>Register and send anywhere</h3>
+            <p>A first-run registration flow, configurable server URL, and a server-side SMTP relay let registered users write to any external address without setting up a mail account.</p>
             <span class="change-tag">shipped</span>
           </article>
           <article class="change-card reveal">
-            <span class="change-version">0.2.0</span>
-            <h3>Windows delivery</h3>
-            <p>A repeatable release workflow builds MSI and NSIS installers, publishes stable asset names, and adds a Rust launcher with SHA-256 verification.</p>
+            <span class="change-version">0.3.0</span>
+            <h3>One-command server deploy</h3>
+            <p>A production Compose stack, optional automatic HTTPS with Caddy, health-checked <code>deploy.sh</code>, and an opt-in GitHub Actions SSH deploy workflow.</p>
             <span class="change-tag">shipped</span>
           </article>
           <article class="change-card next reveal">
             <span class="change-version">next</span>
-            <h3>Provider sync</h3>
-            <p>Gmail and Outlook OAuth with PKCE, IMAP fetch, OS keychain storage for tokens and background sync are the next engineering milestone.</p>
+            <h3>Provider OAuth</h3>
+            <p>Gmail and Outlook OAuth with PKCE, background sync, and scheduled refresh are the next engineering milestone.</p>
             <span class="change-tag next">planned</span>
           </article>
         </div>

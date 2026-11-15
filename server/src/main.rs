@@ -1,6 +1,7 @@
 mod api;
 mod auth;
 mod database;
+mod mailer;
 mod sync;
 mod users;
 
@@ -9,6 +10,7 @@ use std::{env, net::SocketAddr, sync::Arc};
 use api::router;
 use auth::AuthService;
 use database::Database;
+use mailer::MailService;
 use sync::SyncService;
 use users::UserService;
 
@@ -18,6 +20,7 @@ pub struct AppState {
     pub auth: AuthService,
     pub users: UserService,
     pub sync: SyncService,
+    pub mail: MailService,
 }
 
 #[tokio::main]
@@ -36,6 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         auth: AuthService::from_env()?,
         users: UserService::new(database.clone()),
         sync: SyncService::new(database.clone()),
+        mail: MailService::from_env()?,
     });
     let address: SocketAddr = env::var("ELYRA_SERVER_ADDR")
         .unwrap_or_else(|_| "127.0.0.1:8787".into())

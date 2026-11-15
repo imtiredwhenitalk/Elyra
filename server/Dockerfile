@@ -1,9 +1,10 @@
 FROM rust:1.85-bookworm AS builder
 WORKDIR /workspace
 
-COPY Cargo.toml Cargo.lock ./
-COPY packages/crypto packages/crypto
-COPY server server
+# The repository is a Cargo workspace, so every member manifest must be present
+# for dependency resolution even though only the server is compiled here.
+# .dockerignore keeps node_modules, build output, and local databases out.
+COPY . .
 RUN cargo build --release -p elyra-server
 
 FROM debian:bookworm-slim

@@ -22,6 +22,8 @@ Endpoints:
 - `GET /v1/notifications`
 - `POST /v1/notifications`
 - `PATCH /v1/notifications/:id/read`
+- `GET /v1/mail/status`
+- `POST /v1/mail/send`
 
 Passwords are hashed with Argon2id. Access tokens are signed JWTs and should be
 sent as `Authorization: Bearer <token>`.
@@ -30,6 +32,22 @@ To send an in-app notification, the authenticated client posts
 `recipient_email`, `title`, and `body`. The recipient must already have an
 Elyra account. Notifications are scoped to the recipient and cannot be read or
 marked as read by another user.
+
+## Outbound mail relay
+
+`POST /v1/mail/send` accepts `to`, `subject`, and `body` from an authenticated
+user and forwards the message through the SMTP relay configured with
+`ELYRA_SMTP_HOST`, `ELYRA_SMTP_PORT`, `ELYRA_SMTP_SECURITY` (`starttls` or
+`tls`), `ELYRA_SMTP_USERNAME`, `ELYRA_SMTP_PASSWORD`, `ELYRA_SMTP_FROM`, and
+`ELYRA_SMTP_FROM_NAME`. The desktop app uses it automatically when the user has
+no local SMTP account, so they can write to any external address without
+configuring a mail provider.
+
+The relay is disabled unless `ELYRA_SMTP_HOST` is set. `GET /v1/mail/status`
+reports whether it is configured. Messages are sent from the relay address with
+`Reply-To` set to the signed-in user's Elyra email, so replies return to them.
+Use a dedicated sending mailbox or a transactional provider and publish SPF,
+DKIM, and DMARC records. The server never stores desktop IMAP credentials.
 
 ## Container release
 

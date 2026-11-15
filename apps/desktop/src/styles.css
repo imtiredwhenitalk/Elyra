@@ -1492,6 +1492,28 @@ body[data-theme="oled"] .sender-avatar {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.settings-field {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.api-url-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.api-url-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.api-url-row .ghost-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .settings-form label,
 .auth-modal label,
 .modal-card label {
@@ -2032,6 +2054,102 @@ body[data-theme="oled"] .sender-avatar {
   border-bottom: 1px solid var(--border);
 }
 
+.account-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.account-status {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--text-faint);
+  background: var(--surface-muted);
+  font-size: 8.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.account-status.muted {
+  color: var(--text-faint);
+}
+
+.account-status.warn {
+  color: color-mix(in srgb, var(--gold) 70%, var(--text));
+  background: color-mix(in srgb, var(--gold) 16%, transparent);
+}
+
+.account-status.error {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+.account-settings-list {
+  margin-top: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+}
+
+.account-settings-list .connected-account:last-child {
+  border-bottom: 0;
+}
+
+.provider-icon.custom { background: #557a68; }
+.provider-icon.outlook { background: #3d6fa8; }
+.provider-icon.icloud { background: #4f87c7; }
+.provider-icon.yahoo { background: #8b5cb8; }
+.provider-icon.fastmail { background: #3d5f8a; }
+
+.settings-note {
+  margin: 0 0 10px;
+  color: var(--text-faint);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.account-modal {
+  width: min(640px, 100%);
+}
+
+.account-server {
+  margin: 14px 0 0;
+  padding: 12px 14px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+}
+
+.account-server legend {
+  padding: 0 6px;
+  color: var(--text-faint);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.account-hint {
+  margin: 8px 0 0;
+  color: var(--text-faint);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.test-result {
+  min-height: 15px;
+  margin: 10px 0 0;
+  color: var(--text-faint);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.test-result.success { color: var(--success); }
+.test-result.error { color: var(--danger); }
+
 .connected-account:last-of-type {
   border-bottom: 0;
 }
@@ -2152,6 +2270,24 @@ body[data-theme="oled"] .sender-avatar {
 
 .modal-card label {
   margin-top: 12px;
+}
+
+.auth-intro {
+  margin: 0 0 4px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border));
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface-muted));
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.auth-server-hint {
+  margin: 7px 0 0;
+  color: var(--text-faint);
+  font-size: 9.5px;
+  line-height: 1.5;
 }
 
 .modal-card .body-field textarea {

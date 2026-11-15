@@ -2,6 +2,8 @@ mod cloud;
 mod crypto;
 mod diagnostics;
 mod mailbox;
+mod providers;
+mod secrets;
 mod security;
 mod storage;
 #[path = "../../services/sendemail.rs"]
@@ -14,6 +16,7 @@ pub fn run() {
         .setup(|app| {
             storage::initialize(app.handle()).expect("failed to initialize Elyra local storage");
             mailbox::initialize(app.handle()).expect("failed to initialize Elyra mailbox engine");
+            providers::initialize(app.handle()).expect("failed to initialize Elyra provider accounts");
             security::initialize(app.handle()).expect("failed to initialize Elyra security controls");
             Ok(())
         })
@@ -48,6 +51,14 @@ pub fn run() {
             crypto::fingerprint,
             sendemail::send_email,
             sendemail::list_sent_emails,
+            providers::provider_presets,
+            providers::list_email_accounts,
+            providers::save_email_account,
+            providers::delete_email_account,
+            providers::test_email_account,
+            providers::test_email_settings,
+            providers::sync_email_account,
+            providers::sync_all_accounts,
             diagnostics::get_changelog,
             diagnostics::get_app_diagnostics,
             cloud::cloud_register,
@@ -59,7 +70,10 @@ pub fn run() {
             cloud::cloud_mark_notification_read,
             cloud::cloud_sync_cursor,
             cloud::cloud_update_cursor,
-            cloud::cloud_health
+            cloud::cloud_health,
+            cloud::cloud_api_url,
+            cloud::cloud_set_api_url,
+            cloud::cloud_mail_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

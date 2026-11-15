@@ -51,6 +51,11 @@ jobs:
 
       - name: Build desktop bundles
         working-directory: apps/desktop
+        env:
+          # Optional: bake the production API base into release installers.
+          # Set the repository variable ELYRA_DEFAULT_API_URL to e.g.
+          # https://mail.example.com/api before tagging a release.
+          ELYRA_DEFAULT_API_URL: ${{ vars.ELYRA_DEFAULT_API_URL }}
         run: npm run build
 
       - name: Build launcher

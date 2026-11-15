@@ -1,6 +1,39 @@
 const FALLBACK_STORAGE_PREFIX = "elyra-fallback";
 const MAILBOX_STORE = "mailbox-v2";
 const SETTINGS_STORE = "settings-v1";
+const ACCOUNTS_STORE = "accounts-v1";
+
+const PROVIDER_PRESETS = [
+  { id: "gmail", label: "Gmail", imapHost: "imap.gmail.com", imapPort: 993, imapSecurity: "tls", smtpHost: "smtp.gmail.com", smtpPort: 465, smtpSecurity: "tls", hint: "Use a Google app password when 2-step verification is enabled." },
+  { id: "outlook", label: "Outlook / Microsoft 365", imapHost: "outlook.office365.com", imapPort: 993, imapSecurity: "tls", smtpHost: "smtp.office365.com", smtpPort: 587, smtpSecurity: "starttls", hint: "Microsoft may require an app password or OAuth-enabled mailbox." },
+  { id: "icloud", label: "iCloud Mail", imapHost: "imap.mail.me.com", imapPort: 993, imapSecurity: "tls", smtpHost: "smtp.mail.me.com", smtpPort: 587, smtpSecurity: "starttls", hint: "Generate an app-specific password in your Apple ID settings." },
+  { id: "yahoo", label: "Yahoo Mail", imapHost: "imap.mail.yahoo.com", imapPort: 993, imapSecurity: "tls", smtpHost: "smtp.mail.yahoo.com", smtpPort: 465, smtpSecurity: "tls", hint: "Yahoo requires an app password for third-party clients." },
+  { id: "fastmail", label: "Fastmail", imapHost: "imap.fastmail.com", imapPort: 993, imapSecurity: "tls", smtpHost: "smtp.fastmail.com", smtpPort: 465, smtpSecurity: "tls", hint: "Create an app password in Fastmail settings." },
+  { id: "proton", label: "Proton Mail", imapHost: "127.0.0.1", imapPort: 1143, imapSecurity: "starttls", smtpHost: "127.0.0.1", smtpPort: 1025, smtpSecurity: "starttls", hint: "Proton requires Proton Mail Bridge running on this device." },
+  { id: "custom", label: "Custom IMAP / SMTP", imapHost: "", imapPort: 993, imapSecurity: "tls", smtpHost: "", smtpPort: 465, smtpSecurity: "tls", hint: "Enter the server names, ports and security mode from your provider." },
+];
+
+function demoAccounts() {
+  return [
+    { id: 1, provider: "elyra", email: "alex@elyra.com", displayName: "Elyra local", username: "alex@elyra.com", imapHost: "", imapPort: 993, imapSecurity: "tls", smtpHost: "", smtpPort: 465, smtpSecurity: "tls", hasPassword: false, lastSyncAt: null, syncError: null },
+    { id: 2, provider: "gmail", email: "alex.smith@gmail.com", displayName: "Personal", username: "alex.smith@gmail.com", imapHost: "", imapPort: 993, imapSecurity: "tls", smtpHost: "", smtpPort: 465, smtpSecurity: "tls", hasPassword: false, lastSyncAt: null, syncError: null },
+    { id: 3, provider: "proton", email: "alex@proton.me", displayName: "Private", username: "alex@proton.me", imapHost: "", imapPort: 993, imapSecurity: "tls", smtpHost: "", smtpPort: 465, smtpSecurity: "tls", hasPassword: false, lastSyncAt: null, syncError: null },
+  ];
+}
+
+function loadAccounts() {
+  const stored = readStore(ACCOUNTS_STORE, null);
+  if (!Array.isArray(stored) || !stored.length) {
+    const accounts = demoAccounts();
+    writeStore(ACCOUNTS_STORE, accounts);
+    return accounts;
+  }
+  return stored;
+}
+
+function saveAccounts(accounts) {
+  writeStore(ACCOUNTS_STORE, accounts);
+}
 
 function readStore(key, fallback) {
   try {
@@ -164,7 +197,7 @@ function statsOf(messages) {
     spam: folderCounts.spam || 0,
     drafts: folderCounts.drafts || 0,
     snoozed: folderCounts.snoozed || 0,
-    accounts: 3,
+    accounts: loadAccounts().length,
     storage_bytes: 2_400_000 + messages.length * 4_096,
     last_sync_at: readStore(SETTINGS_STORE, {}).last_sync_at || sqlTime(),
     folder_counts: folderCounts,
@@ -263,10 +296,13 @@ async function fallbackFingerprint(value) {
 
 function changelog() {
   return [
+    { version: "0.3.0", date: "2026-11-15", title: "Keychain + IMAP sync", detail: "Provider presets, account CRUD, connection tests and INBOX sync with passwords stored in the OS keychain.", status: "ready" },
+    { version: "0.3.0", date: "2026-11-15", title: "First-run registration", detail: "Register once, choose your Elyra server URL, and send mail to any external address through the server relay.", status: "ready" },
+    { version: "0.3.0", date: "2026-11-15", title: "Server deployment", detail: "Production Compose stack, optional Caddy HTTPS, health-checked deploy.sh and an opt-in GitHub Actions deploy workflow.", status: "ready" },
     { version: "0.2.0", date: "2026-11-14", title: "Rust mailbox core", detail: "Filtering, search, folders, drafts, bulk actions, export and mailbox statistics now run in the Rust core.", status: "ready" },
     { version: "0.2.0", date: "2026-11-14", title: "Presentable interface refresh", detail: "Consistent SVG icons, richer themes, accent colours, density controls, command palette and a calmer reading pane.", status: "ready" },
     { version: "0.2.0", date: "2026-11-14", title: "Installer and release pipeline", detail: "MSI release workflow, stable download names, a Rust installer launcher and a refreshed website.", status: "ready" },
-    { version: "next", date: "planned", title: "Provider sync", detail: "Gmail and Outlook OAuth with PKCE, IMAP fetch and OS keychain token storage are next.", status: "next" },
+    { version: "next", date: "planned", title: "Provider sync", detail: "Gmail and Outlook OAuth with PKCE, background sync and scheduled refresh are next.", status: "next" },
   ];
 }
 
@@ -438,16 +474,17 @@ function fallbackInvoke(command, args = {}) {
     case "export_mailbox":
       return Promise.resolve({
         format: "elyra-mailbox",
-        version: "0.2.0",
+        version: "0.3.0",
         exported_at: sqlTime(),
         messages: loadMailbox(),
         settings: loadSettings(),
       });
     case "send_email": {
       const messages = loadMailbox();
+      const account = loadAccounts().find((item) => Number(item.id) === Number(args.accountId));
       messages.unshift({
         id: nextId(messages),
-        sender: "Alex Smith",
+        sender: account?.displayName || "Alex Smith",
         recipient: args.to,
         subject: args.subject,
         body_text: args.body,
@@ -469,12 +506,54 @@ function fallbackInvoke(command, args = {}) {
           .filter((message) => String(message.folder).toLowerCase() === "sent")
           .map((message) => ({ to: message.recipient, subject: message.subject, body: message.body_text })),
       );
+    case "provider_presets":
+      return Promise.resolve(PROVIDER_PRESETS);
+    case "list_email_accounts":
+      return Promise.resolve(loadAccounts());
+    case "save_email_account": {
+      const accounts = loadAccounts();
+      const input = args.account || {};
+      const existing = accounts.find((item) => Number(item.id) === Number(input.id));
+      const account = {
+        id: existing?.id || nextId(accounts),
+        provider: input.provider || "custom",
+        email: String(input.email || "").trim().toLowerCase(),
+        displayName: input.displayName || input.email || "Email account",
+        username: input.username || input.email || "",
+        imapHost: input.imapHost || "",
+        imapPort: Number(input.imapPort) || 993,
+        imapSecurity: input.imapSecurity || "tls",
+        smtpHost: input.smtpHost || "",
+        smtpPort: Number(input.smtpPort) || 465,
+        smtpSecurity: input.smtpSecurity || "tls",
+        hasPassword: Boolean(input.password) || Boolean(existing?.hasPassword),
+        lastSyncAt: existing?.lastSyncAt || null,
+        syncError: null,
+      };
+      saveAccounts(existing
+        ? accounts.map((item) => (item.id === existing.id ? account : item))
+        : [...accounts, account]);
+      return Promise.resolve(account);
+    }
+    case "delete_email_account":
+      saveAccounts(loadAccounts().filter((item) => Number(item.id) !== Number(args.id)));
+      return Promise.resolve();
+    case "test_email_account":
+    case "test_email_settings":
+      return Promise.resolve({
+        imapOk: false,
+        smtpOk: false,
+        detail: "Connection tests run in the desktop build with the Rust IMAP and SMTP engine.",
+      });
+    case "sync_email_account":
+    case "sync_all_accounts":
+      return Promise.resolve({ accounts: [], imported: 0 });
     case "get_changelog":
       return Promise.resolve(changelog());
     case "get_app_diagnostics": {
       const stats = statsOf(loadMailbox());
       return Promise.resolve({
-        app_version: "0.2.0",
+        app_version: "0.3.0",
         engine: "Browser preview fallback",
         os: navigator.platform,
         arch: "web",
@@ -483,6 +562,7 @@ function fallbackInvoke(command, args = {}) {
         database_bytes: stats.storage_bytes,
         mailbox: stats,
         cloud_configured: Boolean(window.__ELYRA_API_URL__),
+        keychain_available: false,
       });
     }
     case "generate_encryption_key":
