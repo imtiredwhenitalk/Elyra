@@ -224,5 +224,10 @@ Validation: [OK] `npm.cmd --prefix apps/desktop run check`; [OK] node syntax
 checks for main.js, tauri.js, and account.js; [OK] `docker compose config`
 review for the production, development, and build files; [OK] HTML
 tag-balance and selector review; [OK] Rust mail relay, cloud relay, and send
-fallback review. Rust compilation runs in GitHub Actions because the local Rust
-toolchain and MSVC build tools are unavailable.
+fallback review; [OK] GitHub Actions Rust workflow green (crypto/server/launcher
+tests on Linux and the Windows desktop build); [OK] v0.3.0 release published
+with the MSI, NSIS setup and launcher assets. The first CI run caught three
+desktop compile errors (keychain helper visibility, `ZeroCopy` iteration, and an
+owned `AppHandle`), all fixed in `ae1c226` before the tag. Rust compilation
+still runs only in GitHub Actions because the local Rust toolchain and MSVC
+build tools are unavailable.
