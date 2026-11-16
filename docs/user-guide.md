@@ -1,0 +1,410 @@
+# User guide
+
+This guide describes the Elyra 0.3.0 desktop interface and the behavior behind
+each control. Menu labels are shown in **bold**.
+
+## Interface overview
+
+Elyra uses a three-column desktop layout plus a right-hand context rail.
+
+| Area | What it contains |
+| --- | --- |
+| Left sidebar | Compose button, mailbox navigation, Spaces, account card, Changes, Settings |
+| Center top bar | Greeting, search, quick filter, mailbox title and actions, select-all |
+| Center list | Message rows with sender, subject, preview, tag, time, star, and selection |
+| Center reader | Full message view that replaces the list when a message is opened |
+| Right rail | Mailbox statistics, local storage meter, connected accounts, notification and connect buttons |
+| Overlays | Compose modal, account modal, auth modal, command palette, notification popover, toasts |
+
+The window is responsive. Narrow widths collapse the right rail and adapt the
+reader. `prefers-reduced-motion` and the **Reduce motion** setting disable
+non-essential animation.
+
+## Mailboxes and Spaces
+
+### System mailboxes
+
+| Mailbox | Contents |
+| --- | --- |
+| **Inbox** | Messages delivered to the inbox folder |
+| **Starred** | Any message with the starred flag |
+| **Snoozed** | Messages moved to the snoozed folder |
+| **Sent** | Messages recorded after a successful send |
+| **Drafts** | Locally saved drafts |
+| **Archive** | Messages moved out of the inbox |
+| **Spam** | Messages marked as spam |
+| **Trash** | Messages waiting before permanent deletion |
+
+### Spaces
+
+**Important**, **Updates**, and **Security** are label-style views backed by the
+same local folders. They are useful for separating decisions, product activity,
+and account alerts. The seeded demo mailbox includes examples of each.
+
+### Quick filter
+
+The filter control above the list switches the current mailbox between:
+
+- **All** — no additional filter.
+- **Unread** — only messages with `is_read = 0`.
+- **Starred** — only starred messages.
+- **Attachments** — only messages with at least one attachment.
+
+The quick filter and the search query combine. Both reset when you switch
+mailboxes or use **Reset view** from an empty state.
+
+### Search
+
+Type in the search field to search senders, subjects, and message bodies in the
+local database. Search is debounced, so results update shortly after you stop
+typing. Search suggestions are also available through the
+`search_suggestions` command.
+
+Search is local. It does not query the mail provider and does not send the query
+to Elyra Cloud.
+
+### Unread counts
+
+Mailbox counters show unread counts when available and fall back to total
+counts. They refresh after reads, stars, moves, sends, syncs, and resets.
+
+### Refresh
+
+The refresh button in the header runs a local mailbox refresh and updates the
+statistics. The **Refresh mailbox** action is also available in the command
+palette. Refreshing does **not** contact IMAP; use **Sync** on a mail account for
+that. The refresh button for accounts is described in
+[Mail accounts](#mail-accounts).
+
+## Reading messages
+
+Click a message row to open the reader. The reader replaces the list and shows:
+
+- Sender, recipient or reply-to, subject, tag, time, and a local-only badge.
+- The plain-text body. HTML from providers is not rendered directly; message
+  text is escaped before display.
+- Attachment cards with name, MIME type, size, and a download control.
+- Toolbar actions: **Archive**, **Spam**, **Trash**, and **More**.
+- Footer actions: **Star/Starred**, **Reply**, **Forward**, **Mark unread**, or
+  **Edit draft** for drafts.
+
+Use **Back to …** or press `Escape` to close the reader. Opening another mailbox
+also closes it.
+
+### Actions
+
+| Action | Effect |
+| --- | --- |
+| Star | Toggles `is_starred`; the message appears in **Starred** |
+| Mark unread | Sets `is_read = 0` and returns to the list |
+| Archive | Moves the message to **Archive** |
+| Spam | Moves the message to **Spam** |
+| Trash | Moves the message to **Trash** |
+| Restore | Moves a trashed message back to **Inbox** |
+| Delete | Permanently deletes the row after confirmation; in **Trash**, uses permanent deletion |
+| Reply | Opens compose with `Re: <subject>` and the sender as recipient |
+| Forward | Opens compose with `Fwd: <subject>` and a quoted plain-text body |
+| Edit draft | Reopens the draft in the compose modal |
+
+Actions are implemented by the Rust core. In browser preview they fall back to
+`localStorage` so the interface remains demonstrable.
+
+## Bulk actions
+
+Select one or more messages with the row checkbox or the header select-all
+control. A bulk bar appears with:
+
+**Read**, **Unread**, **Star**, **Archive**, **Spam**, **Restore**, **Trash**,
+and **Delete**.
+
+In **Trash**, only **Restore** and **Delete** are offered. Permanent deletion
+asks for confirmation. Selection is cleared after a successful bulk action.
+
+## Composing and sending
+
+Click **Compose** or use the command palette. The modal contains:
+
+- **From** — a sending account selector populated from accounts that have an
+  SMTP host. If none exist, the selector is empty.
+- **To** — recipient address.
+- **Subject** — subject line.
+- **Message body** — prefilled with your signature when one is configured.
+- **Save draft** — stores the message in **Drafts**.
+- **Delete draft** — appears when editing an existing draft.
+- **Send** — submits the message.
+
+### Send path
+
+Elyra tries these paths in order:
+
+1. **Selected account** — the account's SMTP host, port, security mode, username,
+   and keychain password are used.
+2. **Environment SMTP** — if no account is selected, `ELYRA_SMTP_FROM`,
+   `ELYRA_SMTP_HOST`, `ELYRA_SMTP_USERNAME`, and `ELYRA_SMTP_PASSWORD` (plus
+   optional `ELYRA_SMTP_PORT`) are used.
+3. **Elyra Cloud relay** — if the environment is incomplete and you are signed
+   in, the message is sent through the server's optional relay.
+
+If all three fail, the send fails and the compose modal stays open with an error
+toast. A successful send records the message in **Sent** with the sender name
+and recipient. Failed sends are not recorded as sent.
+
+The server relay sends from the operator's `ELYRA_SMTP_FROM` address and sets
+`Reply-To` to your Elyra account email. The server does not persist the body.
+
+### Drafts
+
+Drafts are stored locally in SQLite. Saving a draft with no recipient or subject
+uses safe placeholders. Opening a draft from **Drafts** restores the recipient,
+subject, and body. Sending a draft deletes the draft row. Drafts are not synced
+to the provider in 0.3.0.
+
+## Mail accounts
+
+Open **Settings → Mail accounts**, or click the account controls in the right
+rail.
+
+### Add an account
+
+1. Click **Add account**.
+2. Choose a provider preset:
+   - Gmail
+   - Outlook / Microsoft 365
+   - iCloud Mail
+   - Yahoo Mail
+   - Fastmail
+   - Proton Mail (Proton Mail Bridge)
+   - Custom IMAP / SMTP
+3. Enter the email address, display name, and username. The username defaults to
+   the email address for most providers.
+4. Enter the password or app password.
+5. For **Custom**, enter IMAP and SMTP hosts, ports, and security. TLS is the
+   default; STARTTLS is available.
+6. Click **Test connection** to check IMAP and SMTP before saving.
+7. Click **Save**.
+
+Provider presets fill the standard hosts and ports. You can still edit them
+after selecting a preset.
+
+### Passwords and the keychain
+
+Passwords are written to the Windows Credential Manager through `keyring-rs`
+under the service `com.elyra.desktop`, using the entry
+`imap-account-<account id>`. SQLite stores account metadata only: provider,
+address, username, hosts, ports, security modes, sync timestamps, and errors.
+
+Editing an account with a blank password keeps the stored password. Removing an
+account deletes its keychain entry and its locally cached messages. The
+**Diagnostics** panel reports whether the keychain is reachable.
+
+### Test connection
+
+**Test connection** opens IMAP, selects INBOX, reports the message count, and
+checks the SMTP transport. Results are shown inline in the modal. A failed test
+does not save the account.
+
+### Sync
+
+**Sync** pulls the newest messages from the provider's **INBOX** into the local
+mailbox. The desktop requests 40 messages per account by default; the core
+accepts 1–200. Sync behavior:
+
+- Fetches UID, flags, internal date, and the full message with `BODY.PEEK[]` so
+  messages are not marked read on the server.
+- Parses headers and bodies with `mail-parser`.
+- Upserts by `(account_id, provider_id)` so repeated syncs do not duplicate.
+- Preserves local read and starred state across syncs.
+- Records `last_sync_at` or `sync_error` per account.
+- Only INBOX is synced. Sent, Drafts, Archive, Spam, and Trash are not pulled
+  from the provider in 0.3.0.
+
+**Sync all** runs the same operation for every configured account and reports
+how many messages were imported.
+
+### Edit and remove
+
+Use the pencil button on an account row to edit it, the refresh button to sync
+it, and the trash button to remove it. Removing an account asks for
+confirmation because its local messages are deleted.
+
+### Provider notes
+
+- **Gmail** requires 2-Step Verification and an App Password. A normal account
+  password will be rejected.
+- **Outlook/Microsoft 365** may require an app password or tenant consent.
+  OAuth is planned.
+- **iCloud** requires an app-specific password.
+- **Proton Mail** requires Proton Mail Bridge, which exposes local IMAP/SMTP on
+  `127.0.0.1`. Use the Bridge credentials, not your Proton account password.
+- **Custom** servers must support TLS or STARTTLS. Plaintext IMAP/SMTP is not
+  supported.
+
+## Elyra Cloud
+
+Elyra Cloud is the optional account and notification service. It is not required
+for the local mailbox.
+
+### Register or sign in
+
+Open **Settings → Elyra Cloud → Connect account**, or accept the first-run
+onboarding prompt.
+
+- **Create an account** sends your email, display name, and password to the
+  configured server.
+- **I already have an account** signs in.
+- The server URL field accepts the API base, for example
+  `https://mail.example.com/api`.
+- Passwords must be at least 12 characters.
+- **Continue offline** closes the onboarding prompt without creating an account.
+
+The access token is stored in the keychain as `cloud_session`. The webview only
+receives a session view: user id, email, display name, and expiry. It never
+receives the raw token.
+
+### Notifications
+
+When signed in, the bell button opens the notification popover. It lists up to
+100 notifications for your account. Clicking one marks it read. You can also
+send an in-app notification to another registered Elyra user from the
+notification composer. The recipient must already have an account.
+
+Notifications are server-side records with a title and body. They are not email
+messages and are not end-to-end encrypted.
+
+### Server URL
+
+The server URL is stored in SQLite `settings.api_url`. Change it under
+**Settings → Elyra Cloud → Server URL → Save server**. The resolution order is:
+
+1. `ELYRA_API_URL` environment variable.
+2. The saved server URL.
+3. `ELYRA_DEFAULT_API_URL` compiled into the installer.
+4. `http://127.0.0.1:8787`.
+
+The URL must start with `http://` or `https://`. Trailing slashes are stripped.
+In production use HTTPS and include `/api` in the path.
+
+### Sign out
+
+**Sign out** deletes the keychain cloud session and clears the in-memory session.
+It does not delete your server account, local mail, or mail-account passwords.
+
+## Settings
+
+### Identity
+
+- **Display name** — shown in the sidebar, profile, and outgoing mail from the
+  server relay.
+- **Elyra domain handle** — a display-only prototype handle such as
+  `alex@elyra.com`. It is not a real mailbox and cannot receive mail in 0.3.0.
+- **Signature** — prefilled into new compose windows.
+
+### Appearance
+
+| Setting | Options |
+| --- | --- |
+| Theme | Warm light, Forest dark, Midnight blue, OLED black |
+| Accent | Moss, Ocean, Ember, Violet |
+| Density | Comfortable, Compact |
+| Reduce motion | Disables non-essential animation |
+
+Theme, accent, density, and motion are applied immediately and persisted. The
+OLED theme uses true black surfaces for OLED displays.
+
+### Behavior
+
+- **Local-only preview** — indicates the local-first mode and keeps the UI
+  messaging accurate when cloud features are unavailable.
+- **Desktop notifications** — stores the preference for future native
+  notification delivery. In 0.3.0, cloud notifications are shown in the in-app
+  popover; no scheduled background notification is delivered while the app is
+  closed.
+- **Reduce motion** — same as the appearance toggle.
+
+### Mail accounts
+
+See [Mail accounts](#mail-accounts).
+
+### Data
+
+- **Reset demo mailbox** — restores the seeded messages. This replaces the
+  current demo content; real IMAP-synced messages should be backed up first.
+- **Export mailbox** — downloads a JSON export of the local mailbox through the
+  Rust `export_mailbox` command. The export includes folders, messages, and
+  metadata. Treat it as sensitive: it contains message bodies.
+- **Refresh diagnostics** — reloads the diagnostics panel.
+
+### Diagnostics
+
+The panel reports:
+
+- Application version and engine name.
+- Platform and architecture.
+- SQLite version.
+- Database path and size.
+- Cloud API configuration state.
+- OS keychain availability.
+- Mailbox counts.
+
+If the Rust command is unavailable, the panel shows an error instead of inventing
+a healthy result.
+
+## Security Lab
+
+The **Security** mailbox is a Space. The crypto panel runs real Rust commands:
+
+- **Generate key** — creates a 32-byte key with OS randomness. The demo key is
+  held in memory only.
+- **Encrypt** — AES-256-GCM with a fresh 96-bit nonce, returned as a base64
+  payload containing the nonce and ciphertext.
+- **Decrypt** — validates the authentication tag and rejects malformed,
+  tampered, or wrong-key payloads.
+- **Fingerprint** — SHA-256 fingerprint for display and comparison.
+
+The lab is a demonstration of the crypto boundary, not a full key-management
+system. Production mailbox encryption at rest is not enabled in 0.3.0. See
+[Security](security.md) for the exact guarantees and gaps.
+
+## Changes
+
+The **Changes** tab reads the Rust changelog command and renders shipped and
+planned entries. It is a convenience view; [`changes.md`](../changes.md) and
+[`task.md`](../task.md) remain the authoritative project logs.
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl+K` / `Cmd+K` | Open the command palette |
+| `Arrow Up` / `Arrow Down` | Move through command palette results |
+| `Enter` | Run the selected command |
+| `Escape` | Close compose, command palette, notification popover, auth modal, or reader |
+| `Tab` / `Shift+Tab` | Move focus through controls |
+
+The command palette includes compose, refresh, quick filters, mark mailbox read,
+export, notifications, and settings.
+
+## Local-only mode
+
+Elyra works without a server or a mail account:
+
+- The demo mailbox is seeded locally.
+- Search, filters, drafts, stars, moves, themes, and the Security Lab work.
+- Sending requires either a mail account, environment SMTP, or a signed-in
+  cloud session with a relay-enabled server.
+- IMAP sync requires a configured account and network access.
+- Notifications require Elyra Cloud.
+
+## Data and privacy summary
+
+- Mailbox data is local. Elyra does not upload message bodies to its server.
+- Cloud sessions and mail passwords are in the OS keychain.
+- The server stores account metadata, sync cursors, notifications, and optional
+  relay configuration.
+- IMAP and SMTP require TLS or STARTTLS.
+- HTML email is not rendered as raw HTML in the reader; text is escaped.
+- Audit records contain event type, outcome, and details only, capped at 500
+  records. Keys, tokens, bodies, and passwords are never written to the audit
+  log.
+
+For the complete model, read [Security](security.md).

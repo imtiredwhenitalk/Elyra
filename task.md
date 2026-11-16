@@ -22,6 +22,7 @@
 * **Windows Delivery** - MSI/NSIS release workflow, stable asset names, SHA-256 checksums [200 OK]
 * **Portable Launcher** - download, verify, install, update, launch, uninstall [200 OK]
 * **Public Website** - responsive marketing/download page deployed to GitHub Pages [200 OK]
+* **Project Documentation** - structured `docs/` set covering install, user guide, architecture, server/API, security, development, deployment, configuration, Tauri commands, and troubleshooting [200 OK]
 
 ### Changes (Tracking Log)
 
@@ -41,3 +42,4 @@
 * Added first-run account registration onboarding and a configurable Elyra server URL.
 * Added the server SMTP relay so registered users can send mail to external addresses without local SMTP setup.
 * Added the production deploy script, optional Caddy HTTPS profile, GitHub Actions SSH deploy workflow, and `docs/deploy/SERVER.md`.
+* Published the full documentation set under `docs/` and reconciled `README.md`, `ai.md`, and `docs/ARCHITECTURE.md` with the shipped static frontend and repository layout.

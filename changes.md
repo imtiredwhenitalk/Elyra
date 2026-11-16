@@ -231,3 +231,24 @@ desktop compile errors (keychain helper visibility, `ZeroCopy` iteration, and an
 owned `AppHandle`), all fixed in `ae1c226` before the tag. Rust compilation
 still runs only in GitHub Actions because the local Rust toolchain and MSVC
 build tools are unavailable.
+
+[200 OK] Published the complete project documentation set:
+
+Added `docs/README.md` as the documentation index and a structured set of
+pages: `getting-started.md`, `user-guide.md`, `architecture.md`, `server.md`,
+`security.md`, `development.md`, `deployment.md`, `troubleshooting.md`,
+`reference/configuration.md`, and `reference/tauri-commands.md`. Documented the
+shipped 0.3.0 behavior rather than the intended stack: static HTML/CSS/vanilla
+JS frontend, SQLite mailbox schema, keychain entries, IMAP INBOX sync,
+per-account and relay sending, server routes and error codes, PostgreSQL schema,
+deployment topology, and every registered Tauri command with arguments and
+return shapes. Replaced the duplicated `docs/ARCHITECTURE.md` content with a
+documentation map, linked the set from `README.md`, and corrected `ai.md` so its
+UI and directory claims match the repository. Added the troubleshooting guide
+referenced by the other pages.
+
+Validation: [OK] every internal documentation link checked against the files on
+disk; [OK] command list compared with `apps/desktop/src-tauri/src/lib.rs`; [OK]
+server routes and limits compared with `server/src/api.rs`; [OK] local schema
+compared with `storage.rs`, `mailbox.rs`, `providers.rs`, and `security.rs`;
+[OK] code fences and Markdown tables reviewed; [OK] `git diff --check` clean.

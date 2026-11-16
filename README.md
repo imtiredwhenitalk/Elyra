@@ -22,6 +22,26 @@ The newest Windows build is published on the
 The launcher accepts `--msi <path>` for an already-downloaded installer and
 automatically fetches `<url>.sha256` when installing from a URL.
 
+## Documentation
+
+The full documentation set lives in [`docs/`](docs/README.md):
+
+| Page | Covers |
+| --- | --- |
+| [Getting started](docs/getting-started.md) | Install, launcher flags, onboarding, local data, uninstall |
+| [User guide](docs/user-guide.md) | Mailboxes, reading, composing, mail accounts, settings |
+| [Architecture](docs/architecture.md) | Components, data flows, trust boundaries, stack |
+| [Server and API](docs/server.md) | Local server, endpoints, PostgreSQL schema, SMTP relay |
+| [Security](docs/security.md) | Keychain, crypto, server trust boundary, threat model, gaps |
+| [Development](docs/development.md) | Prerequisites, commands, validation, release process |
+| [Deployment](docs/deployment.md) | Production stack, HTTPS, backups, auto-deploy |
+| [Configuration](docs/reference/configuration.md) | Every desktop, server, and deploy variable |
+| [Tauri commands](docs/reference/tauri-commands.md) | Every command the webview can invoke |
+| [Troubleshooting](docs/troubleshooting.md) | Install, sign-in, IMAP, sending, server, build issues |
+
+The complete VPS walkthrough remains in
+[`docs/deploy/SERVER.md`](docs/deploy/SERVER.md).
+
 ## What shipped in 0.3.0
 
 * **OS keychain secret storage** — Elyra Cloud sessions and IMAP/SMTP passwords
@@ -36,12 +56,6 @@ automatically fetches `<url>.sha256` when installing from a URL.
 * **Account UI** — dynamic connected-account list, add/edit modal with provider
   presets, connection testing, per-account sync, sync-all, and keychain status in
   Diagnostics.
-
-## What shipped in 0.3.0
-
-* **Keychain + IMAP sync** — Gmail, Outlook, iCloud, Yahoo, Fastmail, Proton
-  Bridge, and custom servers; IMAP/SMTP connection tests, INBOX sync, and
-  per-account sending. Passwords live in the OS keychain.
 * **First-run registration** — the app offers account registration on first
   launch, accepts a configurable Elyra server URL, and can continue offline.
 * **Send to any address** — registered users without a local SMTP account send
@@ -55,9 +69,9 @@ automatically fetches `<url>.sha256` when installing from a URL.
 * **Rust mailbox core** — SQLite schema migration, demo seeding, search, folder
   filters, statistics, drafts, bulk actions, snooze, attachments, sent-mail
   recording, and JSON export all run as Tauri commands.
-* **Rust cloud bridge** — account registration, login, session refresh,
+* **Rust cloud bridge** — account registration, login, session persistence,
   notifications, and sync run through blocking `reqwest` calls. Access tokens
-  stay inside the Rust/SQLite layer; the webview only receives a session view.
+  stay inside the Rust layer; the webview only receives a session view.
 * **Diagnostics** — the app reports engine, Tauri, SQLite, database size, and
   changelog information from Rust.
 * **Interface rebuild** — a single inline SVG icon sprite, four themes, four
@@ -121,7 +135,7 @@ auto-deploy are documented in [`docs/deploy/SERVER.md`](docs/deploy/SERVER.md).
 * `server` — Axum API, PostgreSQL migrations, auth, mail relay, and sync cursors.
 * `web` — static marketing and download site.
 * `infrastructure` — Docker and deployment assets.
-* `docs` — architecture, crypto, and security notes.
+* `docs` — user, developer, security, and deployment documentation.
 
 ## Status
 

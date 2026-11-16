@@ -22,49 +22,74 @@ Elyra connects multiple email providers such as Gmail, Proton Mail, Outlook, and
 
 ### Language u need to use in project 
 
-## Desktop / app Rust + Tauri + TypeScript / fast, low RAM usage, good security baseline
-## UI / React + TypeScript / Good loking interface
+## Desktop / app Rust + Tauri / fast, low RAM usage, good security baseline
+## UI / static HTML + CSS + JavaScript / the shipped 0.3.0 interface (React + TypeScript is the intended future direction, not implemented)
 ## Backend / Rust / security , concurrency, productivity
 ## Crypto / Rust / memory safety + strange crypto-ecosystem
 ## Local DB / SQLite / local cache , index , settings 
-## API / REST + WebSocket / syncronizating and real-time event's 
+## API / REST (WebSocket is planned, not implemented) / syncronizating and real-time event's
 ## Server DB / PostgreSQL / account , metadata , settings 
 ## Deployment / Docker / simple backend deployment
 ## Secret / OS Keychain , security storage / Tokens don't just sit in file
 
 ### Project Layout & Directory Structure
 
+This is the actual 0.3.0 layout. See [`docs/architecture.md`](docs/architecture.md)
+for the full explanation.
+
 Elyra (Repository Root)
-├── Claude.md                     # System instructions & context for AI
-├── README.md                     # Project overview
+├── ai.md                         # Project rules, intended stack, and context
+├── README.md                     # Project overview and downloads
+├── task.md                       # Feature checklist and roadmap status
+├── changes.md                    # Chronological implementation log
+├── Cargo.toml                    # Rust workspace (crypto, server, launcher, desktop)
 ├── apps/                         # Client applications
-│   ├── desktop/                  # Primary Desktop App (Tauri + React + TS)
-│   │   ├── src/                  # React UI components & views
-│   │   ├── src-tauri/            # Rust Backend for Desktop (Tauri Core)
-│   │   ├── components/           # Reusable UI components
-│   │   ├── hooks/                # Custom React hooks
-│   │   ├── pages/                # App views/routes
-│   │   ├── services/             # Client API & WebSocket services
-│   │   └── package.json
-│   └── src-tauri/                # Shared/standalone Tauri templates
+│   ├── desktop/                  # Tauri 2 desktop app (Rust core + static UI)
+│   │   ├── src/                  # static HTML/CSS/JS UI
+│   │   │   ├── index.html        # shell and inline SVG sprite
+│   │   │   ├── styles.css        # themes, accents, density, responsive rules
+│   │   │   ├── main.js           # state, rendering, modals, command palette
+│   │   │   ├── components/       # CryptoCard.js
+│   │   │   ├── pages/            # SecurityPage.js
+│   │   │   └── services/         # tauri.js invoke wrapper + browser fallback
+│   │   ├── src-tauri/            # Rust core and Tauri config
+│   │   ├── services/             # sendemail.rs compiled into the desktop crate
+│   │   └── package.json          # Tauri CLI only; no bundler
+│   └── launcher/                 # Portable Windows installer/updater CLI (Rust)
 ├── packages/                     # Shared Workspace Packages
-│   ├── crypto/                   # Encryption & key management core (Rust)
+│   ├── crypto/                   # AES-256-GCM primitives (Rust)
 │   ├── types/                    # Shared TypeScript interfaces & types
-│   └── ui/                       # Shared UI Design System / React components
-├── server/                       # Backend API & Sync Server (Rust)
-│   ├── api/                      # REST & WebSocket endpoints
-│   ├── auth/                     # OAuth2 & Session authentication
-│   ├── database/                 # PostgreSQL connections & queries
-│   ├── sync/                     # Multi-provider email synchronization
-│   └── users/                    # User account management
-├── docs/                         # System Documentation
-│   ├── architecture/             # Data flow & component diagrams
-│   ├── crypto/                   # Encryption specs & key schemes
-│   └── security/                 # Threat models & security rules
-└── infrastructure/               # DevOps & Deployment
-    ├── deployment/               # CI/CD pipelines & release scripts
-    └── docker/                    # Dockerfiles & docker-compose setups
-    
+│   └── ui/                       # Framework-neutral UI primitives (not yet wired into desktop)
+├── server/                       # Backend API server (Rust, Axum)
+│   ├── src/api.rs                # REST routes
+│   ├── src/auth.rs               # Argon2id + JWT authentication
+│   ├── src/database.rs           # PostgreSQL schema
+│   ├── src/sync.rs               # Sync cursors
+│   ├── src/users.rs              # User accounts
+│   └── src/mailer.rs             # Optional SMTP relay
+├── web/                          # Static marketing/download website
+├── docs/                         # Documentation
+│   ├── README.md                 # Documentation index
+│   ├── getting-started.md        # Install and first run
+│   ├── user-guide.md             # Interface and features
+│   ├── architecture.md           # System architecture
+│   ├── server.md                 # Server and API reference
+│   ├── security.md               # Security model and threat model
+│   ├── development.md            # Build, test, release
+│   ├── deployment.md             # Production deployment overview
+│   ├── troubleshooting.md        # Symptom → fix guide
+│   ├── reference/                # configuration.md, tauri-commands.md
+│   ├── deploy/SERVER.md          # Full VPS runbook
+│   ├── architecture/             # short directory scope note
+│   ├── crypto/                   # crypto layer notes
+│   └── security/                 # security architecture note
+├── infrastructure/               # DevOps & Deployment
+│   ├── build/                    # development helper scripts
+│   ├── docker/                   # development Compose stack
+│   ├── deployment/               # production Compose, deploy.sh, Caddyfile
+│   └── web/                      # Nginx config for the production site
+└── .github/workflows/            # CI, release, Pages, and server deploy
+
 ### Architecture Elyra
 
                          ┌─────────────────────┐
@@ -82,10 +107,10 @@ Elyra (Repository Root)
         ┌─────────────────┐                   ┌─────────────────┐
         │  Email Engine   │                   │ Crypto Engine   │
         │                 │                   │                 │
-        │ Gmail           │                   │ Encryption      │
-        │ Proton*         │                   │ Signatures      │
-        │ Outlook         │                   │ Key management  │
-        │ IMAP/SMTP       │                   │                 │
+        │ Gmail (IMAP)    │                   │ AES-256-GCM     │
+        │ Proton Bridge*  │                   │ SHA-256         │
+        │ Outlook (IMAP)  │                   │ Key in memory   │
+        │ IMAP/SMTP       │                   │ (keychain)      │
         └────────┬────────┘                   └─────────────────┘
                  │
                  ▼
@@ -108,4 +133,4 @@ Elyra (Repository Root)
                          │
              ┌───────────┼───────────┐
              ▼           ▼           ▼
-        PostgreSQL    WebSocket    Auth
+        PostgreSQL    REST API    Argon2id/JWT
