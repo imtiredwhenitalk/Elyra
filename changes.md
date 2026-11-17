@@ -373,4 +373,5 @@ Validation: [OK] `node --check` for `main.js`, `tauri.js`, `security.js`, and
 `SecurityPage.js`; [OK] CSS braces balanced (571/571); [OK] fallback reputation
 checks with `node`; [OK] `git diff --check`; Rust compilation and the Windows
 desktop build run in GitHub Actions because no local Rust toolchain is
-available.
+available. Also fixed a borrow-checker error in the Issue #6 `load_rules` query
+that the Windows CI build surfaced.

@@ -106,7 +106,7 @@ fn load_rules(database: &Connection) -> Result<Vec<SenderRule>, String> {
              ORDER BY kind ASC, scope ASC, value ASC",
         )
         .map_err(|error| error.to_string())?;
-    statement
+    let rules = statement
         .query_map([], |row| {
             Ok(SenderRule {
                 id: row.get(0)?,
@@ -119,7 +119,8 @@ fn load_rules(database: &Connection) -> Result<Vec<SenderRule>, String> {
         })
         .map_err(|error| error.to_string())?
         .collect::<rusqlite::Result<Vec<_>>>()
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+    Ok(rules)
 }
 
 /// Evaluate the allowlist and blocklist for one sender identity. Allow rules
