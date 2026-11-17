@@ -135,6 +135,32 @@ function previewOf(body) {
   return compact.length > 150 ? `${compact.slice(0, 147)}...` : compact;
 }
 
+const PRIORITY_URGENT_SIGNALS = ["urgent", "asap", "action required", "immediate action", "time sensitive", "final notice", "deadline today", "respond today"];
+const PRIORITY_HIGH_SIGNALS = ["invoice", "payment", "contract", "proposal", "approval", "review", "deadline", "security alert", "sign-in", "password", "interview", "offer", "escalation", "needs your", "please confirm", "by tomorrow"];
+const PRIORITY_LOW_SIGNALS = ["newsletter", "digest", "unsubscribe", "promotion", "weekly update", "automated", "notification", "no-reply", "noreply"];
+
+function containsSignal(haystack, signals) {
+  return signals.some((signal) => haystack.includes(signal));
+}
+
+function suggestPriority(sender, subject, body, tag) {
+  const senderText = String(sender || "").toLowerCase();
+  const subjectText = String(subject || "").toLowerCase();
+  const bodyText = String(body || "").toLowerCase();
+  const tagText = String(tag || "").toLowerCase();
+  if (tagText === "spam" || tagText === "trash" || senderText.includes("no-reply") || senderText.includes("noreply") || containsSignal(subjectText, PRIORITY_LOW_SIGNALS)) {
+    return { priority: "low", important: false, reason: "Looks like an automated or low-priority update." };
+  }
+  if (containsSignal(subjectText, PRIORITY_URGENT_SIGNALS)) {
+    return { priority: "urgent", important: true, reason: "The subject asks for urgent action." };
+  }
+  const importantTag = tagText === "important" || tagText === "security";
+  if (importantTag || containsSignal(subjectText, PRIORITY_HIGH_SIGNALS) || containsSignal(bodyText, ["by tomorrow", "needs your approval", "please review"])) {
+    return { priority: "high", important: importantTag, reason: "Matches important or time-sensitive signals." };
+  }
+  return { priority: "normal", important: false, reason: "No strong priority signals detected." };
+}
+
 function demoMessages() {
   const rows = [
     ["Maya Chen", "alex@elyra.com", "The quieter way to work", 12, "Important", "Important", false, true, true, "Hi Alex,\n\nI've been thinking about the new rhythm we discussed. Fewer meetings, longer focus blocks, and a calmer inbox would give the team room to do their best work.\n\nI put together a short proposal with three experiments we could run next month.\n\nMaya"],
@@ -156,21 +182,28 @@ function demoMessages() {
     ["Alex Smith", "team@elyra.com", "Launch notes", 40, "Drafts", "Draft", true, false, false, "Draft outline:\n\n1. Rust mailbox core\n2. New icon system\n3. MSI release pipeline\n4. Website refresh"],
     ["Tomas Adler", "alex@elyra.com", "Archived: office move checklist", 20_000, "Archive", "Archive", true, false, false, "Everything from the old office is packed. The archive copy is here for reference."],
   ];
-  return rows.map((row, index) => ({
-    id: index + 1,
-    sender: row[0],
-    recipient: row[1],
-    subject: row[2],
-    received_at: sqlTime(row[3]),
-    folder: row[4],
-    tag: row[5],
-    is_read: row[6],
-    is_starred: row[7],
-    has_attachments: row[8],
-    body_text: row[9],
-    preview: previewOf(row[9]),
-    attachments: row[8] ? [{ id: index + 1, name: "message-notes.pdf", mime_type: "application/pdf", size_bytes: 248_320 }] : [],
-  }));
+  return rows.map((row, index) => {
+    const suggestion = suggestPriority(row[0], row[2], row[9], row[5]);
+    return {
+      id: index + 1,
+      sender: row[0],
+      recipient: row[1],
+      subject: row[2],
+      received_at: sqlTime(row[3]),
+      folder: row[4],
+      tag: row[5],
+      is_read: row[6],
+      is_starred: row[7],
+      is_important: suggestion.important,
+      priority: suggestion.priority,
+      priority_source: "auto",
+      priority_reason: suggestion.reason,
+      has_attachments: row[8],
+      body_text: row[9],
+      preview: previewOf(row[9]),
+      attachments: row[8] ? [{ id: index + 1, name: "message-notes.pdf", mime_type: "application/pdf", size_bytes: 248_320 }] : [],
+    };
+  });
 }
 
 function loadMailbox() {
@@ -200,6 +233,10 @@ function summaryOf(message) {
     color: colorFor(message.sender),
     is_read: Boolean(message.is_read),
     is_starred: Boolean(message.is_starred),
+    is_important: Boolean(message.is_important),
+    priority: message.priority || "normal",
+    priority_source: message.priority_source || "auto",
+    priority_reason: message.priority_reason || null,
     has_attachments: Boolean(message.has_attachments),
     snoozed_until: message.snoozed_until || null,
   };
@@ -217,6 +254,8 @@ function statsOf(messages) {
     total: messages.length,
     unread: messages.filter((message) => !message.is_read).length,
     starred: messages.filter((message) => message.is_starred).length,
+    important: messages.filter((message) => message.is_important).length,
+    high_priority: messages.filter((message) => ["high", "urgent"].includes(String(message.priority || "").toLowerCase())).length,
     attachments: messages.reduce((sum, message) => sum + (message.attachments?.length || 0), 0),
     trash: folderCounts.trash || 0,
     spam: folderCounts.spam || 0,
@@ -241,11 +280,16 @@ function filterMessages(messages, filter, quickFilter, query) {
       if (message.snoozed_until && message.snoozed_until > sqlTime()) return false;
     } else if (normalizedFilter === "starred") {
       if (!message.is_starred || ["trash", "spam"].includes(folder)) return false;
+    } else if (normalizedFilter === "important") {
+      if (!message.is_important || ["trash", "spam"].includes(folder)) return false;
     } else if (normalizedFilter && normalizedFilter !== "all" && folder !== normalizedFilter) {
       return false;
     }
     if (normalizedQuick === "unread" && message.is_read) return false;
     if (normalizedQuick === "starred" && !message.is_starred) return false;
+    if (normalizedQuick === "important" && !message.is_important) return false;
+    if (normalizedQuick === "high" && !["high", "urgent"].includes(String(message.priority || "").toLowerCase())) return false;
+    if (normalizedQuick === "urgent" && String(message.priority || "").toLowerCase() !== "urgent") return false;
     if (normalizedQuick === "attachments" && !message.has_attachments) return false;
     if (needle) {
       const haystack = `${message.sender} ${message.subject} ${message.preview} ${message.body_text}`.toLowerCase();
@@ -735,9 +779,32 @@ function fallbackInvoke(command, args = {}) {
       if (!message) return Promise.reject(new Error("Message not found"));
       if (args.isRead !== undefined) message.is_read = Boolean(args.isRead);
       if (args.isStarred !== undefined) message.is_starred = Boolean(args.isStarred);
+      if (args.isImportant !== undefined) message.is_important = Boolean(args.isImportant);
+      if (args.priority !== undefined) {
+        message.priority = String(args.priority || "normal").toLowerCase();
+        message.priority_source = "manual";
+        message.priority_reason = "Set manually.";
+      }
       if (args.folder) message.folder = args.folder;
       saveMailbox(messages);
       return Promise.resolve();
+    }
+    case "refresh_priority_suggestions": {
+      const messages = loadMailbox();
+      const settings = loadSettings();
+      const automatic = String(settings.auto_priority ?? "true") !== "false";
+      const fallbackPriority = settings.priority_default || "normal";
+      let updated = 0;
+      for (const message of messages) {
+        if (String(message.priority_source || "auto") !== "auto") continue;
+        const suggestion = suggestPriority(message.sender, message.subject, message.body_text, message.tag);
+        message.priority = automatic ? suggestion.priority : fallbackPriority;
+        message.priority_source = "auto";
+        message.priority_reason = automatic ? suggestion.reason : null;
+        updated += 1;
+      }
+      saveMailbox(messages);
+      return Promise.resolve(updated);
     }
     case "delete_message": {
       let messages = loadMailbox();
@@ -763,6 +830,13 @@ function fallbackInvoke(command, args = {}) {
           if (action === "unread") message.is_read = false;
           if (action === "star") message.is_starred = true;
           if (action === "unstar") message.is_starred = false;
+          if (action === "important") message.is_important = true;
+          if (action === "unimportant") message.is_important = false;
+          if (action.startsWith("priority-")) {
+            message.priority = action.slice("priority-".length);
+            message.priority_source = "manual";
+            message.priority_reason = "Set manually.";
+          }
           if (action === "trash") message.folder = "Trash";
           if (action === "spam") message.folder = "Spam";
           if (action === "archive") message.folder = "Archive";
@@ -803,6 +877,10 @@ function fallbackInvoke(command, args = {}) {
           tag: "Draft",
           is_read: true,
           is_starred: false,
+          is_important: false,
+          priority: "normal",
+          priority_source: "auto",
+          priority_reason: null,
           has_attachments: false,
           attachments: [],
         };
@@ -853,6 +931,10 @@ function fallbackInvoke(command, args = {}) {
         tag: "Sent",
         is_read: true,
         is_starred: false,
+        is_important: false,
+        priority: "normal",
+        priority_source: "auto",
+        priority_reason: null,
         has_attachments: false,
         attachments: [],
         received_at: sqlTime(),

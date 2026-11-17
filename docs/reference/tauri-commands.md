@@ -45,7 +45,7 @@ with `localStorage`. Desktop builds always call the Rust implementations.
 | Module | Commands |
 | --- | --- |
 | [Storage](#storage) | `initialize_local_storage`, `cache_email`, `list_cached_emails`, `set_local_setting`, `get_local_settings`, `set_local_settings`, `delete_local_setting` |
-| [Mailbox](#mailbox) | `mailbox_stats`, `seed_demo_mailbox`, `reset_demo_mailbox`, `refresh_mailbox`, `list_mailbox`, `get_message`, `update_message`, `delete_message`, `bulk_update_messages`, `mark_all_read`, `empty_trash`, `save_draft`, `delete_draft`, `search_suggestions`, `export_mailbox` |
+| [Mailbox](#mailbox) | `mailbox_stats`, `seed_demo_mailbox`, `reset_demo_mailbox`, `refresh_mailbox`, `list_mailbox`, `get_message`, `update_message`, `delete_message`, `bulk_update_messages`, `mark_all_read`, `empty_trash`, `save_draft`, `delete_draft`, `search_suggestions`, `export_mailbox`, `refresh_priority_suggestions` |
 | [Providers](#providers) | `provider_presets`, `list_email_accounts`, `save_email_account`, `delete_email_account`, `test_email_account`, `test_email_settings`, `sync_email_account`, `sync_all_accounts` |
 | [Sending](#sending) | `send_email`, `list_sent_emails` |
 | [Security](#security) | `get_security_status`, `list_audit_events` |
@@ -158,6 +158,8 @@ Returns mailbox counters in `snake_case`:
   "total": 42,
   "unread": 7,
   "starred": 3,
+  "important": 2,
+  "high_priority": 4,
   "attachments": 5,
   "trash": 2,
   "spam": 1,
@@ -212,7 +214,8 @@ Defaults: `filter = "inbox"`, `quickFilter = "all"`, `query = ""`,
 `spam`, `trash`, and the label views `important`, `updates`, `security`,
 `personal`. Unknown values are treated as a folder/label lookup.
 
-`quickFilter` accepts `all`, `unread`, `starred`, `attachments`.
+`quickFilter` accepts `all`, `unread`, `starred`, `important`, `high`,
+`urgent`, `attachments`. `high` matches both `high` and `urgent` priority.
 
 Returns:
 
@@ -232,6 +235,10 @@ Returns:
       "color": "coral",
       "is_read": false,
       "is_starred": false,
+      "is_important": true,
+      "priority": "high",
+      "priority_source": "auto",
+      "priority_reason": "Matches important or time-sensitive signals.",
       "has_attachments": true,
       "snoozed_until": null
     }
@@ -273,11 +280,15 @@ text, not raw HTML.
 ### `update_message`
 
 ```ts
-(id: number, isRead?: boolean, isStarred?: boolean, folder?: string) => Promise<void>
+(id: number, isRead?: boolean, isStarred?: boolean, isImportant?: boolean,
+ priority?: string, folder?: string) => Promise<void>
 ```
 
 Updates only the fields that are provided. `folder` is a folder name such as
-`Archive`, `Trash`, `Spam`, `Snoozed`, or `Inbox`. With no fields, it is a no-op.
+`Archive`, `Trash`, `Spam`, `Snoozed`, or `Inbox`. `priority` accepts `low`,
+`normal`, `high`, or `urgent` and records `priority_source = "manual"`, so the
+choice is never overwritten by automatic suggestions. With no fields, it is a
+no-op.
 
 ### `delete_message`
 
@@ -303,6 +314,9 @@ returns `0`.
 | `unread` | Sets `is_read = 0` |
 | `star` | Sets `is_starred = 1` |
 | `unstar` | Sets `is_starred = 0` |
+| `important` | Sets `is_important = 1` |
+| `unimportant` | Sets `is_important = 0` |
+| `priority-low`, `priority-normal`, `priority-high`, `priority-urgent` | Sets `priority` and records a manual choice |
 | `trash` | Moves to **Trash** |
 | `archive` | Moves to **Archive** |
 | `spam` | Moves to **Spam** |
@@ -364,6 +378,17 @@ matching senders and subjects.
 Returns a JSON object containing folders, messages, and metadata for all
 non-deleted messages. The object can be large and contains message bodies.
 Treat the export as sensitive.
+
+### `refresh_priority_suggestions`
+
+```ts
+() => Promise<number>
+```
+
+Recomputes the automatic priority and reason for every non-deleted message whose
+`priority_source` is `auto`, and returns the number of rows considered. Manual
+priorities and the `is_important` flag are left untouched. Run it after changing
+the automatic-priority preference or the local rules.
 
 ## Providers
 

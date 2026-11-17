@@ -35,7 +35,18 @@ const state = {
   threats: new Map(),
 };
 
-const QUICK_FILTERS = ["all", "unread", "starred", "attachments"];
+const QUICK_FILTERS = ["all", "unread", "starred", "important", "high", "urgent", "attachments"];
+const QUICK_FILTER_LABELS = {
+  all: "All mail",
+  unread: "Unread",
+  starred: "Starred",
+  important: "Important",
+  high: "High priority",
+  urgent: "Urgent",
+  attachments: "Attachments",
+};
+const PRIORITY_ORDER = ["low", "normal", "high", "urgent"];
+const PRIORITY_LABELS = { low: "Low", normal: "Normal", high: "High", urgent: "Urgent" };
 const FILTER_LABELS = {
   inbox: ["Inbox", "Focused mail from every connected account"],
   starred: ["Starred", "Messages you want close at hand"],
@@ -68,6 +79,38 @@ function escapeHtml(value) {
 
 function icon(name, extra = "") {
   return `<svg class="icon ${extra}" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
+}
+
+function priorityValue(value) {
+  const normalized = String(value || "").toLowerCase();
+  return PRIORITY_ORDER.includes(normalized) ? normalized : "normal";
+}
+
+function priorityLabel(value) {
+  return PRIORITY_LABELS[priorityValue(value)];
+}
+
+function prioritySourceLabel(message) {
+  if (String(message.priority_source || "auto") === "manual") return "Set manually.";
+  return message.priority_reason || "Suggested automatically.";
+}
+
+function importanceFlag(message) {
+  if (!message.is_important) return "";
+  return `<span class="importance-flag" title="Marked important">${icon("important")}</span>`;
+}
+
+function priorityBadge(message) {
+  const priority = priorityValue(message.priority);
+  if (priority === "normal") return "";
+  return `<span class="priority-pill ${priority}" title="${escapeHtml(prioritySourceLabel(message))}">${icon("priority")} ${priorityLabel(priority)}</span>`;
+}
+
+function setQuickFilter(value) {
+  state.quickFilter = value;
+  const button = $("#filter-button");
+  if (button) button.innerHTML = `${QUICK_FILTER_LABELS[value] || "All mail"} ${icon("chevron-down")}`;
+  loadMailbox();
 }
 
 function openExternalUrl(url) {
@@ -650,7 +693,7 @@ function renderMessages() {
   }
 
   list.innerHTML = state.messages.map((message) => `
-    <article class="message-row ${message.is_read ? "" : "unread"} ${state.selected.has(message.id) ? "selected" : ""}" data-message-id="${message.id}">
+    <article class="message-row ${message.is_read ? "" : "unread"} ${message.is_important ? "important" : ""} ${state.selected.has(message.id) ? "selected" : ""}" data-message-id="${message.id}">
       <label class="select-box" aria-label="Select ${escapeHtml(message.subject)}">
         <input type="checkbox" data-select="${message.id}" ${state.selected.has(message.id) ? "checked" : ""} />
       </label>
@@ -662,6 +705,8 @@ function renderMessages() {
         <div class="message-line">
           <b>${escapeHtml(message.sender)}</b>
           <span class="message-tag ${message.color}">${escapeHtml(message.tag)}</span>
+          ${importanceFlag(message)}
+          ${priorityBadge(message)}
           ${threatFlag(message.id)}
           ${message.has_attachments ? `<span class="attachment-hint" title="Has attachments">${icon("paperclip")}</span>` : ""}
           <span class="message-time">${escapeHtml(message.time)}</span>
@@ -712,11 +757,13 @@ function updateStats(stats) {
       ? stats.unread
       : key === "starred"
         ? stats.starred
-        : key === "drafts"
-          ? stats.drafts
-          : key === "spam"
-            ? stats.spam
-            : folderUnread[key] ?? folderCounts[key] ?? 0;
+        : key === "important"
+          ? stats.important
+          : key === "drafts"
+            ? stats.drafts
+            : key === "spam"
+              ? stats.spam
+              : folderUnread[key] ?? folderCounts[key] ?? 0;
     node.textContent = key === "inbox" ? String(stats.unread) : String(count);
     node.hidden = Number(count) === 0;
   });
@@ -870,6 +917,8 @@ function renderSettings() {
   toggle("#local-only", settings.local_only ?? "true");
   toggle("#desktop-notifications", settings.desktop_notifications ?? "true");
   toggle("#reduce-motion", settings.reduce_motion ?? "false");
+  toggle("#auto-priority", settings.auto_priority ?? "true");
+  bind("#priority-default", settings.priority_default || "normal");
   bind("#api-url-input", state.apiBase || "");
   const authState = $("#settings-auth-state");
   if (authState) {
@@ -1194,7 +1243,12 @@ async function openMessage(id) {
       <div class="viewer-heading">
         <span class="sender-avatar ${message.color}">${escapeHtml(message.initials)}</span>
         <div class="viewer-title">
-          <div class="viewer-labels"><span class="message-tag ${message.color}">${escapeHtml(message.tag)}</span><span class="secure-inline">${icon("lock")} local</span></div>
+          <div class="viewer-labels">
+            <span class="message-tag ${message.color}">${escapeHtml(message.tag)}</span>
+            ${message.is_important ? `<span class="importance-chip">${icon("important")} Important</span>` : ""}
+            ${priorityValue(message.priority) !== "normal" ? `<span class="priority-chip ${priorityValue(message.priority)}">${icon("priority")} ${priorityLabel(message.priority)} priority</span>` : ""}
+            <span class="secure-inline">${icon("lock")} local</span>
+          </div>
           <h2>${escapeHtml(message.subject)}</h2>
           <p><b>${escapeHtml(message.sender)}</b> &lt;${escapeHtml(message.folder.toLowerCase() === "sent" ? detail.recipient : replyTo)}&gt;</p>
         </div>
@@ -1202,8 +1256,17 @@ async function openMessage(id) {
       </div>
       <div class="viewer-actions">
         <button type="button" id="viewer-star" class="${message.is_starred ? "selected" : ""}">${icon("star")} ${message.is_starred ? "Starred" : "Star"}</button>
+        <button type="button" id="viewer-important" class="${message.is_important ? "selected" : ""}">${icon("important")} ${message.is_important ? "Important" : "Mark important"}</button>
         ${isDraft ? `<button type="button" id="viewer-edit">${icon("edit")} Edit draft</button>` : `<button type="button" id="viewer-reply">${icon("reply")} Reply</button><button type="button" id="viewer-forward">${icon("forward")} Forward</button>`}
         <button type="button" id="viewer-unread">${icon("mail")} Mark unread</button>
+      </div>
+      <div class="viewer-priority">
+        <label><span>Priority</span>
+          <select id="viewer-priority-select">
+            ${PRIORITY_ORDER.map((priority) => `<option value="${priority}" ${priorityValue(message.priority) === priority ? "selected" : ""}>${PRIORITY_LABELS[priority]}</option>`).join("")}
+          </select>
+        </label>
+        <span class="priority-reason" id="viewer-priority-reason">${escapeHtml(prioritySourceLabel(message))}</span>
       </div>
       <div class="threat-host" id="message-shield"></div>
       <div class="viewer-body">${escapeHtml(detail.body_text).replace(/\n/g, "<br />")}</div>
@@ -1228,6 +1291,38 @@ async function openMessage(id) {
       event.currentTarget.classList.toggle("selected", next);
       event.currentTarget.innerHTML = `${icon("star")} ${next ? "Starred" : "Star"}`;
       message.is_starred = next;
+      await refreshStats();
+      await loadMailbox({ keepSelection: true });
+    });
+    $("#viewer-important").addEventListener("click", async (event) => {
+      const next = !message.is_important;
+      await invoke("update_message", { id: message.id, isImportant: next }).catch(() => {});
+      message.is_important = next;
+      event.currentTarget.classList.toggle("selected", next);
+      event.currentTarget.innerHTML = `${icon("important")} ${next ? "Important" : "Mark important"}`;
+      const labels = viewer.querySelector(".viewer-labels");
+      const tag = labels?.querySelector(".message-tag");
+      if (labels && tag) {
+        labels.querySelector(".importance-chip")?.remove();
+        if (next) tag.insertAdjacentHTML("afterend", `<span class="importance-chip">${icon("important")} Important</span>`);
+      }
+      await refreshStats();
+      await loadMailbox({ keepSelection: true });
+    });
+    $("#viewer-priority-select").addEventListener("change", async (event) => {
+      const priority = priorityValue(event.target.value);
+      await invoke("update_message", { id: message.id, priority }).catch(() => {});
+      message.priority = priority;
+      message.priority_source = "manual";
+      message.priority_reason = "Set manually.";
+      const reason = $("#viewer-priority-reason");
+      if (reason) reason.textContent = "Set manually.";
+      const labels = viewer.querySelector(".viewer-labels");
+      const tag = labels?.querySelector(".message-tag");
+      if (labels && tag) {
+        labels.querySelector(".priority-chip")?.remove();
+        if (priority !== "normal") tag.insertAdjacentHTML("afterend", `<span class="priority-chip ${priority}">${icon("priority")} ${priorityLabel(priority)} priority</span>`);
+      }
       await refreshStats();
       await loadMailbox({ keepSelection: true });
     });
@@ -1302,8 +1397,12 @@ function openCommandPalette() {
   const actions = [
     { label: "Compose a message", hint: "New email", icon: "compose", run: () => openComposer() },
     { label: "Refresh mailbox", hint: "Sync now", icon: "refresh", run: () => refreshMailbox($("#refresh-button")) },
-    { label: "Show unread mail", hint: "Filter", icon: "mail", run: () => { state.quickFilter = "unread"; $("#filter-button").innerHTML = `Unread ${icon("chevron-down")}`; loadMailbox(); } },
-    { label: "Show starred mail", hint: "Filter", icon: "star", run: () => { state.quickFilter = "starred"; $("#filter-button").innerHTML = `Starred ${icon("chevron-down")}`; loadMailbox(); } },
+    { label: "Show unread mail", hint: "Filter", icon: "mail", run: () => setQuickFilter("unread") },
+    { label: "Show starred mail", hint: "Filter", icon: "star", run: () => setQuickFilter("starred") },
+    { label: "Show important mail", hint: "Filter", icon: "important", run: () => setQuickFilter("important") },
+    { label: "Show high-priority mail", hint: "Filter", icon: "priority", run: () => setQuickFilter("high") },
+    { label: "Show urgent mail", hint: "Filter", icon: "alert", run: () => setQuickFilter("urgent") },
+    { label: "Refresh priority suggestions", hint: "Local rules", icon: "refresh", run: refreshPrioritySuggestions },
     { label: "Mark this mailbox read", hint: "Bulk action", icon: "check", run: async () => { await invoke("mark_all_read", { filter: state.filter }); await refreshStats(); await loadMailbox(); showToast("Mailbox marked read", "success"); } },
     { label: "Open notifications", hint: "Elyra Cloud", icon: "bell", run: openNotifications },
     { label: "Open settings", hint: "Preferences", icon: "settings", run: () => showPanel("settings") },
@@ -1378,10 +1477,7 @@ function bindEvents() {
 
   $("#filter-button").addEventListener("click", () => {
     const next = QUICK_FILTERS[(QUICK_FILTERS.indexOf(state.quickFilter) + 1) % QUICK_FILTERS.length];
-    state.quickFilter = next;
-    const label = next === "all" ? "All mail" : `${next[0].toUpperCase()}${next.slice(1)}`;
-    $("#filter-button").innerHTML = `${label} ${icon("chevron-down")}`;
-    loadMailbox();
+    setQuickFilter(next);
   });
 
   $("#compose-button").addEventListener("click", () => openComposer());
@@ -1411,6 +1507,7 @@ function bindEvents() {
     if (event.target.closest("#reset-demo")) resetDemo();
     if (event.target.closest("#export-mailbox")) exportMailbox();
     if (event.target.closest("#refresh-diagnostics")) renderDiagnostics();
+    if (event.target.closest("#refresh-priority")) refreshPrioritySuggestions();
     if (event.target.closest("#sign-out")) signOut();
     if (event.target.closest("#open-auth")) showAuthModal("login");
     if (event.target.closest("#add-mail-account")) openAccountModal();
@@ -1526,9 +1623,7 @@ function bindEvents() {
       refreshMailbox($("#refresh-button"));
     }
     if (event.key.toLowerCase() === "u") {
-      state.quickFilter = "unread";
-      $("#filter-button").innerHTML = `Unread ${icon("chevron-down")}`;
-      loadMailbox();
+      setQuickFilter("unread");
     }
   });
 
@@ -1551,6 +1646,8 @@ async function persistSettings(patch = {}) {
 }
 
 async function saveSettingsFromForm() {
+  const previousAuto = String(state.settings.auto_priority ?? "true");
+  const previousDefault = state.settings.priority_default || "normal";
   const values = {
     display_name: $("#display-name").value.trim() || "Alex Smith",
     domain_handle: $("#domain-handle").value.trim() || "alex@elyra.com",
@@ -1561,6 +1658,8 @@ async function saveSettingsFromForm() {
     local_only: $("#local-only").checked,
     desktop_notifications: $("#desktop-notifications").checked,
     reduce_motion: $("#reduce-motion").checked,
+    auto_priority: $("#auto-priority").checked,
+    priority_default: $("#priority-default").value,
   };
   try {
     await invoke("set_local_settings", { values });
@@ -1570,8 +1669,24 @@ async function saveSettingsFromForm() {
     $("#save-settings").innerHTML = `${icon("check")} Saved locally`;
     window.setTimeout(() => { $("#save-settings").innerHTML = `${icon("check")} Save changes`; }, 1600);
     showToast("Settings saved", "success");
+    if (String(values.auto_priority) !== previousAuto || values.priority_default !== previousDefault) {
+      await refreshPrioritySuggestions({ quiet: true });
+    }
   } catch (error) {
     showToast(error.message || "Could not save settings", "error");
+  }
+}
+
+async function refreshPrioritySuggestions({ quiet = false } = {}) {
+  try {
+    const count = await invoke("refresh_priority_suggestions");
+    await refreshStats();
+    await loadMailbox({ keepSelection: true });
+    if (!quiet) {
+      showToast(`Refreshed ${count} automatic priorit${count === 1 ? "y" : "ies"}`, "success");
+    }
+  } catch (error) {
+    showToast(error.message || "Could not refresh priority suggestions", "error");
   }
 }
 

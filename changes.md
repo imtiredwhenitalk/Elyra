@@ -288,3 +288,31 @@ Validation: [OK] `node --check` for `main.js`, `tauri.js`, `SecurityPage.js`,
 and `security.js`; [OK] `git diff --check`; Rust compilation and the Windows
 desktop build run in GitHub Actions because no local Rust toolchain is
 available.
+
+[200 OK] Added message importance and priority (Phase 2, GitHub issue #5):
+
+Added `priority.rs` with deterministic local suggestions for Low, Normal, High,
+and Urgent priority. Suggestions run when demo or IMAP mail is imported, record
+`priority_source = "auto"` plus a short reason, and can conservatively mark
+obvious important mail. Manual importance and priority changes set
+`priority_source = "manual"` and are never overwritten. Added `is_important`,
+`priority`, `priority_source`, and `priority_reason` to the message schema with a
+migration that preserves the existing Important label. Added `auto_priority` and
+`priority_default` settings, an `important` mailbox and quick filters for
+important, high, and urgent mail, plus the `refresh_priority_suggestions`
+command.
+
+The inbox now shows importance flags and priority pills, the reader has an
+importance toggle, a priority selector with its reason, and Settings includes
+automatic-suggestion controls and a refresh action. Bulk actions can mark
+messages important or not important. Browser preview mirrors the same behavior
+with `localStorage`.
+
+Files changed: `mailbox.rs`, `providers.rs`, `priority.rs`, `lib.rs`, `main.js`,
+`index.html`, `styles.css`, `tauri.js`, `task.md`, `docs/user-guide.md`,
+`docs/reference/tauri-commands.md`, `docs/reference/configuration.md`.
+
+Validation: [OK] `node --check` for `main.js` and `tauri.js`; [OK] CSS braces
+balanced (525/525); [OK] `git diff --check`; Rust compilation and the Windows
+desktop build run in GitHub Actions because no local Rust toolchain is
+available.

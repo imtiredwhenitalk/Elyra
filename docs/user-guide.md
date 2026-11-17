@@ -48,6 +48,9 @@ The filter control above the list switches the current mailbox between:
 - **All** — no additional filter.
 - **Unread** — only messages with `is_read = 0`.
 - **Starred** — only starred messages.
+- **Important** — only messages with `is_important = 1`.
+- **High priority** — messages at `high` or `urgent` priority.
+- **Urgent** — only messages at `urgent` priority.
 - **Attachments** — only messages with at least one attachment.
 
 The quick filter and the search query combine. Both reset when you switch
@@ -81,12 +84,15 @@ that. The refresh button for accounts is described in
 Click a message row to open the reader. The reader replaces the list and shows:
 
 - Sender, recipient or reply-to, subject, tag, time, and a local-only badge.
+- Importance and priority indicators. The reader shows an **Important** chip and
+  a priority chip with the reason, plus a **Priority** selector and a
+  **Mark important / Important** action.
 - The plain-text body. HTML from providers is not rendered directly; message
   text is escaped before display.
 - Attachment cards with name, MIME type, size, and a download control.
 - Toolbar actions: **Archive**, **Spam**, **Trash**, and **More**.
-- Footer actions: **Star/Starred**, **Reply**, **Forward**, **Mark unread**, or
-  **Edit draft** for drafts.
+- Footer actions: **Star/Starred**, **Mark important/Important**,
+  **Reply**, **Forward**, **Mark unread**, or **Edit draft** for drafts.
 
 Use **Back to …** or press `Escape` to close the reader. Opening another mailbox
 also closes it.
@@ -96,6 +102,8 @@ also closes it.
 | Action | Effect |
 | --- | --- |
 | Star | Toggles `is_starred`; the message appears in **Starred** |
+| Mark important | Toggles `is_important`; the message appears in **Important** |
+| Priority | Sets `low`, `normal`, `high`, or `urgent` and records a manual choice |
 | Mark unread | Sets `is_read = 0` and returns to the list |
 | Archive | Moves the message to **Archive** |
 | Spam | Moves the message to **Spam** |
@@ -114,8 +122,8 @@ Actions are implemented by the Rust core. In browser preview they fall back to
 Select one or more messages with the row checkbox or the header select-all
 control. A bulk bar appears with:
 
-**Read**, **Unread**, **Star**, **Archive**, **Spam**, **Restore**, **Trash**,
-and **Delete**.
+**Read**, **Unread**, **Star**, **Important**, **Not important**, **Archive**,
+**Spam**, **Restore**, **Trash**, and **Delete**.
 
 In **Trash**, only **Restore** and **Delete** are offered. Permanent deletion
 asks for confirmation. Selection is cleared after a successful bulk action.
@@ -320,6 +328,13 @@ OLED theme uses true black surfaces for OLED displays.
   popover; no scheduled background notification is delivered while the app is
   closed.
 - **Reduce motion** — same as the appearance toggle.
+- **Suggest priority automatically** — applies local rules at import time and
+  sets `priority_source = "auto"`. Turn it off to start new mail at the
+  **Default priority** instead. Manual importance and priority choices always
+  win and are never overwritten.
+- **Default priority for new mail** — `Low`, `Normal`, `High`, or `Urgent`.
+- **Refresh suggestions** — recomputes automatic priorities for existing mail
+  without touching messages you changed yourself.
 
 ### Mail accounts
 
@@ -425,8 +440,9 @@ planned entries. It is a convenience view; [`changes.md`](../changes.md) and
 | `Escape` | Close compose, command palette, notification popover, auth modal, or reader |
 | `Tab` / `Shift+Tab` | Move focus through controls |
 
-The command palette includes compose, refresh, quick filters, mark mailbox read,
-export, notifications, and settings.
+The command palette includes compose, refresh, quick filters (including
+important, high-priority, and urgent), priority-suggestion refresh, mark mailbox
+read, export, notifications, and settings.
 
 ## Local-only mode
 

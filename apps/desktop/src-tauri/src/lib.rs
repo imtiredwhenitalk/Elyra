@@ -4,6 +4,7 @@ mod diagnostics;
 mod integrations;
 mod keys;
 mod mailbox;
+mod priority;
 mod providers;
 mod secrets;
 mod security;
@@ -20,6 +21,7 @@ pub fn run() {
         .setup(|app| {
             storage::initialize(app.handle()).expect("failed to initialize Elyra local storage");
             mailbox::initialize(app.handle()).expect("failed to initialize Elyra mailbox engine");
+            priority::initialize(app.handle()).expect("failed to initialize Elyra priority engine");
             providers::initialize(app.handle()).expect("failed to initialize Elyra provider accounts");
             security::initialize(app.handle()).expect("failed to initialize Elyra security controls");
             threats::initialize(app.handle()).expect("failed to initialize Elyra threat intelligence");
@@ -51,6 +53,7 @@ pub fn run() {
             mailbox::delete_draft,
             mailbox::search_suggestions,
             mailbox::export_mailbox,
+            priority::refresh_priority_suggestions,
             security::get_security_status,
             security::list_audit_events,
             integrations::list_integrations,

@@ -44,6 +44,10 @@ pub struct MessageSummary {
     pub color: String,
     pub is_read: bool,
     pub is_starred: bool,
+    pub is_important: bool,
+    pub priority: String,
+    pub priority_source: String,
+    pub priority_reason: Option<String>,
     pub has_attachments: bool,
     pub snoozed_until: Option<String>,
 }
@@ -81,6 +85,8 @@ pub struct MailboxStats {
     pub total: i64,
     pub unread: i64,
     pub starred: i64,
+    pub important: i64,
+    pub high_priority: i64,
     pub attachments: i64,
     pub trash: i64,
     pub spam: i64,
@@ -217,6 +223,7 @@ pub(crate) fn folder_id(database: &Connection, name: &str) -> Result<i64, String
 pub(crate) fn initialize(app: &AppHandle) -> Result<(), String> {
     storage::initialize(app)?;
     let database = storage::connection(app)?;
+    let had_priority = has_column(&database, "emails", "priority")?;
 
     for (column, definition) in [
         ("preview", "TEXT NOT NULL DEFAULT ''"),
@@ -229,8 +236,24 @@ pub(crate) fn initialize(app: &AppHandle) -> Result<(), String> {
         ("size_bytes", "INTEGER NOT NULL DEFAULT 0"),
         ("updated_at", "TEXT NOT NULL DEFAULT ''"),
         ("deleted_at", "TEXT"),
+        ("is_important", "INTEGER NOT NULL DEFAULT 0"),
+        ("priority", "TEXT NOT NULL DEFAULT 'normal'"),
+        ("priority_source", "TEXT NOT NULL DEFAULT 'auto'"),
+        ("priority_reason", "TEXT"),
     ] {
         ensure_column(&database, "emails", column, definition)?;
+    }
+
+    if !had_priority {
+        database
+            .execute(
+                "UPDATE emails SET is_important = 1
+                 WHERE is_important = 0
+                   AND (lower(tag) = 'important'
+                        OR folder_id IN (SELECT id FROM folders WHERE lower(name) = 'important'))",
+                [],
+            )
+            .map_err(|error| error.to_string())?;
     }
 
     database
@@ -262,6 +285,8 @@ pub(crate) fn initialize(app: &AppHandle) -> Result<(), String> {
         ("local_only", "true"),
         ("desktop_notifications", "true"),
         ("reduce_motion", "false"),
+        ("auto_priority", "true"),
+        ("priority_default", "normal"),
     ] {
         database
             .execute(
@@ -624,6 +649,7 @@ fn seed_if_empty(database: &Connection) -> Result<(), String> {
                 insert_attachment(database, email_id, "brand-board.png", "image/png", 1_842_000)?;
             }
         }
+        let _ = crate::priority::apply_auto_priority(database, email_id, true);
     }
 
     Ok(())
@@ -643,6 +669,10 @@ fn row_to_summary(row: &rusqlite::Row<'_>) -> rusqlite::Result<MessageSummary> {
         tag: row.get(5)?,
         is_read: row.get::<_, i64>(6)? != 0,
         is_starred: row.get::<_, i64>(7)? != 0,
+        is_important: row.get::<_, i64>(11)? != 0,
+        priority: row.get(12)?,
+        priority_source: row.get(13)?,
+        priority_reason: row.get(14)?,
         has_attachments: row.get::<_, i64>(9)? != 0,
         snoozed_until: row.get(10)?,
         time: display_time(&received_at),
@@ -662,6 +692,9 @@ fn build_filters(filter: &str, quick_filter: &str, query: &str) -> (String, Vec<
         ),
         "starred" => conditions
             .push("e.is_starred = 1 AND lower(f.name) NOT IN ('trash', 'spam')".to_string()),
+        "important" => conditions.push(
+            "e.is_important = 1 AND lower(f.name) NOT IN ('trash', 'spam')".to_string(),
+        ),
         "all" | "" => {}
         "snoozed" => conditions.push("lower(f.name) = 'snoozed'".to_string()),
         other => {
@@ -673,6 +706,9 @@ fn build_filters(filter: &str, quick_filter: &str, query: &str) -> (String, Vec<
     match quick_filter.to_ascii_lowercase().as_str() {
         "unread" => conditions.push("e.is_read = 0".to_string()),
         "starred" => conditions.push("e.is_starred = 1".to_string()),
+        "important" => conditions.push("e.is_important = 1".to_string()),
+        "high" => conditions.push("e.priority IN ('high', 'urgent')".to_string()),
+        "urgent" => conditions.push("e.priority = 'urgent'".to_string()),
         "attachments" => conditions.push("e.has_attachments = 1".to_string()),
         _ => {}
     }
@@ -694,7 +730,8 @@ fn build_filters(filter: &str, quick_filter: &str, query: &str) -> (String, Vec<
 
 fn summary_sql() -> &'static str {
     "SELECT e.id, e.sender, e.subject, e.preview, f.name, e.tag, e.is_read,
-            e.is_starred, e.received_at, e.has_attachments, e.snoozed_until
+            e.is_starred, e.received_at, e.has_attachments, e.snoozed_until,
+            e.is_important, e.priority, e.priority_source, e.priority_reason
      FROM emails e JOIN folders f ON f.id = e.folder_id"
 }
 
@@ -717,6 +754,24 @@ pub(crate) fn stats(app: &AppHandle) -> Result<MailboxStats, String> {
     let starred: i64 = database
         .query_row(
             "SELECT COUNT(*) FROM emails WHERE deleted_at IS NULL AND is_starred = 1",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| error.to_string())?;
+    let important: i64 = database
+        .query_row(
+            "SELECT COUNT(*) FROM emails e JOIN folders f ON f.id = e.folder_id
+             WHERE e.deleted_at IS NULL AND e.is_important = 1
+               AND lower(f.name) NOT IN ('trash', 'spam')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| error.to_string())?;
+    let high_priority: i64 = database
+        .query_row(
+            "SELECT COUNT(*) FROM emails e JOIN folders f ON f.id = e.folder_id
+             WHERE e.deleted_at IS NULL AND e.priority IN ('high', 'urgent')
+               AND lower(f.name) NOT IN ('trash', 'spam')",
             [],
             |row| row.get(0),
         )
@@ -775,6 +830,8 @@ pub(crate) fn stats(app: &AppHandle) -> Result<MailboxStats, String> {
         total,
         unread,
         starred,
+        important,
+        high_priority,
         attachments,
         trash,
         spam,
@@ -793,6 +850,7 @@ fn message_detail(database: &Connection, id: i64) -> Result<MessageDetail, Strin
         .prepare(
             "SELECT e.id, e.sender, e.subject, e.preview, f.name, e.tag, e.is_read,
                     e.is_starred, e.received_at, e.has_attachments, e.snoozed_until,
+                    e.is_important, e.priority, e.priority_source, e.priority_reason,
                     e.recipient, e.body_text, e.body_html
              FROM emails e JOIN folders f ON f.id = e.folder_id
              WHERE e.id = ?1 AND e.deleted_at IS NULL",
@@ -803,9 +861,9 @@ fn message_detail(database: &Connection, id: i64) -> Result<MessageDetail, Strin
             let summary = row_to_summary(row)?;
             Ok(MessageDetail {
                 message: summary,
-                recipient: row.get(11)?,
-                body_text: row.get(12)?,
-                body_html: row.get(13)?,
+                recipient: row.get(15)?,
+                body_text: row.get(16)?,
+                body_html: row.get(17)?,
                 attachments: Vec::new(),
             })
         })
@@ -953,6 +1011,8 @@ pub fn update_message(
     id: i64,
     is_read: Option<bool>,
     is_starred: Option<bool>,
+    is_important: Option<bool>,
+    priority: Option<String>,
     folder: Option<String>,
 ) -> Result<(), String> {
     let database = storage::connection(&app)?;
@@ -966,6 +1026,18 @@ pub fn update_message(
     if let Some(is_starred) = is_starred {
         assignments.push("is_starred = ?");
         values.push(Value::Integer(if is_starred { 1 } else { 0 }));
+    }
+    if let Some(is_important) = is_important {
+        assignments.push("is_important = ?");
+        values.push(Value::Integer(if is_important { 1 } else { 0 }));
+    }
+    if let Some(priority) = priority {
+        let priority = crate::priority::normalize_priority(&priority)
+            .ok_or_else(|| "Unknown priority level".to_string())?;
+        assignments.push("priority = ?");
+        values.push(Value::Text(priority.to_string()));
+        assignments.push("priority_source = 'manual'");
+        assignments.push("priority_reason = 'Set manually.'");
     }
     if let Some(folder) = folder {
         assignments.push("folder_id = ?");
@@ -1036,6 +1108,21 @@ pub fn bulk_update_messages(
         "unstar" => format!(
             "UPDATE emails SET is_starred = 0, updated_at = datetime('now') WHERE id IN ({placeholders})"
         ),
+        "important" => format!(
+            "UPDATE emails SET is_important = 1, updated_at = datetime('now') WHERE id IN ({placeholders})"
+        ),
+        "unimportant" => format!(
+            "UPDATE emails SET is_important = 0, updated_at = datetime('now') WHERE id IN ({placeholders})"
+        ),
+        "priority-low" | "priority-normal" | "priority-high" | "priority-urgent" => {
+            let priority = action.trim_start_matches("priority-");
+            values.push(Value::Text(priority.to_ascii_lowercase()));
+            format!(
+                "UPDATE emails SET priority = ?, priority_source = 'manual',
+                    priority_reason = 'Set manually.', updated_at = datetime('now')
+                 WHERE id IN ({placeholders})"
+            )
+        }
         "delete" => format!("DELETE FROM emails WHERE id IN ({placeholders})"),
         "trash" | "archive" | "spam" | "inbox" | "restore" => {
             let folder = match action.to_ascii_lowercase().as_str() {

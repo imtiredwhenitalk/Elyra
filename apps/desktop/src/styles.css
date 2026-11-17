@@ -904,6 +904,60 @@ body[data-theme="oled"] .sender-avatar {
   height: 13px;
 }
 
+.message-row.important {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--gold) 65%, transparent);
+}
+
+.message-row.important.selected {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.importance-flag {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--gold);
+}
+
+.importance-flag .icon {
+  width: 13px;
+  height: 13px;
+  fill: color-mix(in srgb, var(--gold) 35%, transparent);
+}
+
+.priority-pill {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.priority-pill .icon {
+  width: 10px;
+  height: 10px;
+}
+
+.priority-pill.high {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+}
+
+.priority-pill.urgent {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+.priority-pill.low {
+  color: var(--text-faint);
+  background: color-mix(in srgb, var(--text-faint) 11%, transparent);
+}
+
 .message-time {
   margin-left: auto;
   color: var(--text-faint);
@@ -1167,6 +1221,74 @@ body[data-theme="oled"] .sender-avatar {
 
 .viewer-actions button.selected .icon {
   fill: currentColor;
+}
+
+.importance-chip,
+.priority-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.importance-chip {
+  color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 15%, transparent);
+}
+
+.priority-chip.high {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+}
+
+.priority-chip.urgent {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+.priority-chip.low {
+  color: var(--text-faint);
+  background: color-mix(in srgb, var(--text-faint) 11%, transparent);
+}
+
+.importance-chip .icon,
+.priority-chip .icon {
+  width: 11px;
+  height: 11px;
+}
+
+.viewer-priority {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: -8px 0 18px 57px;
+  color: var(--text-faint);
+  font-size: 10px;
+}
+
+.viewer-priority label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 650;
+}
+
+.viewer-priority select {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: var(--surface);
+  font-size: 10px;
+}
+
+.priority-reason {
+  color: var(--text-faint);
+  font-size: 10px;
 }
 
 .viewer-body {
@@ -1507,6 +1629,11 @@ body[data-theme="oled"] .sender-avatar {
 .api-url-row input {
   flex: 1;
   min-width: 0;
+}
+
+.api-url-row select {
+  flex: 0 0 auto;
+  min-width: 150px;
 }
 
 .api-url-row .ghost-button {
