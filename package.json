@@ -2,6 +2,7 @@
   "name": "elyra",
   "private": true,
   "version": "0.3.0",
+  "license": "MIT",
   "scripts": {
     "build": "npm --prefix apps/desktop run build",
     "check": "npm --prefix apps/desktop run check",

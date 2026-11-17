@@ -18,7 +18,7 @@
   <a href="https://imtiredwhenitalk.github.io/Elyra/"><img src="https://img.shields.io/badge/website-live-4d7a61?style=flat-square" alt="Website" /></a>
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-4d7a61?style=flat-square&logo=windows&logoColor=white" alt="Windows 10 and 11" />
   <img src="https://img.shields.io/badge/stack-Rust%20%2B%20Tauri-4d7a61?style=flat-square&logo=rust&logoColor=white" alt="Rust and Tauri" />
-  <img src="https://img.shields.io/badge/license-MIT-4d7a61?style=flat-square" alt="MIT license" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-4d7a61?style=flat-square" alt="MIT license" /></a>
 </p>
 
 <p>
@@ -158,7 +158,9 @@ Read [`docs/development.md`](docs/development.md) for prerequisites, commands, a
 
 ## License
 
-MIT. See [`Cargo.toml`](Cargo.toml) for the workspace license declaration.
+Elyra is released under the [MIT License](LICENSE).
+
+Copyright © 2026 Elyra contributors. Third-party dependencies keep their own licenses; see each crate or package for details.
 
 ---
 
@@ -170,7 +172,8 @@ MIT. See [`Cargo.toml`](Cargo.toml) for the workspace license declaration.
   <a href="https://github.com/imtiredwhenitalk/Elyra">GitHub</a> ·
   <a href="https://imtiredwhenitalk.github.io/Elyra/">Website</a> ·
   <a href="https://github.com/imtiredwhenitalk/Elyra/releases">Releases</a> ·
-  <a href="docs/README.md">Docs</a>
+  <a href="docs/README.md">Docs</a> ·
+  <a href="LICENSE">License</a>
 </p>
 
 </div>

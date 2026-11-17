@@ -1,3 +1,22 @@
+[200 OK] Added MIT licensing across the repository:
+
+Added a root `LICENSE` file with the standard MIT text
+(`Copyright (c) 2026 Elyra contributors`) and declared `MIT` in every
+manifest: the root `package.json`, `apps/desktop/package.json`,
+`packages/types/package.json`, `packages/ui/package.json`, and
+`apps/desktop/src-tauri/Cargo.toml` (via `license.workspace = true`). The
+workspace license in `Cargo.toml` was already `MIT`. The README license badge,
+License section, and footer now link to `LICENSE`, and `docs/README.md` lists it
+among the related top-level files.
+
+Files changed: `LICENSE`, `README.md`, `changes.md`, `docs/README.md`,
+`package.json`, `apps/desktop/package.json`, `packages/types/package.json`,
+`packages/ui/package.json`, `apps/desktop/src-tauri/Cargo.toml`.
+
+Validation: [OK] every edited `package.json` parses as JSON; [OK] `LICENSE`
+matches the canonical MIT text; [OK] README local links resolve;
+[OK] `git diff --check`.
+
 [200 OK] Refreshed the repository README:
 
 Rebuilt the project landing page with a centered brand header, release, build,

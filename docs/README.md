@@ -109,6 +109,7 @@ environment variable, schema, or deployment step:
 ## Related top-level files
 
 - [`README.md`](../README.md) — project overview, downloads, and quick commands.
+- [`LICENSE`](../LICENSE) — MIT license covering the repository.
 - [`ARCHITECTURE.md`](../ARCHITECTURE.md) — short pointer to the architecture.
 - [`ai.md`](../ai.md) — project rules, intended stack, and layout.
 - [`task.md`](../task.md) — feature checklist and status.
