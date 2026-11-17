@@ -163,6 +163,79 @@ function suggestPriority(sender, subject, body, tag) {
   return { priority: "normal", important: false, reason: "No strong priority signals detected." };
 }
 
+const FALLBACK_EXECUTABLE_EXTENSIONS = new Set(["exe", "scr", "com", "pif", "msi", "msp", "lnk", "dll", "sys", "cpl", "apk", "app", "deb", "rpm", "dmg", "pkg", "iso", "img", "vhd", "vhdx", "vbs", "vbe", "js", "jse", "wsf", "wsh", "hta", "bat", "cmd", "ps1", "sh", "jar"]);
+const FALLBACK_SCRIPT_EXTENSIONS = new Set(["js", "jse", "vbs", "vbe", "wsf", "wsh", "hta", "bat", "cmd", "ps1", "sh", "py", "rb", "pl"]);
+const FALLBACK_DISK_IMAGE_EXTENSIONS = new Set(["iso", "img", "vhd", "vhdx"]);
+const FALLBACK_MACRO_EXTENSIONS = new Set(["docm", "dotm", "xlsm", "xltm", "xlam", "pptm", "potm", "ppam"]);
+const FALLBACK_ARCHIVE_EXTENSIONS = new Set(["zip", "rar", "7z", "gz", "bz2", "xz", "tar", "cab", "arj", "lzh", "z", "tgz", "tbz2"]);
+const FALLBACK_DISGUISED_EXTENSIONS = new Set(["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "rtf", "csv", "jpg", "jpeg", "png", "gif", "zip"]);
+
+function fallbackAttachmentMeta(attachment) {
+  const name = String(attachment.name || "attachment");
+  const parts = name.split(".");
+  const extension = parts.length > 1 ? parts[parts.length - 1].trim().toLowerCase() : "";
+  const declared = String(attachment.mime_type || "application/octet-stream").toLowerCase();
+  let kind = "other";
+  let score = 0;
+  const reasons = [];
+  if (FALLBACK_DISK_IMAGE_EXTENSIONS.has(extension)) {
+    kind = "disk-image";
+    score += 30;
+    reasons.push(`The attachment is a disk image (${extension}) and can carry hidden executables.`);
+  } else if (FALLBACK_EXECUTABLE_EXTENSIONS.has(extension)) {
+    kind = FALLBACK_SCRIPT_EXTENSIONS.has(extension) ? "script" : "executable";
+    score += FALLBACK_SCRIPT_EXTENSIONS.has(extension) ? 35 : 45;
+    reasons.push(FALLBACK_SCRIPT_EXTENSIONS.has(extension)
+      ? `The attachment is a script (${extension}) and could run code when opened.`
+      : `The attachment is an executable program (${extension}) and could harm this device.`);
+  } else if (FALLBACK_MACRO_EXTENSIONS.has(extension)) {
+    kind = "macro";
+    score += 25;
+    reasons.push(`The attachment is a macro-enabled Office document (${extension}).`);
+  } else if (FALLBACK_ARCHIVE_EXTENSIONS.has(extension) || declared.includes("zip") || declared.includes("rar") || declared.includes("7z")) {
+    kind = "archive";
+    score += 25;
+    reasons.push("The attachment is an archive. Archives can hide executables, so scan it before opening.");
+  } else if (declared.startsWith("image/")) {
+    kind = "image";
+  } else if (declared === "application/pdf" || declared.startsWith("text/") || declared.includes("officedocument") || declared.includes("msword") || declared.includes("ms-excel") || declared.includes("ms-powerpoint")) {
+    kind = "document";
+  }
+  if (parts.length >= 3 && FALLBACK_DISGUISED_EXTENSIONS.has(parts[parts.length - 2].toLowerCase()) && FALLBACK_EXECUTABLE_EXTENSIONS.has(extension)) {
+    score += 35;
+    reasons.push("The name uses a double extension to disguise an executable as a document.");
+  }
+  if (declared === "text/html") {
+    score += 25;
+    reasons.push("The attachment is a web page. HTML attachments are often used for phishing.");
+  }
+  score = Math.min(score, 100);
+  const risk = score >= 60 ? "malicious" : score >= 25 ? "suspicious" : "safe";
+  return {
+    detected_mime: declared,
+    kind,
+    risk,
+    score,
+    reasons,
+    sha256: null,
+    content_available: false,
+    scan_source: "local",
+    scanned_at: sqlTime(),
+    consent_required: false,
+  };
+}
+
+function demoAttachmentsFor(row, index) {
+  if (String(row[4]).toLowerCase() === "spam") {
+    return [
+      { id: index + 1, name: "claim-form.pdf.exe", mime_type: "application/pdf", size_bytes: 1_204_224 },
+    ].map((attachment) => ({ ...attachment, ...fallbackAttachmentMeta(attachment) }));
+  }
+  if (!row[8]) return [];
+  return [{ id: index + 1, name: "message-notes.pdf", mime_type: "application/pdf", size_bytes: 248_320 }]
+    .map((attachment) => ({ ...attachment, ...fallbackAttachmentMeta(attachment) }));
+}
+
 function demoMessages() {
   const rows = [
     ["Maya Chen", "alex@elyra.com", "The quieter way to work", 12, "Important", "Important", false, true, true, "Hi Alex,\n\nI've been thinking about the new rhythm we discussed. Fewer meetings, longer focus blocks, and a calmer inbox would give the team room to do their best work.\n\nI put together a short proposal with three experiments we could run next month.\n\nMaya"],
@@ -204,10 +277,10 @@ function demoMessages() {
       auth_results: String(row[4]).toLowerCase() === "spam"
         ? { spf: "fail", dkim: "fail", dmarc: "fail", source: "demo" }
         : { spf: "pass", dkim: "pass", dmarc: "pass", source: "demo" },
-      has_attachments: row[8],
+      has_attachments: row[8] || String(row[4]).toLowerCase() === "spam",
       body_text: row[9],
       preview: previewOf(row[9]),
-      attachments: row[8] ? [{ id: index + 1, name: "message-notes.pdf", mime_type: "application/pdf", size_bytes: 248_320 }] : [],
+      attachments: demoAttachmentsFor(row, index),
     };
   });
 }
@@ -1006,6 +1079,38 @@ function fallbackDeleteContact(id) {
   return Promise.resolve();
 }
 
+function fallbackAttachmentScan(id) {
+  const messages = loadMailbox();
+  for (const message of messages) {
+    const attachment = (message.attachments || []).find((item) => Number(item.id) === Number(id));
+    if (!attachment) continue;
+    Object.assign(attachment, fallbackAttachmentMeta(attachment));
+    saveMailbox(messages);
+    return Promise.resolve({
+      attachment_id: attachment.id,
+      email_id: message.id,
+      name: attachment.name,
+      mime_type: attachment.mime_type,
+      size_bytes: attachment.size_bytes,
+      ...fallbackAttachmentMeta(attachment),
+    });
+  }
+  return Promise.reject(new Error("Attachment not found"));
+}
+
+function fallbackScanAllAttachments() {
+  const messages = loadMailbox();
+  let scanned = 0;
+  for (const message of messages) {
+    for (const attachment of message.attachments || []) {
+      Object.assign(attachment, fallbackAttachmentMeta(attachment));
+      scanned += 1;
+    }
+  }
+  saveMailbox(messages);
+  return Promise.resolve(scanned);
+}
+
 function fallbackInvoke(command, args = {}) {
   switch (command) {
     case "initialize_local_storage":
@@ -1069,6 +1174,14 @@ function fallbackInvoke(command, args = {}) {
         attachments: message.attachments || [],
       });
     }
+    case "scan_attachment":
+      return fallbackAttachmentScan(args.id);
+    case "scan_all_attachments":
+      return fallbackScanAllAttachments();
+    case "scan_attachment_external":
+      return Promise.reject(new Error("VirusTotal file uploads are only available in the desktop build."));
+    case "get_attachment_content":
+      return Promise.reject(new Error("Attachment content is only stored in the desktop build."));
     case "update_message": {
       const messages = loadMailbox();
       const message = messages.find((item) => Number(item.id) === Number(args.id));

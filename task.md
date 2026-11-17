@@ -20,6 +20,7 @@
 * **Email Importance & Priority** - manual important/unimportant, Low/Normal/High/Urgent priority, inbox indicators, important and high-priority filters, automatic local suggestions with a disable option, and SQLite persistence [200 OK]
 * **Sender & Domain Blocking** - block or allow addresses and domains, allowlist precedence, Settings management, automatic Spam/Trash filtering, visible blocked-sender indicators, and SQLite persistence [200 OK]
 * **Sender & Domain Reputation** - Trusted/Neutral/Suspicious/Malicious classification, SPF/DKIM/DMARC results, reader explanations, domain refresh, and incorrect-assessment reporting [200 OK]
+* **Attachment Security** - real-content type detection, executable/script/archive and double-extension warnings, optional local ClamAV, consent-based VirusTotal file analysis, reader risk cards, and configurable scanning preferences [200 OK]
 * **Elyra Backend Service (Rust)** - account routing, metadata sync, notifications, REST API [200 OK]; WebSocket live updates [NEXT]
 * **Server Mail Relay** - registered users can send to any external address through the server when no local SMTP account is configured [200 OK]
 * **First-Run Registration** - registration onboarding modal, configurable server URL, and Continue offline [200 OK]
@@ -58,3 +59,4 @@
 * Added local priority suggestions with Low/Normal/High/Urgent levels, importance flags, inbox indicators, important and high-priority filters, manual overrides, and automatic-suggestion settings.
 * Added address and domain block/allow rules with allowlist precedence, automatic Spam/Trash filtering, blocked-sender indicators, and Settings management.
 * Added sender-domain reputation with SPF/DKIM/DMARC parsing, Trusted/Neutral/Suspicious/Malicious classifications, reader explanations, domain refresh, and incorrect-assessment reporting.
+* Added attachment security scanning with real-content type detection, risky-file and double-extension warnings, optional ClamAV, consent-based VirusTotal uploads, reader risk cards, and configurable scanning settings.

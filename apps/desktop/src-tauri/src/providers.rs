@@ -766,14 +766,19 @@ fn sync_inbox(
                     None => content_type.ctype().to_string(),
                 })
                 .unwrap_or_else(|| "application/octet-stream".to_string());
-            mailbox::insert_attachment(
+            let content = part.decoded();
+            mailbox::insert_attachment_with_content(
                 &database,
                 email_id,
                 &name,
                 &mime_type,
                 part.decoded_len() as i64,
+                Some(content.as_ref()),
             )?;
         }
+        // Classify attachments from their real bytes. ClamAV only runs when the
+        // user has enabled it in Settings.
+        let _ = crate::attachments::scan_email_attachments(&database, email_id);
         // Run the local Shield checks at import time. External link scans are
         // deferred until the message is opened so synchronisation stays fast.
         let _ = crate::priority::apply_auto_priority(&database, email_id, true);

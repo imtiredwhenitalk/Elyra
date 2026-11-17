@@ -1331,12 +1331,32 @@ body[data-theme="oled"] .sender-avatar {
 
 .attachment-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);
+}
+
+.attachment-card.suspicious {
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+  background: color-mix(in srgb, var(--warning) 7%, var(--surface));
+}
+
+.attachment-card.malicious {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+}
+
+.attachment-icon-wrap {
+  display: grid;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--accent-soft);
 }
 
 .attachment-icon {
@@ -1345,19 +1365,100 @@ body[data-theme="oled"] .sender-avatar {
   color: var(--accent);
 }
 
-.attachment-card > span {
+.attachment-main {
   display: grid;
   flex: 1;
-  gap: 1px;
+  gap: 3px;
+  min-width: 0;
+}
+
+.attachment-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .attachment-card b {
   font-size: 11px;
+  overflow-wrap: anywhere;
 }
 
 .attachment-card small {
   color: var(--text-faint);
   font-size: 9.5px;
+  overflow-wrap: anywhere;
+}
+
+.attachment-risk {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+.attachment-risk .icon {
+  width: 11px;
+  height: 11px;
+}
+
+.attachment-risk.safe {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, var(--surface));
+}
+
+.attachment-risk.suspicious {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 14%, var(--surface));
+}
+
+.attachment-risk.malicious {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+}
+
+.attachment-kind {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-faint);
+  font-size: 8.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.attachment-reasons {
+  margin: 3px 0 0;
+  padding-left: 16px;
+  color: var(--text-muted);
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.attachment-card.suspicious .attachment-reasons li::marker {
+  color: var(--warning);
+}
+
+.attachment-card.malicious .attachment-reasons li::marker {
+  color: var(--danger);
+}
+
+.attachment-note {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.attachment-actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
 }
 
 .attachment-card button {
@@ -1373,6 +1474,11 @@ body[data-theme="oled"] .sender-avatar {
 .attachment-card button:hover {
   color: var(--accent);
   background: var(--accent-soft);
+}
+
+.attachment-card button:disabled {
+  cursor: progress;
+  opacity: 0.55;
 }
 
 /* ---------------------------------------------------------------- panels */

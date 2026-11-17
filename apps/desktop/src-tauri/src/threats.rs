@@ -71,7 +71,7 @@ fn virustotal_clock() -> &'static Mutex<Option<Instant>> {
     CLOCK.get_or_init(|| Mutex::new(None))
 }
 
-fn allow_virustotal_request() -> bool {
+pub(crate) fn allow_virustotal_request() -> bool {
     let clock = virustotal_clock();
     let mut guard = clock.lock().unwrap_or_else(|error| error.into_inner());
     let now = Instant::now();

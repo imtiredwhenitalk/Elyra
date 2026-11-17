@@ -407,6 +407,39 @@
               </fieldset>
 
               <fieldset class="settings-section">
+                <legend>Attachment security</legend>
+                <p class="settings-note">Elyra identifies attachments from their real file content and never opens or runs them automatically. Local analysis stays on this device.</p>
+                <label class="setting-toggle">
+                  <span><b>Scan attachments automatically</b><small>Classify incoming attachments and check for risky executables, scripts and archives.</small></span>
+                  <input id="attachment-scanning" type="checkbox" checked />
+                </label>
+                <label class="setting-toggle">
+                  <span><b>Use local ClamAV</b><small>Run ClamAV on stored attachment content when it is installed on this device.</small></span>
+                  <input id="attachment-clamav" type="checkbox" />
+                </label>
+                <div class="settings-field">
+                  <label for="clamav-path">ClamAV command</label>
+                  <input id="clamav-path" type="text" maxlength="240" placeholder="clamscan" spellcheck="false" />
+                  <p class="settings-note">The executable name or full path to <code>clamscan</code>. Scanning failures never block your mailbox.</p>
+                </div>
+                <label class="setting-toggle">
+                  <span><b>Allow VirusTotal file analysis</b><small>Enables the per-file upload button. Every upload still asks for explicit consent and uses your own API key.</small></span>
+                  <input id="attachment-virustotal" type="checkbox" />
+                </label>
+                <div class="settings-field">
+                  <label for="attachment-scan-max">Maximum scan size (MB)</label>
+                  <div class="api-url-row">
+                    <input id="attachment-scan-max" type="number" min="1" max="200" step="1" value="25" />
+                    <button class="ghost-button" type="button" id="rescan-attachments">
+                      <svg class="icon"><use href="#i-shield"></use></svg>
+                      Rescan attachments
+                    </button>
+                  </div>
+                  <p class="settings-note">Files larger than this limit are classified locally but are not sent to ClamAV or VirusTotal.</p>
+                </div>
+              </fieldset>
+
+              <fieldset class="settings-section">
                 <legend>Mail accounts</legend>
                 <p class="settings-note">IMAP passwords are stored in the Windows Credential Manager. Account settings and cached mail stay in the local SQLite database.</p>
                 <div class="account-settings-list" id="settings-accounts"></div>

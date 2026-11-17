@@ -47,6 +47,7 @@ with `localStorage`. Desktop builds always call the Rust implementations.
 | [Storage](#storage) | `initialize_local_storage`, `cache_email`, `list_cached_emails`, `set_local_setting`, `get_local_settings`, `set_local_settings`, `delete_local_setting` |
 | [Mailbox](#mailbox) | `mailbox_stats`, `seed_demo_mailbox`, `reset_demo_mailbox`, `refresh_mailbox`, `list_mailbox`, `get_message`, `update_message`, `delete_message`, `bulk_update_messages`, `mark_all_read`, `empty_trash`, `save_draft`, `delete_draft`, `search_suggestions`, `export_mailbox`, `refresh_priority_suggestions` |
 | [Senders](#senders) | `list_sender_rules`, `save_sender_rule`, `delete_sender_rule`, `apply_sender_rules` |
+| [Attachments](#attachments) | `scan_attachment`, `scan_all_attachments`, `scan_attachment_external`, `get_attachment_content` |
 | [Sender reputation](#sender-reputation) | `get_sender_reputation`, `refresh_domain_reputation`, `report_reputation_issue` |
 | [Providers](#providers) | `provider_presets`, `list_email_accounts`, `save_email_account`, `delete_email_account`, `test_email_account`, `test_email_settings`, `sync_email_account`, `sync_all_accounts` |
 | [Sending](#sending) | `send_email`, `list_sent_emails` |
@@ -272,7 +273,22 @@ Returns the full message and marks it read. Shape:
   "body_text": "Plain text body",
   "body_html": null,
   "attachments": [
-    { "id": 3, "name": "report.pdf", "mime_type": "application/pdf", "size_bytes": 42000 }
+    {
+      "id": 3,
+      "name": "report.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 42000,
+      "detected_mime": "application/pdf",
+      "kind": "document",
+      "risk": "safe",
+      "score": 0,
+      "reasons": [],
+      "sha256": "…",
+      "content_available": true,
+      "scan_source": "local",
+      "scanned_at": "2026-11-17 10:00:00",
+      "consent_required": true
+    }
   ]
 }
 ```
@@ -456,6 +472,87 @@ auto-filtered by the deleted rule return to **Inbox** if they are still in
 Re-evaluates every non-deleted message and returns the number of blocked
 messages. Manual folder moves clear `blocked_by`, so they are not restored when
 rules change.
+
+## Attachments
+
+Source: `apps/desktop/src-tauri/src/attachments.rs`.
+
+Attachment analysis inspects the stored bytes, not only the file name or the
+declared MIME type. Each attachment stores `detected_mime`, `kind`, `risk`,
+`score`, `reasons`, `sha256`, `content_available`, `scan_source`, `scanned_at`,
+and `consent_required`. Risk is `safe` below 25, `suspicious` from 25, and
+`malicious` from 60. Local analysis always runs; ClamAV and VirusTotal are
+opt-in. Files are never executed or opened.
+
+### `scan_attachment`
+
+```ts
+(id: number) => Promise<AttachmentScan>
+```
+
+Re-runs local analysis for one attachment, plus ClamAV when
+`attachment_clamav` is enabled and content is stored. Returns the updated scan.
+
+```json
+{
+  "attachment_id": 3,
+  "email_id": 12,
+  "name": "invoice.pdf.exe",
+  "mime_type": "application/pdf",
+  "detected_mime": "application/pdf",
+  "kind": "executable",
+  "size_bytes": 1204224,
+  "sha256": null,
+  "risk": "malicious",
+  "score": 80,
+  "reasons": ["The attachment is an executable program (exe) ..."],
+  "content_available": false,
+  "scan_source": "local",
+  "scanned_at": "2026-11-17 10:00:00",
+  "consent_required": false
+}
+```
+
+### `scan_all_attachments`
+
+```ts
+() => Promise<number>
+```
+
+Re-scans every attachment and returns the number that scanned successfully.
+Backs the **Rescan attachments** settings action.
+
+### `scan_attachment_external`
+
+```ts
+(id: number, consent: boolean) => Promise<AttachmentScan>
+```
+
+Uploads one attachment to VirusTotal for file analysis. Requires
+`consent: true`, `attachment_virustotal = "true"`, a stored VirusTotal key,
+stored content, and a file within `attachment_scan_max_mb`. Shares the
+16-second VirusTotal throttle. A clean result never downgrades a local warning.
+Without consent the command returns an error and nothing is uploaded.
+
+### `get_attachment_content`
+
+```ts
+(id: number) => Promise<AttachmentContent>
+```
+
+Returns the stored bytes as base64 for the guarded download control. Rejects
+files above 50 MB and attachments whose content is not stored locally.
+
+```json
+{
+  "id": 3,
+  "name": "report.pdf",
+  "mime_type": "application/pdf",
+  "detected_mime": "application/pdf",
+  "size_bytes": 42000,
+  "data_base64": "..."
+}
+```
 
 ## Sender reputation
 

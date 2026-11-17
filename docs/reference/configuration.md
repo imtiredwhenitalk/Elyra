@@ -61,6 +61,11 @@ UI, not environment variables.
 | `auto_priority` | `true` | Apply local priority suggestions at import; `false` uses `priority_default` |
 | `priority_default` | `normal` | `low`, `normal`, `high`, or `urgent` starting priority when suggestions are off |
 | `blocked_sender_action` | `spam` | Destination for mail matched by a sender block rule: `spam` or `trash` |
+| `attachment_scanning` | `true` | Classify attachments at import |
+| `attachment_clamav` | `false` | Run local ClamAV on stored attachment content |
+| `attachment_virustotal` | `false` | Allow consent-based VirusTotal file uploads |
+| `clamav_path` | `clamscan` | Executable name or full path to `clamscan` |
+| `attachment_scan_max_mb` | `25` | Maximum attachment size sent to ClamAV or VirusTotal, clamped to 1–200 |
 | `api_url` | unset | Saved Elyra server base URL |
 | `last_sync_at` | unset | Last successful account sync timestamp |
 | `external_scanning` | `true` | Set to `false` to disable VirusTotal and Google Safe Browsing calls |
@@ -77,6 +82,8 @@ Browser preview also uses `localStorage` keys:
 - `elyra-fallback:crypto-contacts-v1` — preview contact public keys.
 - `elyra-fallback:integrations-v1` — preview integration status. Preview API
   keys are kept in memory only and are not written to `localStorage`.
+- `elyra-fallback:sender-rules-v1` — preview block and allow rules.
+- `elyra-fallback:reputation-v1` — preview sender-domain reputation.
 
 ## Keychain entries
 

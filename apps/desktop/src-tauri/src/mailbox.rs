@@ -59,6 +59,16 @@ pub struct AttachmentInfo {
     pub name: String,
     pub mime_type: String,
     pub size_bytes: i64,
+    pub detected_mime: String,
+    pub kind: String,
+    pub risk: String,
+    pub score: i64,
+    pub reasons: Vec<String>,
+    pub sha256: Option<String>,
+    pub content_available: bool,
+    pub scan_source: String,
+    pub scanned_at: Option<String>,
+    pub consent_required: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -276,6 +286,10 @@ pub(crate) fn initialize(app: &AppHandle) -> Result<(), String> {
         )
         .map_err(|error| error.to_string())?;
 
+    // Make sure attachment scanning columns exist before demo seeding stores
+    // attachment content. `attachments::initialize` re-checks them later.
+    crate::attachments::ensure_columns(&database)?;
+
     ensure_folders(&database)?;
 
     for (key, value) in [
@@ -395,11 +409,31 @@ pub(crate) fn insert_attachment(
     mime_type: &str,
     size_bytes: i64,
 ) -> Result<(), String> {
+    insert_attachment_with_content(database, email_id, name, mime_type, size_bytes, None)
+}
+
+pub(crate) fn insert_attachment_with_content(
+    database: &Connection,
+    email_id: i64,
+    name: &str,
+    mime_type: &str,
+    size_bytes: i64,
+    content: Option<&[u8]>,
+) -> Result<(), String> {
+    let content_available = content.map(|bytes| !bytes.is_empty()).unwrap_or(false);
     database
         .execute(
-            "INSERT INTO attachments (email_id, name, mime_type, size_bytes)
-             VALUES (?1, ?2, ?3, ?4)",
-            params![email_id, name, mime_type, size_bytes],
+            "INSERT INTO attachments
+                (email_id, name, mime_type, size_bytes, content, content_available)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                email_id,
+                name,
+                mime_type,
+                size_bytes,
+                content,
+                if content_available { 1 } else { 0 }
+            ],
         )
         .map_err(|error| error.to_string())?;
     database
@@ -668,6 +702,15 @@ fn seed_if_empty(database: &Connection) -> Result<(), String> {
                 insert_attachment(database, email_id, "brand-board.png", "image/png", 1_842_000)?;
             }
         }
+        if demo.4.eq_ignore_ascii_case("Spam") {
+            insert_attachment(
+                database,
+                email_id,
+                "claim-form.pdf.exe",
+                "application/pdf",
+                1_204_224,
+            )?;
+        }
         let _ = crate::priority::apply_auto_priority(database, email_id, true);
         let auth_results = if demo.4.eq_ignore_ascii_case("Spam") {
             r#"{"spf":"fail","dkim":"fail","dmarc":"fail","source":"demo"}"#
@@ -679,6 +722,9 @@ fn seed_if_empty(database: &Connection) -> Result<(), String> {
             params![email_id, demo_address(demo.0), auth_results],
         );
         let _ = crate::senders::apply_to_email(database, email_id);
+        // Classify seeded attachments now so a demo reset shows the same risk
+        // cards as a freshly imported mailbox.
+        let _ = crate::attachments::scan_email_attachments(database, email_id);
     }
 
     Ok(())
@@ -904,8 +950,10 @@ fn message_detail(database: &Connection, id: i64) -> Result<MessageDetail, Strin
 
     let mut attachment_statement = database
         .prepare(
-            "SELECT id, name, mime_type, size_bytes FROM attachments
-             WHERE email_id = ?1 ORDER BY id",
+            "SELECT id, name, mime_type, size_bytes, detected_mime, kind, risk,
+                    score, reasons, sha256, content_available, scan_source,
+                    scanned_at, consent_required
+             FROM attachments WHERE email_id = ?1 ORDER BY id",
         )
         .map_err(|error| error.to_string())?;
     let attachments = attachment_statement
@@ -915,6 +963,16 @@ fn message_detail(database: &Connection, id: i64) -> Result<MessageDetail, Strin
                 name: row.get(1)?,
                 mime_type: row.get(2)?,
                 size_bytes: row.get(3)?,
+                detected_mime: row.get(4)?,
+                kind: row.get(5)?,
+                risk: row.get(6)?,
+                score: row.get(7)?,
+                reasons: serde_json::from_str(&row.get::<_, String>(8)?).unwrap_or_default(),
+                sha256: row.get(9)?,
+                content_available: row.get::<_, i64>(10)? != 0,
+                scan_source: row.get(11)?,
+                scanned_at: row.get(12)?,
+                consent_required: row.get::<_, i64>(13)? != 0,
             })
         })
         .map_err(|error| error.to_string())?

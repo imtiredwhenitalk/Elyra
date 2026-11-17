@@ -1037,6 +1037,11 @@ function renderSettings() {
   toggle("#auto-priority", settings.auto_priority ?? "true");
   bind("#priority-default", settings.priority_default || "normal");
   bind("#blocked-sender-action", settings.blocked_sender_action || "spam");
+  toggle("#attachment-scanning", settings.attachment_scanning ?? "true");
+  toggle("#attachment-clamav", settings.attachment_clamav ?? "false");
+  bind("#clamav-path", settings.clamav_path || "clamscan");
+  toggle("#attachment-virustotal", settings.attachment_virustotal ?? "false");
+  bind("#attachment-scan-max", settings.attachment_scan_max_mb || "25");
   bind("#api-url-input", state.apiBase || "");
   renderSenderRules();
   loadSenderRules();
@@ -1438,6 +1443,92 @@ function openComposer(initial = {}) {
   form.elements.to.focus();
 }
 
+const ATTACHMENT_KIND_LABELS = {
+  executable: "Executable",
+  script: "Script",
+  archive: "Archive",
+  "disk-image": "Disk image",
+  macro: "Macro document",
+  document: "Document",
+  image: "Image",
+  other: "File",
+};
+
+const ATTACHMENT_RISK_LABELS = {
+  safe: "Scanned",
+  suspicious: "Suspicious",
+  malicious: "Malicious",
+  unknown: "Not scanned",
+};
+
+const ATTACHMENT_SOURCE_LABELS = {
+  local: "Local scan",
+  clamav: "ClamAV",
+  virustotal: "VirusTotal",
+};
+
+function attachmentRisk(attachment) {
+  const risk = String(attachment.risk || "").toLowerCase();
+  return ["safe", "suspicious", "malicious"].includes(risk) ? risk : "unknown";
+}
+
+function attachmentCard(attachment) {
+  const risk = attachmentRisk(attachment);
+  const kind = ATTACHMENT_KIND_LABELS[attachment.kind] || ATTACHMENT_KIND_LABELS.other;
+  const reasons = (attachment.reasons || []).map((reason) => `<li>${escapeHtml(reason)}</li>`).join("");
+  const detected = attachment.detected_mime && attachment.detected_mime !== attachment.mime_type
+    ? `${attachment.detected_mime} · declared ${attachment.mime_type}`
+    : attachment.mime_type;
+  const source = ATTACHMENT_SOURCE_LABELS[attachment.scan_source];
+  return `
+    <div class="attachment-card ${risk}" data-attachment-id="${attachment.id}">
+      <span class="attachment-icon-wrap">${icon("paperclip", "attachment-icon")}</span>
+      <div class="attachment-main">
+        <div class="attachment-title">
+          <b>${escapeHtml(attachment.name)}</b>
+          <span class="attachment-risk ${risk}">${icon(risk === "safe" ? "shield" : "alert")} ${ATTACHMENT_RISK_LABELS[risk]}</span>
+          <span class="attachment-kind">${escapeHtml(kind)}</span>
+        </div>
+        <small>${escapeHtml(detected)} · ${formatBytes(attachment.size_bytes)}${source ? ` · ${escapeHtml(source)}` : ""}</small>
+        ${reasons ? `<ul class="attachment-reasons">${reasons}</ul>` : ""}
+        ${attachment.content_available ? "" : `<small class="attachment-note">Content is not stored locally, so only metadata was checked.</small>`}
+      </div>
+      <div class="attachment-actions">
+        <button type="button" data-scan-attachment title="Scan attachment">${icon("refresh")}</button>
+        <button type="button" data-scan-virustotal title="Upload to VirusTotal with consent">${icon("shield")}</button>
+        <button type="button" data-download-attachment title="Download attachment">${icon("download")}</button>
+      </div>
+    </div>
+  `;
+}
+
+async function downloadAttachment(attachment) {
+  const risk = attachmentRisk(attachment);
+  if (risk === "malicious" && !window.confirm(`“${attachment.name}” is flagged as malicious. Download it anyway?`)) return;
+  if (risk === "suspicious" && !window.confirm(`“${attachment.name}” looks suspicious. Download it anyway?`)) return;
+  try {
+    const content = await invoke("get_attachment_content", { id: attachment.id });
+    const binary = atob(content.data_base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    const blob = new Blob([bytes], { type: content.mime_type || attachment.mime_type || "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = content.name || attachment.name;
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+    showToast("Downloaded. Elyra never opens attachments automatically.", "success");
+  } catch (error) {
+    showToast(error.message || "Could not download this attachment", "error");
+  }
+}
+
 async function openMessage(id) {
   try {
     const detail = await invoke("get_message", { id });
@@ -1494,13 +1585,7 @@ async function openMessage(id) {
       <div class="reputation-host" id="sender-reputation"></div>
       <div class="threat-host" id="message-shield"></div>
       <div class="viewer-body">${escapeHtml(detail.body_text).replace(/\n/g, "<br />")}</div>
-      ${detail.attachments.length ? `<div class="attachment-list">${detail.attachments.map((attachment) => `
-        <div class="attachment-card">
-          ${icon("paperclip", "attachment-icon")}
-          <span><b>${escapeHtml(attachment.name)}</b><small>${escapeHtml(attachment.mime_type)} · ${formatBytes(attachment.size_bytes)}</small></span>
-          <button type="button" data-download="${escapeHtml(attachment.name)}" title="Download attachment">${icon("download")}</button>
-        </div>
-      `).join("")}</div>` : ""}
+      ${detail.attachments.length ? `<div class="attachment-list">${detail.attachments.map(attachmentCard).join("")}</div>` : ""}
     `;
     $("#close-viewer").addEventListener("click", () => {
       viewer.hidden = true;
@@ -1590,8 +1675,37 @@ async function openMessage(id) {
     }));
     renderSenderReputation(viewer, message.id).catch(() => {});
     renderMessageShield(viewer, message.id).catch(() => {});
-    $$("[data-download]", viewer).forEach((button) => button.addEventListener("click", () => {
-      showToast(`Attachment “${button.dataset.download}” is stored in the local preview`);
+    $$("[data-scan-attachment]", viewer).forEach((button) => button.addEventListener("click", async () => {
+      const attachmentId = Number(button.closest("[data-attachment-id]")?.dataset.attachmentId);
+      button.disabled = true;
+      try {
+        await invoke("scan_attachment", { id: attachmentId });
+        showToast("Attachment scanned", "success");
+        await openMessage(message.id);
+      } catch (error) {
+        button.disabled = false;
+        showToast(error.message || "Could not scan this attachment", "error");
+      }
+    }));
+    $$("[data-scan-virustotal]", viewer).forEach((button) => button.addEventListener("click", async () => {
+      const attachmentId = Number(button.closest("[data-attachment-id]")?.dataset.attachmentId);
+      const attachment = detail.attachments.find((item) => Number(item.id) === attachmentId);
+      if (!attachment) return;
+      if (!window.confirm(`Upload “${attachment.name}” to VirusTotal?\n\nThis sends the file to a third party. Only continue if you trust the service and have permission to share this file.`)) return;
+      button.disabled = true;
+      try {
+        await invoke("scan_attachment_external", { id: attachmentId, consent: true });
+        showToast("VirusTotal scan finished", "success");
+        await openMessage(message.id);
+      } catch (error) {
+        button.disabled = false;
+        showToast(error.message || "Could not upload this attachment", "error");
+      }
+    }));
+    $$("[data-download-attachment]", viewer).forEach((button) => button.addEventListener("click", () => {
+      const attachmentId = Number(button.closest("[data-attachment-id]")?.dataset.attachmentId);
+      const attachment = detail.attachments.find((item) => Number(item.id) === attachmentId);
+      if (attachment) downloadAttachment(attachment);
     }));
     updateStats((await invoke("mailbox_stats")));
   } catch (error) {
@@ -1735,6 +1849,7 @@ function bindEvents() {
     if (event.target.closest("#refresh-priority")) refreshPrioritySuggestions();
     if (event.target.closest("#add-sender-rule")) addSenderRule();
     if (event.target.closest("#apply-sender-rules")) applySenderRules();
+    if (event.target.closest("#rescan-attachments")) rescanAttachments(event.target.closest("#rescan-attachments"));
     const deleteRule = event.target.closest("[data-delete-sender-rule]");
     if (deleteRule) deleteSenderRule(Number(deleteRule.dataset.deleteSenderRule));
     if (event.target.closest("#sign-out")) signOut();
@@ -1901,6 +2016,11 @@ async function saveSettingsFromForm() {
     auto_priority: $("#auto-priority").checked,
     priority_default: $("#priority-default").value,
     blocked_sender_action: $("#blocked-sender-action")?.value || "spam",
+    attachment_scanning: $("#attachment-scanning").checked,
+    attachment_clamav: $("#attachment-clamav").checked,
+    clamav_path: $("#clamav-path").value.trim() || "clamscan",
+    attachment_virustotal: $("#attachment-virustotal").checked,
+    attachment_scan_max_mb: Math.min(200, Math.max(1, Number($("#attachment-scan-max").value) || 25)),
   };
   try {
     await invoke("set_local_settings", { values });
@@ -1918,6 +2038,22 @@ async function saveSettingsFromForm() {
     }
   } catch (error) {
     showToast(error.message || "Could not save settings", "error");
+  }
+}
+
+async function rescanAttachments(button) {
+  if (button) button.disabled = true;
+  try {
+    const count = await invoke("scan_all_attachments");
+    showToast(`${count} attachment${count === 1 ? "" : "s"} scanned`, "success");
+    const viewer = $("#message-viewer");
+    if (state.currentMessage && !viewer.hidden) {
+      await openMessage(state.currentMessage.message.id);
+    }
+  } catch (error) {
+    showToast(error.message || "Could not scan attachments", "error");
+  } finally {
+    if (button) button.disabled = false;
   }
 }
 

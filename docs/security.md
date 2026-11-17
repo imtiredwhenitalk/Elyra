@@ -126,8 +126,8 @@ snapshots, or forensic tools can still expose data.
 
 The reader displays message text, not raw HTML. Text is escaped before being
 inserted into the DOM. This prevents provider-supplied HTML and scripts from
-executing in the webview. Attachments are shown as metadata cards; 0.3.0 does not
-open or execute attachments in the webview.
+executing in the webview. Attachments are shown as metadata and risk cards;
+Elyra does not open or execute attachments in the webview.
 
 ## Cryptographic controls
 
@@ -206,6 +206,25 @@ It demonstrates the primitive; it is not a production key-management service.
 - Unknown domains stay Neutral. The allowlist is always Trusted, and a report
   neutralizes a disputed assessment until new intelligence raises the score.
 - Results are cached per domain in SQLite and can be refreshed on demand.
+
+`apps/desktop/src-tauri/src/attachments.rs` analyzes attachments:
+
+- Type detection reads magic bytes and structural markers, then compares the
+  result with the declared MIME type and the file extension.
+- Local scoring raises risk for executables, scripts, disk images, macro-enabled
+  Office files, archives, HTML and SVG, double extensions, bidirectional-override
+  characters in the name, and content/declared-type mismatches.
+- Local analysis runs at import and on demand. It never executes, opens, or
+  previews a file.
+- ClamAV is opt-in. When enabled, `clamscan` runs on a temporary copy of stored
+  content; the temporary file is removed afterward. Missing or failing ClamAV is
+  reported as a reason and never blocks the mailbox.
+- VirusTotal file analysis is opt-in and requires a stored API key plus explicit
+  per-file consent. Uploads are size-limited and share the 16-second VirusTotal
+  throttle. Clean VirusTotal results never downgrade a local warning.
+- Results are stored per attachment in SQLite with a SHA-256 hash, detected type,
+  kind, risk, score, reasons, source, and timestamp. Shield reuses the stored
+  risk when scoring a message.
 
 ### What is not encrypted
 
@@ -332,6 +351,10 @@ These are documented so operators can make informed decisions:
 13. **External scanning reveals URLs.** VirusTotal and Google Safe Browsing
     receive the links extracted from opened messages unless external scanning is
     disabled.
+14. **Attachment scanning is heuristic.** Local classification catches known
+    dangerous types but is not a full antivirus. ClamAV must be installed and
+    enabled separately, and VirusTotal uploads reveal the file to a third party
+    even with consent.
 
 ## Security checklist for operators
 

@@ -1,3 +1,36 @@
+[200 OK] Added attachment security scanning with optional ClamAV and VirusTotal (Phase 2, GitHub issue #8):
+
+Added `attachments.rs` with local attachment analysis that inspects the real
+file bytes instead of trusting the sender's file name or MIME type. It detects
+executables, scripts, disk images, macro-enabled Office files, archives, HTML,
+and SVG, flags double extensions and bidirectional-override tricks, and notices
+when the detected content type contradicts the declared one. Every attachment
+now stores `sha256`, `detected_mime`, `kind`, `risk`, `score`, `reasons`,
+`content_available`, `scan_source`, `scanned_at`, and `consent_required`.
+
+Local analysis always runs at import and on demand. ClamAV is optional and only
+runs when enabled in Settings; VirusTotal file analysis is never automatic and
+requires both a stored API key and explicit per-file consent. Attachments are
+never executed or opened by Elyra, and uploads are size-limited. The reader
+shows a risk card for each file with its detected type, source, reasons, scan,
+consent-based VirusTotal, and guarded download actions. Shield now reuses the
+stored attachment risk so risky files raise the message score. Settings includes
+an **Attachment security** section for automatic scanning, ClamAV, the ClamAV
+command path, VirusTotal uploads, and the maximum scan size, plus a rescan
+action. Browser preview mirrors local classification with `localStorage` and
+rejects uploads or downloads.
+
+Files changed: `attachments.rs`, `mailbox.rs`, `providers.rs`, `shield.rs`,
+`lib.rs`, `threats.rs`, `Cargo.toml`, `index.html`, `main.js`, `tauri.js`,
+`styles.css`, `task.md`, `docs/user-guide.md`, `docs/security.md`,
+`docs/reference/tauri-commands.md`, `docs/reference/configuration.md`.
+
+Validation: [OK] `node --check` for `main.js`, `tauri.js`, `security.js`,
+`SecurityPage.js`, `crypto.js`, `account.js`, and `CryptoCard.js`; [OK] CSS
+braces balanced (587/587); [OK] fallback attachment checks with `node`; [OK]
+`git diff --check`; Rust compilation and the Windows desktop build run in GitHub
+Actions because no local Rust toolchain is available.
+
 [200 OK] Fixed browser-safe preview mode and local-only fallback flows:
 
 Added stable relative asset and module loading for browser preview sessions, plus a desktop/runtime fallback that keeps local storage, message sending, and encryption checks usable without Tauri.

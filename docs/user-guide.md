@@ -89,7 +89,9 @@ Click a message row to open the reader. The reader replaces the list and shows:
   **Mark important / Important** action.
 - The plain-text body. HTML from providers is not rendered directly; message
   text is escaped before display.
-- Attachment cards with name, MIME type, size, and a download control.
+- Attachment cards with name, detected type, size, a risk badge, the scan
+  source, and any reasons. Each card has scan, consent-based VirusTotal, and
+  guarded download controls.
 - Toolbar actions: **Archive**, **Spam**, **Trash**, and **More**.
 - Footer actions: **Star/Starred**, **Mark important/Important**,
   **Reply**, **Forward**, **Mark unread**, or **Edit draft** for drafts.
@@ -379,6 +381,40 @@ lists the reasons.
 
 **Security → Refresh sender reputations** recomputes the cached reputation for
 every sender domain. Reputations are stored in SQLite and survive restarts.
+
+### Attachment security
+
+Elyra inspects attachments from their real bytes instead of trusting the file
+name or the MIME type the sender declared. Local analysis always stays on this
+device.
+
+- **Risk badges** — **Scanned**, **Suspicious**, or **Malicious**. The reader
+  lists the reasons, for example an executable or script, a disk image, a
+  macro-enabled Office file, an archive, HTML or SVG content, a double extension
+  such as `invoice.pdf.exe`, bidirectional-override characters that hide the real
+  extension, or a detected type that contradicts the declared one.
+- **Detected type** — the real content type when it can be sniffed, shown
+  alongside the declared type when they differ.
+- **Scan** — re-runs local analysis, plus ClamAV when it is enabled.
+- **VirusTotal** — uploads the file only after you confirm. Uploads require a
+  stored VirusTotal key, the **Allow VirusTotal file analysis** setting, and
+  explicit per-file consent. Clean results never downgrade a local warning.
+- **Download** — asks for confirmation when the file is suspicious or malicious.
+  Elyra never opens, executes, or auto-runs attachments.
+
+**Settings → Attachment security** controls the behavior:
+
+- **Scan attachments automatically** — classify new mail at import.
+- **Use local ClamAV** — run `clamscan` on stored attachment content. Set the
+  **ClamAV command** to the executable name or a full path.
+- **Allow VirusTotal file analysis** — enables the per-file upload button.
+- **Maximum scan size (MB)** — larger files are still classified locally but are
+  not sent to ClamAV or VirusTotal.
+- **Rescan attachments** — re-runs the local scan over every stored attachment.
+
+Attachments without stored content (metadata only) are still classified from
+their name and declared type, and the card says so. Scans and settings persist in
+SQLite across restarts.
 
 ### Mail accounts
 

@@ -1,3 +1,4 @@
+mod attachments;
 mod cloud;
 mod crypto;
 mod diagnostics;
@@ -24,6 +25,7 @@ pub fn run() {
             storage::initialize(app.handle()).expect("failed to initialize Elyra local storage");
             senders::initialize(app.handle()).expect("failed to initialize Elyra sender rules");
             mailbox::initialize(app.handle()).expect("failed to initialize Elyra mailbox engine");
+            attachments::initialize(app.handle()).expect("failed to initialize Elyra attachment scanning");
             priority::initialize(app.handle()).expect("failed to initialize Elyra priority engine");
             providers::initialize(app.handle()).expect("failed to initialize Elyra provider accounts");
             security::initialize(app.handle()).expect("failed to initialize Elyra security controls");
@@ -57,6 +59,10 @@ pub fn run() {
             mailbox::delete_draft,
             mailbox::search_suggestions,
             mailbox::export_mailbox,
+            attachments::scan_attachment,
+            attachments::scan_all_attachments,
+            attachments::scan_attachment_external,
+            attachments::get_attachment_content,
             priority::refresh_priority_suggestions,
             senders::list_sender_rules,
             senders::save_sender_rule,

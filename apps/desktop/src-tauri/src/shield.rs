@@ -256,6 +256,38 @@ pub(crate) fn brand_impersonation(display: &str, address: Option<&str>) -> Optio
 
 fn attachment_reasons(database: &Connection, email_id: i64) -> Result<Vec<String>, String> {
     let mut statement = database
+        .prepare(
+            "SELECT name, risk, reasons FROM attachments
+             WHERE email_id = ?1 ORDER BY id",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map(params![email_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(|error| error.to_string())?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(|error| error.to_string())?;
+    let mut reasons = Vec::new();
+    for (name, risk, stored_reasons) in rows {
+        if risk == "suspicious" || risk == "malicious" {
+            let detail = serde_json::from_str::<Vec<String>>(&stored_reasons)
+                .ok()
+                .and_then(|items| items.into_iter().next());
+            reasons.push(detail.unwrap_or_else(|| {
+                format!("The message includes a risky attachment ({name}).")
+            }));
+            break;
+        }
+    }
+    if !reasons.is_empty() {
+        return Ok(reasons);
+    }
+    let mut statement = database
         .prepare("SELECT name FROM attachments WHERE email_id = ?1")
         .map_err(|error| error.to_string())?;
     let names = statement
@@ -263,7 +295,6 @@ fn attachment_reasons(database: &Connection, email_id: i64) -> Result<Vec<String
         .map_err(|error| error.to_string())?
         .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(|error| error.to_string())?;
-    let mut reasons = Vec::new();
     for name in names {
         let extension = name
             .rsplit_once('.')
