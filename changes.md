@@ -1,3 +1,15 @@
+[200 OK] Refreshed the repository README:
+
+Rebuilt the project landing page with a centered brand header, release, build,
+website, platform, stack, and license badges, a concise feature grid, a security
+overview, download and build instructions, an architecture diagram, a project
+layout map, documentation links, and an honest status and roadmap section. The
+completed Phase 1 and Phase 2 security work is described as available on `main`
+for the next release.
+
+Validation: [OK] every local README link resolves; HTML blocks balanced;
+`git diff --check` clean.
+
 [200 OK] Added attachment security scanning with optional ClamAV and VirusTotal (Phase 2, GitHub issue #8):
 
 Added `attachments.rs` with local attachment analysis that inspects the real
