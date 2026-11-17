@@ -26,6 +26,8 @@ is **not** protected yet. It is a technical document, not a certification.
 | Elyra Cloud access token | OS keychain | Critical |
 | Elyra Cloud password | Server Argon2id hash | Critical |
 | Desktop encryption keys (Security Lab) | Memory only | High |
+| Ed25519 identity private keys | OS keychain | Critical |
+| Integration API keys (VirusTotal, Google Safe Browsing) | OS keychain | High |
 | Account metadata (hosts, addresses) | Local SQLite and server `users` | Medium |
 | Notifications | Server PostgreSQL | Medium |
 | Audit events | Local SQLite | Low/Medium |
@@ -53,6 +55,9 @@ maps to Windows Credential Manager.
 - Service: `com.elyra.desktop`
 - Cloud session entry: `cloud_session`
 - Mail account entry: `imap-account-<id>`
+- Integration API key entry: `integration-<provider>` (`virustotal`,
+  `google_safe_browsing`)
+- Identity private key entry: `crypto-key-<id>`
 
 The keychain is protected by the operating system user context. Elyra does not
 add a second application-level encryption layer to keychain values.
@@ -142,6 +147,55 @@ the reusable `elyra-crypto` package.
 
 The Security Lab uses a known test message and keeps generated keys in memory.
 It demonstrates the primitive; it is not a production key-management service.
+
+### Identity keys (Ed25519)
+
+`apps/desktop/src-tauri/src/keys.rs` manages local identity keys.
+
+- Generation uses `ed25519-dalek` with OS randomness.
+- The 32-byte private key is written only to the OS keychain as
+  `crypto-key-<id>`. SQLite stores the label, public key, SHA-256 fingerprint,
+  status, and timestamps.
+- The webview can export only the armored public key and can import contact
+  public keys. No command returns private material.
+- Rotation creates a new active key, marks the previous key `retired`, and
+  deletes the previous keychain entry.
+- Revocation marks the key `revoked` and deletes its keychain entry. Revocation
+  is local and cannot be undone.
+- Contact public keys are stored in SQLite with their fingerprints. Import
+  validates the base64 payload and the Ed25519 point.
+- Identity keys are the foundation for signing and future end-to-end
+  encryption. Message encryption and key exchange are not implemented yet.
+
+### Elyra Shield and threat intelligence
+
+`apps/desktop/src-tauri/src/shield.rs` performs local analysis in Rust:
+
+- Sender display-name and address checks against official brand domains,
+  including punycode and lookalike normalization.
+- Urgency and threatening language, credential or payment requests, dangerous
+  attachment extensions, and visible-link versus destination mismatches.
+- A 0–100 score maps to Safe, Suspicious, or Malicious and is stored per
+  message with the reasons.
+- Local analysis runs at IMAP import and when a message is first opened.
+- False-positive reports are stored locally and shown in the UI.
+
+`apps/desktop/src-tauri/src/threats.rs` performs optional external checks:
+
+- Links are extracted from plain text and HTML anchors.
+- VirusTotal uses `GET /api/v3/urls/{base64url}` with the user's `x-apikey`.
+- Google Safe Browsing uses `POST /v4/threatMatches:find?key=...` and batches
+  URLs.
+- VirusTotal requests are throttled to one every 16 seconds on the free tier.
+- Verdicts are cached in SQLite for 24 hours when known and 1 hour when
+  unknown.
+- Provider errors, rate limits, and missing keys are reported per link; they do
+  not block message display.
+- `settings.external_scanning = "false"` disables all external calls. Local
+  Shield checks still run.
+- External providers receive the message URLs, not the message body. The URLs
+  themselves can still reveal sensitive information, so leave external scanning
+  off if that is a concern.
 
 ### What is not encrypted
 
@@ -238,7 +292,7 @@ The production stack follows these defaults:
 | OAuth token theft | OAuth is not implemented yet |
 | Server database compromise | Server stores metadata and notifications; mail bodies are not stored, but account metadata is exposed |
 | Relay abuse | No rate limiting or quotas yet |
-| Phishing or malicious message content | Text-only rendering reduces script execution, but social engineering remains possible |
+| Phishing or malicious message content | Shield adds local heuristics and optional reputation checks, but no filter is complete; social engineering remains possible |
 | Denial of service | No rate limits on registration or API routes |
 | Supply-chain compromise | Dependencies are not fully pinned; `Cargo.lock` may lag; CI does not use `--locked` |
 | Full forensic tamper resistance | Local audit log is not tamper-evident |
@@ -261,6 +315,13 @@ These are documented so operators can make informed decisions:
 8. **No mailbox encryption at rest.**
 9. **No scheduled sync.** Sync is user-triggered.
 10. **Redis unused.** It is deployed for future sessions/queues/realtime work.
+11. **Shield is heuristic.** Detection is not a guarantee. External reputation
+    checks depend on the user's provider keys and quotas.
+12. **No end-to-end encryption yet.** Identity keys exist, but message signing,
+    key exchange, and encrypted mail delivery are future work.
+13. **External scanning reveals URLs.** VirusTotal and Google Safe Browsing
+    receive the links extracted from opened messages unless external scanning is
+    disabled.
 
 ## Security checklist for operators
 

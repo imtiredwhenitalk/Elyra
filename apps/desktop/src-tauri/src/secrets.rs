@@ -81,3 +81,11 @@ pub(crate) fn cloud_session_user() -> &'static str {
 pub(crate) fn account_user(account_id: i64) -> String {
     format!("imap-account-{account_id}")
 }
+
+pub(crate) fn integration_user(provider: &str) -> String {
+    format!("integration-{provider}")
+}
+
+pub(crate) fn crypto_key_user(key_id: i64) -> String {
+    format!("crypto-key-{key_id}")
+}

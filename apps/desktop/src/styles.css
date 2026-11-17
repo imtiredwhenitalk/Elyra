@@ -2816,3 +2816,540 @@ body[data-density="compact"] .viewer-body {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ------------------------------------------------------- Shield + integrations */
+
+.threat-host {
+  margin: 0 0 12px 57px;
+}
+
+.threat-host:empty {
+  display: none;
+}
+
+.threat-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 13px 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.threat-banner > .icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+.threat-banner > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.threat-banner b {
+  color: var(--text);
+  font-size: 11.5px;
+}
+
+.threat-banner span {
+  color: var(--text-muted);
+}
+
+.threat-banner.checking {
+  color: var(--text-muted);
+  border-style: dashed;
+}
+
+.threat-banner.checking > .icon {
+  color: var(--accent);
+}
+
+.threat-banner.safe {
+  border-color: color-mix(in srgb, var(--success) 32%, var(--border));
+  background: color-mix(in srgb, var(--success) 8%, var(--surface));
+}
+
+.threat-banner.safe > .icon {
+  color: var(--success);
+}
+
+.threat-banner.suspicious {
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+}
+
+.threat-banner.suspicious > .icon {
+  color: var(--warning);
+}
+
+.threat-banner.malicious {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+}
+
+.threat-banner.malicious > .icon {
+  color: var(--danger);
+}
+
+.threat-reasons {
+  display: grid;
+  gap: 4px;
+  margin: 5px 0 0;
+  padding-left: 16px;
+  color: var(--text-muted);
+}
+
+.threat-reasons li::marker {
+  color: var(--danger);
+}
+
+.threat-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.threat-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: var(--surface);
+  font-size: 9.5px;
+}
+
+.threat-link span {
+  overflow: hidden;
+  max-width: 260px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.threat-link em {
+  font-style: normal;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.threat-link.safe em { color: var(--success); }
+.threat-link.suspicious em { color: var(--warning); }
+.threat-link.malicious em { color: var(--danger); }
+.threat-link.unscanned em,
+.threat-link.unknown em,
+.threat-link.skipped em { color: var(--text-faint); }
+
+.threat-link.malicious {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  cursor: not-allowed;
+}
+
+.threat-actions {
+  margin-left: auto;
+  flex: none;
+}
+
+.threat-reported {
+  color: var(--success);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.threat-flag {
+  display: inline-flex;
+  align-items: center;
+  color: var(--warning);
+}
+
+.threat-flag.malicious {
+  color: var(--danger);
+}
+
+.threat-flag .icon {
+  width: 13px;
+  height: 13px;
+}
+
+.shield-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.shield-summary > div {
+  display: grid;
+  gap: 2px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+}
+
+.shield-summary b {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.shield-summary small {
+  color: var(--text-faint);
+  font-size: 9px;
+}
+
+.shield-summary .danger b { color: var(--danger); }
+.shield-summary .warning b { color: var(--warning); }
+
+.shield-alert-list,
+.crypto-contact-list {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shield-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
+}
+
+.shield-alert > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.shield-alert b {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shield-alert small,
+.crypto-contact-list small {
+  color: var(--text-faint);
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+.threat-chip {
+  flex: none;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 7.5px;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.threat-chip.malicious {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.threat-chip.suspicious {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 14%, var(--surface));
+}
+
+.integration-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 13px;
+}
+
+.integration-card {
+  display: grid;
+  gap: 9px;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.integration-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.integration-head h4 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 3px;
+  color: var(--text);
+  font-size: 11.5px;
+}
+
+.integration-head p {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.integration-status {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  font-size: 7.5px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.integration-status.success {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, var(--surface));
+}
+
+.integration-status.warning {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 13%, var(--surface));
+}
+
+.integration-status.error {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.integration-status.muted {
+  color: var(--text-faint);
+}
+
+.integration-docs {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  color: var(--accent-strong);
+  font-size: 9px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.integration-docs .icon {
+  width: 11px;
+  height: 11px;
+}
+
+.integration-key-row {
+  display: flex;
+  gap: 7px;
+}
+
+.integration-key-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--bg-elevated);
+  font-family: var(--font-sans);
+  font-size: 10px;
+}
+
+.integration-key-row input:focus {
+  border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.integration-key-row .ghost-button {
+  flex: none;
+}
+
+.integration-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.integration-actions .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+}
+
+.integration-actions .text-button .icon {
+  width: 12px;
+  height: 12px;
+}
+
+.integration-note,
+.integration-error {
+  margin-left: auto;
+  font-size: 9px;
+  text-align: right;
+}
+
+.integration-note { color: var(--text-faint); }
+.integration-error { color: var(--danger); overflow-wrap: anywhere; }
+
+.crypto-key-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.crypto-empty {
+  display: grid;
+  gap: 3px;
+  padding: 11px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+  font-size: 9.5px;
+}
+
+.crypto-empty b {
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.crypto-key {
+  display: grid;
+  gap: 5px;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.crypto-key.retired,
+.crypto-key.revoked {
+  opacity: 0.78;
+}
+
+.crypto-key-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.crypto-key-head > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.crypto-key-head b {
+  color: var(--text);
+  font-size: 10.5px;
+}
+
+.crypto-key code {
+  overflow: hidden;
+  max-width: 52%;
+  color: var(--text-faint);
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: 8.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crypto-key small {
+  color: var(--text-faint);
+  font-size: 9px;
+}
+
+.crypto-key-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 3px;
+}
+
+.crypto-key-actions .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+}
+
+.crypto-key-actions .text-button .icon {
+  width: 12px;
+  height: 12px;
+}
+
+.crypto-contact-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.crypto-contact-form label {
+  display: grid;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 9.5px;
+}
+
+.crypto-contact-form input,
+.crypto-contact-form textarea {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--bg-elevated);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  resize: vertical;
+}
+
+.crypto-contact-form input:focus,
+.crypto-contact-form textarea:focus {
+  border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.crypto-contact-form .ghost-button {
+  justify-self: start;
+}
+
+.crypto-contact-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
+}
+
+.crypto-contact-list li > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.crypto-contact-list b {
+  color: var(--text);
+  font-size: 10px;
+}

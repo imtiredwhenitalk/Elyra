@@ -16,7 +16,7 @@ use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
 
-use crate::{mailbox, secrets, storage};
+use crate::{mailbox, secrets, shield, storage};
 
 type ImapSession = imap::Session<native_tls::TlsStream<std::net::TcpStream>>;
 
@@ -665,17 +665,21 @@ fn sync_inbox(
             .filter(|value| !value.is_empty())
             .unwrap_or("(no subject)")
             .to_string();
-        let sender = parsed
-            .from()
-            .and_then(|list| list.mailboxes().next())
-            .map(|mailbox| {
+        let from_mailbox = parsed.from().and_then(|list| list.mailboxes().next());
+        let sender = from_mailbox
+            .and_then(|mailbox| {
                 mailbox
                     .name()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
                     .map(str::to_string)
                     .or_else(|| mailbox.address().map(str::to_string))
-                    .unwrap_or_else(|| "Unknown sender".to_string())
             })
             .unwrap_or_else(|| "Unknown sender".to_string());
+        let sender_address = from_mailbox
+            .and_then(|mailbox| mailbox.address())
+            .map(|value| value.trim().to_ascii_lowercase())
+            .unwrap_or_default();
         let body_html = parsed.body_html(0).map(|value| value.into_owned());
         let body_text = parsed
             .body_text(0)
@@ -698,15 +702,16 @@ fn sync_inbox(
 
         let inserted = database
             .execute(
-                "INSERT INTO emails (account_id, provider_id, sender, subject, body_text, body_html,
-                    preview, folder_id, is_read, is_starred, received_at, tag, recipient,
-                    has_attachments, updated_at, size_bytes)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'Personal', ?12, 0, ?11, ?13)
+                "INSERT INTO emails (account_id, provider_id, sender, sender_address, subject,
+                    body_text, body_html, preview, folder_id, is_read, is_starred, received_at,
+                    tag, recipient, has_attachments, updated_at, size_bytes)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'Personal', ?13, 0, ?12, ?14)
                  ON CONFLICT(account_id, provider_id) DO NOTHING",
                 params![
                     account.id,
                     provider_id,
                     sender,
+                    sender_address,
                     subject,
                     body_text,
                     body_html,
@@ -724,13 +729,15 @@ fn sync_inbox(
         if inserted == 0 {
             database
                 .execute(
-                    "UPDATE emails SET sender = ?3, subject = ?4, body_text = ?5, body_html = ?6,
-                        preview = ?7, received_at = ?8, updated_at = ?8, size_bytes = ?9
+                    "UPDATE emails SET sender = ?3, sender_address = ?4, subject = ?5,
+                        body_text = ?6, body_html = ?7, preview = ?8, received_at = ?9,
+                        updated_at = ?9, size_bytes = ?10
                      WHERE account_id = ?1 AND provider_id = ?2",
                     params![
                         account.id,
                         provider_id,
                         sender,
+                        sender_address,
                         subject,
                         body_text,
                         body_html,
@@ -762,6 +769,9 @@ fn sync_inbox(
                 part.decoded_len() as i64,
             )?;
         }
+        // Run the local Shield checks at import time. External link scans are
+        // deferred until the message is opened so synchronisation stays fast.
+        let _ = shield::analyze_email_local(&database, email_id);
     }
 
     let _ = session.logout();

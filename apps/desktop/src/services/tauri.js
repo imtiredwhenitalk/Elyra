@@ -2,6 +2,31 @@ const FALLBACK_STORAGE_PREFIX = "elyra-fallback";
 const MAILBOX_STORE = "mailbox-v2";
 const SETTINGS_STORE = "settings-v1";
 const ACCOUNTS_STORE = "accounts-v1";
+const SECURITY_STORE = "message-security-v1";
+const CRYPTO_KEYS_STORE = "crypto-keys-v1";
+const CRYPTO_CONTACTS_STORE = "crypto-contacts-v1";
+const INTEGRATION_STATE_STORE = "integrations-v1";
+
+const INTEGRATION_PRESETS = [
+  {
+    provider: "virustotal",
+    label: "VirusTotal",
+    description: "Checks links against 90+ security vendors and their URL reputation data.",
+    docsUrl: "https://www.virustotal.com/gui/my-apikey",
+    keyHint: "Paste the API key from your VirusTotal profile.",
+  },
+  {
+    provider: "google_safe_browsing",
+    label: "Google Safe Browsing",
+    description: "Checks links against Google's constantly updated list of unsafe web resources.",
+    docsUrl: "https://developers.google.com/safe-browsing/v4/get-started",
+    keyHint: "Paste a Google Cloud API key with the Safe Browsing API enabled.",
+  },
+];
+
+// The browser preview keeps integration secrets in memory only. The desktop
+// build stores them in the OS keychain.
+const integrationSecrets = new Map();
 
 const PROVIDER_PRESETS = [
   { id: "gmail", label: "Gmail", imapHost: "imap.gmail.com", imapPort: 993, imapSecurity: "tls", smtpHost: "smtp.gmail.com", smtpPort: 465, smtpSecurity: "tls", hint: "Use a Google app password when 2-step verification is enabled." },
@@ -306,6 +331,341 @@ function changelog() {
   ];
 }
 
+const PREVIEW_BRANDS = ["paypal", "microsoft", "google", "apple", "amazon", "github", "netflix", "dropbox", "docusign", "coinbase"];
+const PREVIEW_URGENCY = ["urgent", "immediately", "verify your account", "account suspended", "final warning", "act now", "within 24 hours", "limited time", "click here", "confirm your identity", "unusual activity"];
+const PREVIEW_CREDENTIALS = ["password", "one-time code", "otp", "social security", "credit card", "bank account", "wire transfer", "gift card", "seed phrase", "recovery code"];
+
+function extractPreviewUrls(text) {
+  const matches = String(text || "").match(/https?:\/\/[^\s<>"']+/g) || [];
+  const seen = new Set();
+  return matches
+    .map((value) => value.replace(/[.,;:!?)\]}]+$/, ""))
+    .filter((value) => {
+      if (value.length < 10) return false;
+      const key = value.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 40);
+}
+
+function hostOfPreview(url) {
+  try {
+    return new URL(url).host.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function fallbackIntegrationState() {
+  return readStore(INTEGRATION_STATE_STORE, {});
+}
+
+function saveIntegrationState(state) {
+  writeStore(INTEGRATION_STATE_STORE, state);
+}
+
+function fallbackIntegrationView(preset) {
+  const state = fallbackIntegrationState()[preset.provider] || {};
+  const configured = integrationSecrets.has(preset.provider);
+  const status = !configured ? "not_configured" : state.status || "unverified";
+  return {
+    provider: preset.provider,
+    label: preset.label,
+    description: preset.description,
+    docsUrl: preset.docsUrl,
+    keyHint: preset.keyHint,
+    enabled: configured && Boolean(state.enabled),
+    configured,
+    status,
+    lastCheckedAt: state.lastCheckedAt || null,
+    lastError: state.lastError || null,
+  };
+}
+
+function fallbackListIntegrations() {
+  return INTEGRATION_PRESETS.map(fallbackIntegrationView);
+}
+
+function fallbackConnectIntegration(provider, key) {
+  const preset = INTEGRATION_PRESETS.find((item) => item.provider === provider);
+  if (!preset) return Promise.reject(new Error("Unknown integration"));
+  if (!key || key.trim().length < 8) return Promise.reject(new Error(`Enter the ${preset.label} API key before connecting the integration.`));
+  integrationSecrets.set(provider, key.trim());
+  const state = fallbackIntegrationState();
+  state[provider] = { enabled: true, status: "connected", lastCheckedAt: sqlTime(), lastError: null };
+  saveIntegrationState(state);
+  return Promise.resolve(fallbackIntegrationView(preset));
+}
+
+function fallbackTestIntegration(provider) {
+  const preset = INTEGRATION_PRESETS.find((item) => item.provider === provider);
+  if (!preset) return Promise.reject(new Error("Unknown integration"));
+  if (!integrationSecrets.has(provider)) return Promise.reject(new Error(`Add a ${preset.label} API key first.`));
+  const state = fallbackIntegrationState();
+  state[provider] = { ...(state[provider] || {}), enabled: true, status: "connected", lastCheckedAt: sqlTime(), lastError: null };
+  saveIntegrationState(state);
+  return Promise.resolve(fallbackIntegrationView(preset));
+}
+
+function fallbackSetIntegrationEnabled(provider, enabled) {
+  const preset = INTEGRATION_PRESETS.find((item) => item.provider === provider);
+  if (!preset) return Promise.reject(new Error("Unknown integration"));
+  if (enabled && !integrationSecrets.has(provider)) return Promise.reject(new Error(`Add a ${preset.label} API key first.`));
+  const state = fallbackIntegrationState();
+  state[provider] = { ...(state[provider] || {}), enabled: Boolean(enabled), status: enabled ? "connected" : "disabled", lastCheckedAt: sqlTime(), lastError: null };
+  saveIntegrationState(state);
+  return Promise.resolve(fallbackIntegrationView(preset));
+}
+
+function fallbackRemoveIntegration(provider) {
+  const preset = INTEGRATION_PRESETS.find((item) => item.provider === provider);
+  if (!preset) return Promise.reject(new Error("Unknown integration"));
+  integrationSecrets.delete(provider);
+  const state = fallbackIntegrationState();
+  state[provider] = { enabled: false, status: "not_configured", lastCheckedAt: null, lastError: null };
+  saveIntegrationState(state);
+  return Promise.resolve(fallbackIntegrationView(preset));
+}
+
+function fallbackSecurityState() {
+  return readStore(SECURITY_STORE, {});
+}
+
+function fallbackAnalyzeMessage(id, rescan = false) {
+  const messages = loadMailbox();
+  const message = messages.find((item) => Number(item.id) === Number(id));
+  if (!message) return Promise.reject(new Error("Message not found"));
+  const state = fallbackSecurityState();
+  const key = String(id);
+  if (state[key] && !rescan) return Promise.resolve(state[key]);
+
+  const subject = String(message.subject || "");
+  const body = String(message.body_text || "");
+  const haystack = `${subject}\n${body}`.toLowerCase();
+  const reasons = [];
+  let score = 0;
+
+  const sender = String(message.sender || "");
+  const addressMatch = sender.match(/([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})/i);
+  const address = addressMatch ? addressMatch[1].toLowerCase() : "";
+  const domain = address.includes("@") ? address.split("@").pop() : "";
+  const display = sender.toLowerCase();
+  const local = address.split("@")[0] || "";
+  const official = {
+    paypal: ["paypal.com", "paypal.me"],
+    microsoft: ["microsoft.com", "outlook.com", "live.com", "office.com"],
+    google: ["google.com", "gmail.com"],
+    apple: ["apple.com", "icloud.com", "me.com"],
+    amazon: ["amazon.com", "amazon.co.uk"],
+    github: ["github.com"],
+    netflix: ["netflix.com"],
+    dropbox: ["dropbox.com"],
+    docusign: ["docusign.com", "docusign.net"],
+    coinbase: ["coinbase.com"],
+  };
+  for (const brand of PREVIEW_BRANDS) {
+    if (!domain) break;
+    const trusted = official[brand] || [];
+    if (trusted.some((value) => domain === value || domain.endsWith(`.${value}`))) continue;
+    const normalized = domain.replace(/[^a-z0-9]/g, "").replace(/0/g, "o").replace(/1/g, "l").replace(/3/g, "e").replace(/5/g, "s");
+    if (display.includes(brand) || local.includes(brand) || normalized.includes(brand)) {
+      score += 28;
+      reasons.push(`The sender claims to be ${brand}, but the address ${address} is not on an official ${brand} domain.`);
+      break;
+    }
+  }
+  if (domain.startsWith("xn--") || domain.includes(".xn--")) {
+    score += 20;
+    reasons.push(`The sender domain ${domain} uses punycode, which is often used to imitate a trusted brand.`);
+  }
+  const urgency = PREVIEW_URGENCY.filter((phrase) => haystack.includes(phrase)).length;
+  if (urgency >= 2) {
+    score += 18;
+    reasons.push("The message uses urgent or threatening language common in phishing campaigns.");
+  }
+  if (PREVIEW_CREDENTIALS.some((phrase) => haystack.includes(phrase))) {
+    score += 10;
+    reasons.push("The message asks for credentials or payment details. Legitimate providers do not request these by email.");
+  }
+  const dangerous = (message.attachments || []).some((attachment) => /\.(exe|scr|js|jse|vbs|vbe|bat|cmd|com|pif|msi|iso|lnk|hta|jar|ps1)$/i.test(attachment.name || ""));
+  if (dangerous) {
+    score += 30;
+    reasons.push("The message includes an executable attachment.");
+  }
+  const urls = extractPreviewUrls(body).map((url) => ({
+    url,
+    host: hostOfPreview(url),
+    verdict: "unscanned",
+    score: 0,
+    providers: [],
+    cached: false,
+    checkedAt: sqlTime(),
+  }));
+  const risk = score >= 60 ? "malicious" : score >= 25 ? "suspicious" : "safe";
+  const analysis = {
+    emailId: Number(id),
+    risk,
+    score,
+    reasons,
+    urls,
+    externalScanned: false,
+    falsePositive: false,
+    falsePositiveNote: null,
+    analyzedAt: sqlTime(),
+  };
+  state[key] = analysis;
+  writeStore(SECURITY_STORE, state);
+  return Promise.resolve(analysis);
+}
+
+function fallbackListSecurityAlerts(limit = 25) {
+  const state = fallbackSecurityState();
+  const messages = loadMailbox();
+  return Object.values(state)
+    .filter((analysis) => analysis.risk === "suspicious" || analysis.risk === "malicious")
+    .map((analysis) => {
+      const message = messages.find((item) => Number(item.id) === Number(analysis.emailId));
+      return message
+        ? {
+            emailId: analysis.emailId,
+            risk: analysis.risk,
+            score: analysis.score,
+            reasons: analysis.reasons,
+            falsePositive: Boolean(analysis.falsePositive),
+            analyzedAt: analysis.analyzedAt,
+            sender: message.sender,
+            subject: message.subject,
+          }
+        : null;
+    })
+    .filter(Boolean)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, limit);
+}
+
+function fallbackShieldSummary() {
+  const analyses = Object.values(fallbackSecurityState());
+  const providers = fallbackListIntegrations().filter((item) => item.enabled).length;
+  return {
+    analyzed: analyses.length,
+    safe: analyses.filter((item) => item.risk === "safe").length,
+    suspicious: analyses.filter((item) => item.risk === "suspicious").length,
+    malicious: analyses.filter((item) => item.risk === "malicious").length,
+    falsePositives: analyses.filter((item) => item.falsePositive).length,
+    providersConnected: providers,
+    externalScanning: readStore(SETTINGS_STORE, {}).external_scanning !== "false",
+  };
+}
+
+function fallbackReportFalsePositive(id, note) {
+  const state = fallbackSecurityState();
+  const analysis = state[String(id)];
+  if (!analysis) return Promise.reject(new Error("Analyze this message before reporting it."));
+  analysis.falsePositive = true;
+  analysis.falsePositiveNote = note || null;
+  writeStore(SECURITY_STORE, state);
+  return Promise.resolve(analysis);
+}
+
+function fallbackKeys() {
+  const keys = readStore(CRYPTO_KEYS_STORE, []);
+  return Array.isArray(keys) ? keys : [];
+}
+
+function fallbackContacts() {
+  const contacts = readStore(CRYPTO_CONTACTS_STORE, []);
+  return Array.isArray(contacts) ? contacts : [];
+}
+
+function nextLocalId(items) {
+  return items.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
+}
+
+async function fallbackNewKey(label, keys) {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  const publicKey = toBase64([...bytes]);
+  return {
+    id: nextLocalId(keys),
+    label,
+    algorithm: "Ed25519",
+    publicKey,
+    fingerprint: await fallbackFingerprint(publicKey),
+    status: "active",
+    createdAt: sqlTime(),
+    rotatedAt: null,
+    revokedAt: null,
+    hasPrivateKey: true,
+  };
+}
+
+async function fallbackGenerateKey(label) {
+  const keys = fallbackKeys();
+  if (keys.some((key) => key.status === "active")) throw new Error("An active identity key already exists. Rotate it instead.");
+  const key = await fallbackNewKey(String(label || "").trim() || "Primary identity", keys);
+  keys.push(key);
+  writeStore(CRYPTO_KEYS_STORE, keys);
+  return key;
+}
+
+async function fallbackRotateKey(id, label) {
+  const keys = fallbackKeys();
+  const existing = keys.find((key) => Number(key.id) === Number(id));
+  if (!existing) throw new Error("Identity key not found.");
+  if (existing.status === "revoked") throw new Error("A revoked key cannot be rotated. Generate a new identity key.");
+  const created = await fallbackNewKey(String(label || "").trim() || existing.label, keys);
+  existing.status = "retired";
+  existing.rotatedAt = sqlTime();
+  keys.push(created);
+  writeStore(CRYPTO_KEYS_STORE, keys);
+  return created;
+}
+
+function fallbackRevokeKey(id) {
+  const keys = fallbackKeys();
+  const existing = keys.find((key) => Number(key.id) === Number(id));
+  if (!existing) return Promise.reject(new Error("Identity key not found."));
+  existing.status = "revoked";
+  existing.revokedAt = sqlTime();
+  existing.hasPrivateKey = false;
+  writeStore(CRYPTO_KEYS_STORE, keys);
+  return Promise.resolve(existing);
+}
+
+function fallbackExportKey(id) {
+  const existing = fallbackKeys().find((key) => Number(key.id) === Number(id));
+  if (!existing) return Promise.reject(new Error("Identity key not found."));
+  return Promise.resolve(`-----BEGIN ELYRA PUBLIC KEY-----\n${existing.publicKey}\n-----END ELYRA PUBLIC KEY-----`);
+}
+
+async function fallbackImportContact(email, label, publicKey) {
+  const address = String(email || "").trim().toLowerCase();
+  if (!address.includes("@")) throw new Error("Enter the contact's email address.");
+  const encoded = String(publicKey || "").replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  const bytes = fromBase64(encoded);
+  if (bytes.length !== 32) throw new Error("An Ed25519 public key must contain 32 bytes.");
+  const contacts = fallbackContacts();
+  const existing = contacts.find((contact) => contact.email === address);
+  const contact = {
+    id: existing?.id || nextLocalId(contacts),
+    email: address,
+    label: String(label || "").trim() || address,
+    publicKey: encoded,
+    fingerprint: await fallbackFingerprint(encoded),
+    importedAt: sqlTime(),
+  };
+  writeStore(CRYPTO_CONTACTS_STORE, existing ? contacts.map((item) => (item.id === existing.id ? contact : item)) : [...contacts, contact]);
+  return contact;
+}
+
+function fallbackDeleteContact(id) {
+  const contacts = fallbackContacts();
+  writeStore(CRYPTO_CONTACTS_STORE, contacts.filter((contact) => Number(contact.id) !== Number(id)));
+  return Promise.resolve();
+}
+
 function fallbackInvoke(command, args = {}) {
   switch (command) {
     case "initialize_local_storage":
@@ -587,6 +947,60 @@ function fallbackInvoke(command, args = {}) {
       return Promise.resolve([
         { id: 1, created_at: sqlTime(), event_type: "security.initialized", outcome: "success", details: "Browser preview mode initialized" },
       ]);
+    case "list_integrations":
+      return Promise.resolve(fallbackListIntegrations());
+    case "connect_integration":
+      return fallbackConnectIntegration(args.provider, args.key);
+    case "test_integration":
+      return fallbackTestIntegration(args.provider);
+    case "set_integration_enabled":
+      return fallbackSetIntegrationEnabled(args.provider, args.enabled);
+    case "remove_integration_key":
+      return fallbackRemoveIntegration(args.provider);
+    case "scan_links": {
+      const urls = extractPreviewUrls(args.text).map((url) => ({
+        url,
+        host: hostOfPreview(url),
+        verdict: "unscanned",
+        score: 0,
+        providers: [],
+        cached: false,
+        checkedAt: sqlTime(),
+      }));
+      return Promise.resolve({
+        urls,
+        scanned: false,
+        disabled: readStore(SETTINGS_STORE, {}).external_scanning === "false",
+        providers: [],
+        note: "External providers are only called by the desktop build.",
+      });
+    }
+    case "analyze_message":
+      return fallbackAnalyzeMessage(args.id, Boolean(args.rescan));
+    case "get_message_security":
+      return fallbackAnalyzeMessage(args.id, false);
+    case "list_security_alerts":
+      return Promise.resolve(fallbackListSecurityAlerts(args.limit || 25));
+    case "get_shield_summary":
+      return Promise.resolve(fallbackShieldSummary());
+    case "report_false_positive":
+      return fallbackReportFalsePositive(args.id, args.note);
+    case "list_crypto_keys":
+      return Promise.resolve(fallbackKeys());
+    case "generate_crypto_key":
+      return fallbackGenerateKey(args.label);
+    case "rotate_crypto_key":
+      return fallbackRotateKey(args.id, args.label);
+    case "revoke_crypto_key":
+      return fallbackRevokeKey(args.id);
+    case "export_public_key":
+      return fallbackExportKey(args.id);
+    case "import_public_key":
+      return fallbackImportContact(args.email, args.label, args.publicKey);
+    case "list_crypto_contacts":
+      return Promise.resolve(fallbackContacts());
+    case "delete_crypto_contact":
+      return fallbackDeleteContact(args.id);
     default:
       return Promise.resolve();
   }

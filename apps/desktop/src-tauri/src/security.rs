@@ -75,7 +75,7 @@ fn get_status(database: &Connection) -> Result<SecurityStatus, String> {
     })
 }
 
-fn record_event(database: &Connection, event_type: &str, outcome: &str, details: &str) -> Result<(), String> {
+pub(crate) fn record_event(database: &Connection, event_type: &str, outcome: &str, details: &str) -> Result<(), String> {
     database
         .execute(
             "INSERT INTO audit_events (event_type, outcome, details) VALUES (?1, ?2, ?3)",

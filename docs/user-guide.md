@@ -349,6 +349,50 @@ The panel reports:
 If the Rust command is unavailable, the panel shows an error instead of inventing
 a healthy result.
 
+## Shield and integrations
+
+Open the **Security** view. The page combines Elyra Shield, threat
+intelligence, identity keys, and the local encryption lab.
+
+### External link scanning
+
+**External link scanning** is on by default. Turn it off to stop every external
+provider call. Local Shield checks still run.
+
+### Threat intelligence keys
+
+- **VirusTotal** — create a free API key in your VirusTotal profile and paste it
+  into the VirusTotal card. Elyra validates the key before enabling it.
+- **Google Safe Browsing** — create a Google Cloud API key with the Safe
+  Browsing API enabled and paste it into the Google Safe Browsing card.
+- **Replace key**, **Test**, **Disable**, and **Remove key** manage the stored
+  key. Keys live in the Windows Credential Manager and are never shown again.
+- If a provider rejects the key or hits a quota, the card shows the error and
+  the message still opens. Provider failures do not block mail.
+
+### Reading Shield results
+
+- A shield icon on a message row means Shield flagged it as Suspicious or
+  Malicious.
+- Opening a message shows a banner with the risk, score, reasons, and link
+  verdicts.
+- Malicious links are blocked. Suspicious or unscanned links ask for
+  confirmation before opening.
+- **Report false positive** records the report locally and updates the banner.
+- The summary shows analyzed, malicious, suspicious, false-positive, and
+  connected-provider counts.
+
+### Identity keys
+
+- **Generate identity key** creates an Ed25519 key pair. The private key is
+  stored in the Windows Credential Manager; only the public key and fingerprint
+  are stored in SQLite.
+- **Copy public key** copies the armored public key.
+- **Rotate** creates a new active key and retires the old one.
+- **Revoke** marks the key revoked and deletes its private material.
+- **Import public key** stores a contact's public key for future signing and
+  encryption work.
+
 ## Security Lab
 
 The **Security** mailbox is a Space. The crypto panel runs real Rust commands:

@@ -60,6 +60,7 @@ UI, not environment variables.
 | `reduce_motion` | `false` | Disable non-essential animation |
 | `api_url` | unset | Saved Elyra server base URL |
 | `last_sync_at` | unset | Last successful account sync timestamp |
+| `external_scanning` | `true` | Set to `false` to disable VirusTotal and Google Safe Browsing calls |
 | `cloud_session` | legacy | Migrated to the keychain on first read, then deleted |
 
 Browser preview also uses `localStorage` keys:
@@ -68,6 +69,11 @@ Browser preview also uses `localStorage` keys:
 - `elyra-security-preferences` — Security Lab preferences.
 - `elyra-fallback:mailbox-v2` — preview mailbox data.
 - `elyra-fallback:settings-v1` — preview settings.
+- `elyra-fallback:message-security-v1` — preview Shield results.
+- `elyra-fallback:crypto-keys-v1` — preview identity keys (no private material).
+- `elyra-fallback:crypto-contacts-v1` — preview contact public keys.
+- `elyra-fallback:integrations-v1` — preview integration status. Preview API
+  keys are kept in memory only and are not written to `localStorage`.
 
 ## Keychain entries
 
@@ -77,6 +83,9 @@ Service name: `com.elyra.desktop`.
 | --- | --- |
 | `cloud_session` | Elyra Cloud session JSON, including the access token |
 | `imap-account-<id>` | Mail account password |
+| `integration-virustotal` | VirusTotal API key |
+| `integration-google_safe_browsing` | Google Safe Browsing API key |
+| `crypto-key-<id>` | Base64 Ed25519 identity private key |
 
 These are not configurable through environment variables.
 

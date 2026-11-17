@@ -252,3 +252,39 @@ disk; [OK] command list compared with `apps/desktop/src-tauri/src/lib.rs`; [OK]
 server routes and limits compared with `server/src/api.rs`; [OK] local schema
 compared with `storage.rs`, `mailbox.rs`, `providers.rs`, and `security.rs`;
 [OK] code fences and Markdown tables reviewed; [OK] `git diff --check` clean.
+
+[200 OK] Implemented the security milestone from GitHub issues #1–#4:
+
+Added `threats.rs` for URL extraction from message text and HTML anchors,
+VirusTotal and Google Safe Browsing lookups with the user's own API keys, a
+SQLite verdict cache (24 hours for known verdicts, 1 hour for unknown), a
+16-second VirusTotal request throttle, and per-provider failure reporting so a
+provider outage never blocks the mailbox. Added `shield.rs` for local phishing
+and social-engineering detection: brand and lookalike-domain checks, punycode
+detection, urgency and credential-request language, dangerous attachments, and
+visible-link versus destination mismatches. Shield scores messages as Safe,
+Suspicious, or Malicious, stores the unified result, exposes alerts and a
+summary, and supports false-positive reporting. Local checks run when IMAP mail
+is imported; external link checks are deferred until a message is opened.
+
+Added `integrations.rs` for bring-your-own-key management. VirusTotal and Google
+Safe Browsing keys are validated before enabling, stored in the OS keychain as
+`integration-<provider>`, and never returned to the webview; SQLite records only
+the enabled flag, status, last check, and error. Added `keys.rs` for Ed25519
+identity keys: private material is written only to the OS keychain as
+`crypto-key-<id>`, public keys and fingerprints live in SQLite, and the UI can
+generate, rotate, revoke, export, and import keys plus store contact public
+keys. Added `external_scanning` as a local setting that disables every external
+provider call.
+
+Rebuilt the Security settings page with the Shield summary, integration cards,
+external-scanning toggle, alerts, identity-key lifecycle, contact-key import,
+and audit events. Added per-row Shield flags, a viewer threat banner with link
+verdicts, and false-positive reporting to the message viewer. Added
+browser-preview fallbacks that keep integration secrets in memory only and run
+local-only Shield heuristics.
+
+Validation: [OK] `node --check` for `main.js`, `tauri.js`, `SecurityPage.js`,
+and `security.js`; [OK] `git diff --check`; Rust compilation and the Windows
+desktop build run in GitHub Actions because no local Rust toolchain is
+available.

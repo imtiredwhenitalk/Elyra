@@ -1,11 +1,15 @@
 mod cloud;
 mod crypto;
 mod diagnostics;
+mod integrations;
+mod keys;
 mod mailbox;
 mod providers;
 mod secrets;
 mod security;
+mod shield;
 mod storage;
+mod threats;
 #[path = "../../services/sendemail.rs"]
 mod sendemail;
 
@@ -18,6 +22,10 @@ pub fn run() {
             mailbox::initialize(app.handle()).expect("failed to initialize Elyra mailbox engine");
             providers::initialize(app.handle()).expect("failed to initialize Elyra provider accounts");
             security::initialize(app.handle()).expect("failed to initialize Elyra security controls");
+            threats::initialize(app.handle()).expect("failed to initialize Elyra threat intelligence");
+            integrations::initialize(app.handle()).expect("failed to initialize Elyra integrations");
+            shield::initialize(app.handle()).expect("failed to initialize Elyra Shield");
+            keys::initialize(app.handle()).expect("failed to initialize Elyra key management");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -45,6 +53,25 @@ pub fn run() {
             mailbox::export_mailbox,
             security::get_security_status,
             security::list_audit_events,
+            integrations::list_integrations,
+            integrations::connect_integration,
+            integrations::test_integration,
+            integrations::set_integration_enabled,
+            integrations::remove_integration_key,
+            threats::scan_links,
+            shield::analyze_message,
+            shield::get_message_security,
+            shield::list_security_alerts,
+            shield::get_shield_summary,
+            shield::report_false_positive,
+            keys::list_crypto_keys,
+            keys::generate_crypto_key,
+            keys::rotate_crypto_key,
+            keys::revoke_crypto_key,
+            keys::export_public_key,
+            keys::import_public_key,
+            keys::list_crypto_contacts,
+            keys::delete_crypto_contact,
             crypto::generate_encryption_key,
             crypto::encrypt_text,
             crypto::decrypt_text,

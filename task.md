@@ -13,6 +13,10 @@
 * **Email Provider Engine (IMAP/SMTP & API)** - SMTP outbound send [200 OK]; IMAP inbox sync for Gmail, Outlook, iCloud, Yahoo, Fastmail, Proton Bridge and custom servers [200 OK]; provider OAuth APIs [NEXT]
 * **Crypto Engine & Key Management** - AES-256-GCM, fingerprints, tamper detection, Rust security lab [200 OK]
 * **OS Keychain Token Storage** - cloud sessions and IMAP passwords stored with `keyring-rs` in the Windows Credential Manager [200 OK]
+* **URL Threat Intelligence** - VirusTotal and Google Safe Browsing with user API keys, URL extraction, SQLite caching, throttling, and provider-failure handling [200 OK]
+* **Elyra Shield** - local phishing, social-engineering, sender and domain-spoof detection with Safe/Suspicious/Malicious results, alerts, and false-positive reporting [200 OK]
+* **Cryptographic Key Management** - Ed25519 identity keys, keychain-backed private material, public-key export/import, contact keys, rotation, and revocation [200 OK]
+* **BYOK API Key Management** - Settings integrations, keychain storage, validation before enabling, status display, and graceful auth failures [200 OK]
 * **Elyra Backend Service (Rust)** - account routing, metadata sync, notifications, REST API [200 OK]; WebSocket live updates [NEXT]
 * **Server Mail Relay** - registered users can send to any external address through the server when no local SMTP account is configured [200 OK]
 * **First-Run Registration** - registration onboarding modal, configurable server URL, and Continue offline [200 OK]
@@ -43,3 +47,8 @@
 * Added the server SMTP relay so registered users can send mail to external addresses without local SMTP setup.
 * Added the production deploy script, optional Caddy HTTPS profile, GitHub Actions SSH deploy workflow, and `docs/deploy/SERVER.md`.
 * Published the full documentation set under `docs/` and reconciled `README.md`, `ai.md`, and `docs/ARCHITECTURE.md` with the shipped static frontend and repository layout.
+* Added URL threat intelligence through VirusTotal and Google Safe Browsing, with BYOK key validation, a SQLite verdict cache, VirusTotal throttling, and per-provider failure states.
+* Added Elyra Shield local analysis for sender/domain spoofing, urgency and credential language, dangerous attachments, and link mismatches; results are scored Safe/Suspicious/Malicious and stored per message.
+* Added Shield alerts, a security summary, viewer threat banners, row flags, link verdicts, false-positive reporting, and an `external_scanning` kill switch.
+* Added Ed25519 identity-key generation, keychain-backed private material, public-key export/import, contact keys, rotation, and revocation.
+* Added the Security settings integration cards for BYOK providers, keychain-backed API keys, validation before enabling, status display, and key removal.

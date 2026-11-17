@@ -1,4 +1,5 @@
 import { mountSecurityPage } from "./pages/SecurityPage.js";
+import { analyzeMessage, listSecurityAlerts, reportFalsePositive } from "./services/security.js";
 import { invoke, isDesktopRuntime } from "./services/tauri.js";
 import {
   clearSession,
@@ -31,6 +32,7 @@ const state = {
   editingAccountId: null,
   apiBase: "",
   cloudMailRelay: false,
+  threats: new Map(),
 };
 
 const QUICK_FILTERS = ["all", "unread", "starred", "attachments"];
@@ -66,6 +68,79 @@ function escapeHtml(value) {
 
 function icon(name, extra = "") {
   return `<svg class="icon ${extra}" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
+}
+
+function openExternalUrl(url) {
+  const opener = window.__TAURI__?.opener;
+  if (opener?.openUrl) {
+    opener.openUrl(url).catch(() => {});
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function threatFlag(id) {
+  const threat = state.threats.get(id);
+  if (!threat) return "";
+  return `<span class="threat-flag ${escapeHtml(threat.risk)}" title="Elyra Shield: ${escapeHtml(threat.risk)} risk">${icon("shield")}</span>`;
+}
+
+function threatBanner(security) {
+  const risk = security.risk || "safe";
+  const reported = Boolean(security.falsePositive);
+  const reasons = (security.reasons || []).map((reason) => `<li>${escapeHtml(reason)}</li>`).join("");
+  const urls = (security.urls || []).filter((item) => item && item.url);
+  const linkRows = urls.length
+    ? `<div class="threat-links">${urls.map((item) => {
+        const verdict = item.verdict || "unscanned";
+        const label = verdict === "unscanned" || verdict === "unknown" ? "not checked" : verdict;
+        return `<button type="button" class="threat-link ${escapeHtml(verdict)}" data-threat-link="${escapeHtml(item.url)}" data-verdict="${escapeHtml(verdict)}"><span>${escapeHtml(item.host || item.url)}</span><em>${escapeHtml(label)}</em></button>`;
+      }).join("")}</div>`
+    : "";
+  if (risk === "safe") {
+    const note = security.externalScanned
+      ? "Sender signals and links checked."
+      : "Local signals checked. External link scanning is off.";
+    return `<div class="threat-banner safe">${icon("shield")}<div><b>Elyra Shield: no threats detected</b><span>${note}${reported ? " Reported as a false positive." : ""}</span>${linkRows}</div></div>`;
+  }
+  return `<div class="threat-banner ${escapeHtml(risk)}">${icon("alert")}<div><b>Elyra Shield flagged this message as ${escapeHtml(risk)}</b><span>Risk score ${Number(security.score) || 0}/100</span><ul class="threat-reasons">${reasons}</ul>${linkRows}</div><div class="threat-actions">${reported ? `<span class="threat-reported">Reported</span>` : `<button class="ghost-button" type="button" data-report-false-positive>Report false positive</button>`}</div></div>`;
+}
+
+async function renderMessageShield(viewer, id) {
+  const host = viewer.querySelector("#message-shield");
+  if (!host) return;
+  host.innerHTML = `<div class="threat-banner checking">${icon("shield")}<div><b>Elyra Shield is checking this message…</b><span>Local signals first, then your connected threat providers.</span></div></div>`;
+  try {
+    const security = await analyzeMessage(id, false);
+    host.innerHTML = threatBanner(security);
+    host.querySelector("[data-report-false-positive]")?.addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const updated = await reportFalsePositive(id, "");
+        host.innerHTML = threatBanner(updated);
+        showToast("Reported as a false positive", "success");
+        loadMailbox({ keepSelection: true }).catch(() => {});
+      } catch (error) {
+        button.disabled = false;
+        showToast(error.message || "Could not report the message", "error");
+      }
+    });
+    host.querySelectorAll("[data-threat-link]").forEach((link) => link.addEventListener("click", (event) => {
+      event.preventDefault();
+      const url = link.dataset.threatLink;
+      const verdict = link.dataset.verdict;
+      if (verdict === "malicious") {
+        showToast("Blocked: this link is flagged as malicious", "error");
+        return;
+      }
+      if ((verdict === "suspicious" || verdict === "unscanned") && !window.confirm("This link has not been verified as safe. Open it anyway?")) return;
+      openExternalUrl(url);
+    }));
+  } catch (error) {
+    host.innerHTML = "";
+    console.error("Shield analysis failed", error);
+  }
 }
 
 function showToast(message, tone = "default") {
@@ -587,6 +662,7 @@ function renderMessages() {
         <div class="message-line">
           <b>${escapeHtml(message.sender)}</b>
           <span class="message-tag ${message.color}">${escapeHtml(message.tag)}</span>
+          ${threatFlag(message.id)}
           ${message.has_attachments ? `<span class="attachment-hint" title="Has attachments">${icon("paperclip")}</span>` : ""}
           <span class="message-time">${escapeHtml(message.time)}</span>
         </div>
@@ -611,6 +687,12 @@ async function loadMailbox({ keepSelection = false } = {}) {
     state.page = page;
     state.messages = page.messages;
     if (!keepSelection) state.selected.clear();
+    try {
+      const alerts = await listSecurityAlerts(200);
+      state.threats = new Map(alerts.map((alert) => [Number(alert.emailId), alert]));
+    } catch {
+      state.threats = new Map();
+    }
     renderMessages();
   } catch (error) {
     console.error("Failed to load mailbox", error);
@@ -1123,6 +1205,7 @@ async function openMessage(id) {
         ${isDraft ? `<button type="button" id="viewer-edit">${icon("edit")} Edit draft</button>` : `<button type="button" id="viewer-reply">${icon("reply")} Reply</button><button type="button" id="viewer-forward">${icon("forward")} Forward</button>`}
         <button type="button" id="viewer-unread">${icon("mail")} Mark unread</button>
       </div>
+      <div class="threat-host" id="message-shield"></div>
       <div class="viewer-body">${escapeHtml(detail.body_text).replace(/\n/g, "<br />")}</div>
       ${detail.attachments.length ? `<div class="attachment-list">${detail.attachments.map((attachment) => `
         <div class="attachment-card">
@@ -1186,6 +1269,7 @@ async function openMessage(id) {
       await loadMailbox();
       showToast(`Message moved to ${action}`);
     }));
+    renderMessageShield(viewer, message.id).catch(() => {});
     $$("[data-download]", viewer).forEach((button) => button.addEventListener("click", () => {
       showToast(`Attachment “${button.dataset.download}” is stored in the local preview`);
     }));

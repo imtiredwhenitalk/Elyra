@@ -222,6 +222,7 @@ pub(crate) fn initialize(app: &AppHandle) -> Result<(), String> {
         ("preview", "TEXT NOT NULL DEFAULT ''"),
         ("tag", "TEXT NOT NULL DEFAULT 'Personal'"),
         ("recipient", "TEXT NOT NULL DEFAULT ''"),
+        ("sender_address", "TEXT NOT NULL DEFAULT ''"),
         ("has_attachments", "INTEGER NOT NULL DEFAULT 0"),
         ("snoozed_until", "TEXT"),
         ("thread_id", "TEXT"),

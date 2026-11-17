@@ -1,8 +1,9 @@
 # Tauri command reference
 
 This page lists every command registered in
-`apps/desktop/src-tauri/src/lib.rs` for Elyra 0.3.0. The webview can invoke only
-these commands. Anything else is rejected by Tauri.
+`apps/desktop/src-tauri/src/lib.rs` for the current Elyra desktop build (0.3.0
+plus the unreleased security milestone). The webview can invoke only these
+commands. Anything else is rejected by Tauri.
 
 ## How commands are called
 
@@ -48,6 +49,9 @@ with `localStorage`. Desktop builds always call the Rust implementations.
 | [Providers](#providers) | `provider_presets`, `list_email_accounts`, `save_email_account`, `delete_email_account`, `test_email_account`, `test_email_settings`, `sync_email_account`, `sync_all_accounts` |
 | [Sending](#sending) | `send_email`, `list_sent_emails` |
 | [Security](#security) | `get_security_status`, `list_audit_events` |
+| [Integrations](#integrations) | `list_integrations`, `connect_integration`, `test_integration`, `set_integration_enabled`, `remove_integration_key` |
+| [Shield and scanning](#shield-and-scanning) | `scan_links`, `analyze_message`, `get_message_security`, `list_security_alerts`, `get_shield_summary`, `report_false_positive` |
+| [Identity keys](#identity-keys) | `list_crypto_keys`, `generate_crypto_key`, `rotate_crypto_key`, `revoke_crypto_key`, `export_public_key`, `import_public_key`, `list_crypto_contacts`, `delete_crypto_contact` |
 | [Crypto](#crypto) | `generate_encryption_key`, `encrypt_text`, `decrypt_text`, `fingerprint` |
 | [Diagnostics](#diagnostics) | `get_changelog`, `get_app_diagnostics` |
 | [Cloud](#cloud) | `cloud_register`, `cloud_login`, `cloud_session`, `cloud_logout`, `cloud_list_notifications`, `cloud_send_notification`, `cloud_mark_notification_read`, `cloud_sync_cursor`, `cloud_update_cursor`, `cloud_health`, `cloud_api_url`, `cloud_set_api_url`, `cloud_mail_status` |
@@ -606,6 +610,294 @@ Returns newest audit rows first. Default 20, clamped 1–100.
 
 `outcome` is one of `success`, `failure`, `warning`. The table is capped at 500
 rows.
+
+## Integrations
+
+Source: `apps/desktop/src-tauri/src/integrations.rs`. API keys are written to
+the OS keychain as `integration-<provider>` and are never returned to the
+webview. SQLite records only status metadata.
+
+### `list_integrations`
+
+```ts
+() => Promise<IntegrationView[]>
+```
+
+Returns one entry per built-in provider (`virustotal`,
+`google_safe_browsing`) in `camelCase`:
+
+```json
+[
+  {
+    "provider": "virustotal",
+    "label": "VirusTotal",
+    "description": "Checks links against 90+ security vendors and their URL reputation data.",
+    "docsUrl": "https://www.virustotal.com/gui/my-apikey",
+    "keyHint": "Paste the API key from your VirusTotal profile.",
+    "enabled": true,
+    "configured": true,
+    "status": "connected",
+    "lastCheckedAt": "2026-11-17 10:00:00",
+    "lastError": null
+  }
+]
+```
+
+`status` is `not_configured`, `unverified`, `connected`, `disabled`, or
+`error`. `configured` reports keychain presence.
+
+### `connect_integration`
+
+```ts
+(provider: string, key: string) => Promise<IntegrationView>
+```
+
+Validates the key with the provider, then stores it in the keychain. A key
+shorter than 8 characters is rejected before any network call. When the
+provider rejects the key, the command still resolves with `status: "error"` and
+`lastError` set; keychain or database failures reject. A successful connection
+sets `enabled: true`.
+
+### `test_integration`
+
+```ts
+(provider: string) => Promise<IntegrationView>
+```
+
+Re-validates the stored key. Rejects when no key is stored. On success it marks
+the integration `connected`; on provider failure it stores `error` and
+`lastError` and returns the view.
+
+### `set_integration_enabled`
+
+```ts
+(provider: string, enabled: boolean) => Promise<IntegrationView>
+```
+
+Disabling keeps the key in the keychain and sets `status: "disabled"`. Enabling
+re-validates the stored key and rejects if the provider rejects it or no key
+exists.
+
+### `remove_integration_key`
+
+```ts
+(provider: string) => Promise<IntegrationView>
+```
+
+Deletes the keychain entry and resets the SQLite row to
+`not_configured`, disabled, with no last error.
+
+## Shield and scanning
+
+Sources: `apps/desktop/src-tauri/src/shield.rs` and
+`apps/desktop/src-tauri/src/threats.rs`. Local heuristics always run in Rust.
+External provider calls are optional, disabled by `external_scanning=false`, and
+deferred until a message is opened.
+
+### `scan_links`
+
+```ts
+(text: string) => Promise<ScanReport>
+```
+
+Extracts up to 40 unique links from text and checks them with the enabled
+providers. Returns `camelCase` fields:
+
+```json
+{
+  "urls": [
+    {
+      "url": "https://example.com/login",
+      "host": "example.com",
+      "verdict": "safe",
+      "score": 0,
+      "providers": [
+        {
+          "provider": "virustotal",
+          "label": "VirusTotal",
+          "verdict": "safe",
+          "detail": "0 malicious, 0 suspicious, 71 clean vendors"
+        }
+      ],
+      "cached": true,
+      "checkedAt": "2026-11-17 10:00:00"
+    }
+  ],
+  "scanned": true,
+  "disabled": false,
+  "providers": ["VirusTotal"],
+  "note": "Link checks completed with your connected providers."
+}
+```
+
+URL verdicts are `safe`, `suspicious`, `malicious`, `unknown`, `unscanned`, or
+`skipped`. `scanned` is false when no provider call was possible.
+`disabled` mirrors `external_scanning`.
+
+### `analyze_message`
+
+```ts
+(id: number, rescan?: boolean) => Promise<MessageSecurity>
+```
+
+Runs local Shield analysis and, when providers are enabled, external link
+checks. With `rescan: false` (default), an existing external result is returned
+without another network call. Returns `camelCase`:
+
+```json
+{
+  "emailId": 12,
+  "risk": "suspicious",
+  "score": 46,
+  "reasons": ["The sender claims to be Microsoft, but the address is not on an official Microsoft domain."],
+  "urls": [{ "...": "UrlScan" }],
+  "externalScanned": true,
+  "falsePositive": false,
+  "falsePositiveNote": null,
+  "analyzedAt": "2026-11-17 10:00:00"
+}
+```
+
+`risk` is `safe`, `suspicious`, or `malicious`. The score is 0–100.
+
+### `get_message_security`
+
+```ts
+(id: number) => Promise<MessageSecurity>
+```
+
+Returns the stored analysis or computes a local-only analysis when none exists.
+It does not call external providers.
+
+### `list_security_alerts`
+
+```ts
+(limit?: number) => Promise<SecurityAlert[]>
+```
+
+Returns suspicious and malicious messages, highest score first. Default 25,
+clamped 1–200. Each row has `emailId`, `risk`, `score`, `reasons`,
+`falsePositive`, `analyzedAt`, `sender`, and `subject`.
+
+### `get_shield_summary`
+
+```ts
+() => Promise<ShieldSummary>
+```
+
+Returns `analyzed`, `safe`, `suspicious`, `malicious`, `falsePositives`,
+`providersConnected`, and `externalScanning`.
+
+### `report_false_positive`
+
+```ts
+(id: number, note?: string) => Promise<MessageSecurity>
+```
+
+Marks an existing analysis as a false positive and stores the optional note.
+Rejects when the message has not been analyzed.
+
+## Identity keys
+
+Source: `apps/desktop/src-tauri/src/keys.rs`. Private keys live only in the OS
+keychain as `crypto-key-<id>`. Public keys, fingerprints, and status live in
+SQLite.
+
+### `list_crypto_keys`
+
+```ts
+() => Promise<CryptoKeyView[]>
+```
+
+Returns keys ordered active, retired, then revoked. Each view is `camelCase`:
+
+```json
+[
+  {
+    "id": 1,
+    "label": "Primary identity",
+    "algorithm": "Ed25519",
+    "publicKey": "base64…",
+    "fingerprint": "ab12:cd34:…",
+    "status": "active",
+    "createdAt": "2026-11-17 10:00:00",
+    "rotatedAt": null,
+    "revokedAt": null,
+    "hasPrivateKey": true
+  }
+]
+```
+
+`status` is `active`, `retired`, or `revoked`. `hasPrivateKey` reports keychain
+presence, never the key itself.
+
+### `generate_crypto_key`
+
+```ts
+(label?: string) => Promise<CryptoKeyView>
+```
+
+Generates an Ed25519 key pair, stores the private key in the keychain, and
+returns the public view. Rejects when an active key already exists. Default
+label: `Primary identity`.
+
+### `rotate_crypto_key`
+
+```ts
+(id: number, label?: string) => Promise<CryptoKeyView>
+```
+
+Creates a new active key, marks the old key `retired`, and deletes the old
+keychain entry. Rejects for a revoked key.
+
+### `revoke_crypto_key`
+
+```ts
+(id: number) => Promise<CryptoKeyView>
+```
+
+Marks the key `revoked` and deletes its private key from the keychain.
+Revocation cannot be undone.
+
+### `export_public_key`
+
+```ts
+(id: number) => Promise<string>
+```
+
+Returns the armored public key:
+
+```text
+-----BEGIN ELYRA PUBLIC KEY-----
+<base64>
+-----END ELYRA PUBLIC KEY-----
+```
+
+### `import_public_key`
+
+```ts
+(email: string, label: string | null, publicKey: string) => Promise<CryptoContactView>
+```
+
+Validates the base64 payload (32 bytes) and the Ed25519 point, then inserts or
+updates a contact key. Returns `id`, `email`, `label`, `publicKey`,
+`fingerprint`, and `importedAt`.
+
+### `list_crypto_contacts`
+
+```ts
+() => Promise<CryptoContactView[]>
+```
+
+Returns contact public keys ordered by label and email.
+
+### `delete_crypto_contact`
+
+```ts
+(id: number) => Promise<void>
+```
+
+Deletes one contact public key. Rejects when the id is unknown.
 
 ## Crypto
 
