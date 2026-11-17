@@ -6,6 +6,7 @@ mod keys;
 mod mailbox;
 mod priority;
 mod providers;
+mod reputation;
 mod secrets;
 mod security;
 mod senders;
@@ -29,6 +30,7 @@ pub fn run() {
             threats::initialize(app.handle()).expect("failed to initialize Elyra threat intelligence");
             integrations::initialize(app.handle()).expect("failed to initialize Elyra integrations");
             shield::initialize(app.handle()).expect("failed to initialize Elyra Shield");
+            reputation::initialize(app.handle()).expect("failed to initialize Elyra sender reputation");
             keys::initialize(app.handle()).expect("failed to initialize Elyra key management");
             Ok(())
         })
@@ -73,6 +75,9 @@ pub fn run() {
             shield::list_security_alerts,
             shield::get_shield_summary,
             shield::report_false_positive,
+            reputation::get_sender_reputation,
+            reputation::refresh_domain_reputation,
+            reputation::report_reputation_issue,
             keys::list_crypto_keys,
             keys::generate_crypto_key,
             keys::rotate_crypto_key,

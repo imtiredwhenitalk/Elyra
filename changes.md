@@ -343,3 +343,34 @@ Validation: [OK] `node --check` for `main.js` and `tauri.js`; [OK] CSS braces
 balanced (536/536); [OK] `git diff --check`; Rust compilation and the Windows
 desktop build run in GitHub Actions because no local Rust toolchain is
 available.
+
+[200 OK] Added sender and domain reputation with authentication results (Phase 2, GitHub issue #7):
+
+Added `reputation.rs` with a local Trusted, Neutral, Suspicious, and Malicious
+classification for the sender domain of each message. Scores combine the
+allowlist and blocklist, official brand domains, brand impersonation and
+punycode checks, SPF, DKIM, and DMARC outcomes, and any threat-intelligence
+verdicts already cached by Shield. Unknown domains start at Neutral and are
+never treated as malicious without evidence. The IMAP importer now parses
+`Authentication-Results` and `Received-SPF` from the message header block into
+`emails.auth_results`; body text cannot spoof those results. The new
+`domain_reputation` cache is keyed by domain, and `reputation_feedback` records
+reports.
+
+The reader shows a reputation card with the classification, sender domain,
+SPF/DKIM/DMARC badges, reasons, refresh, and **Report incorrect assessment**.
+Reporting neutralizes the assessment until new intelligence exceeds the
+dismissed score. The Security view can refresh every sender domain, and Shield
+refreshes a message's reputation after an external scan. Browser preview mirrors
+the same behavior with `localStorage` and `reputation-v1`.
+
+Files changed: `reputation.rs`, `senders.rs`, `shield.rs`, `mailbox.rs`,
+`providers.rs`, `lib.rs`, `main.js`, `SecurityPage.js`, `security.js`,
+`tauri.js`, `styles.css`, `task.md`, `docs/user-guide.md`, `docs/security.md`,
+`docs/reference/tauri-commands.md`.
+
+Validation: [OK] `node --check` for `main.js`, `tauri.js`, `security.js`, and
+`SecurityPage.js`; [OK] CSS braces balanced (571/571); [OK] fallback reputation
+checks with `node`; [OK] `git diff --check`; Rust compilation and the Windows
+desktop build run in GitHub Actions because no local Rust toolchain is
+available.

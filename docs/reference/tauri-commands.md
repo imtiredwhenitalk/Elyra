@@ -47,6 +47,7 @@ with `localStorage`. Desktop builds always call the Rust implementations.
 | [Storage](#storage) | `initialize_local_storage`, `cache_email`, `list_cached_emails`, `set_local_setting`, `get_local_settings`, `set_local_settings`, `delete_local_setting` |
 | [Mailbox](#mailbox) | `mailbox_stats`, `seed_demo_mailbox`, `reset_demo_mailbox`, `refresh_mailbox`, `list_mailbox`, `get_message`, `update_message`, `delete_message`, `bulk_update_messages`, `mark_all_read`, `empty_trash`, `save_draft`, `delete_draft`, `search_suggestions`, `export_mailbox`, `refresh_priority_suggestions` |
 | [Senders](#senders) | `list_sender_rules`, `save_sender_rule`, `delete_sender_rule`, `apply_sender_rules` |
+| [Sender reputation](#sender-reputation) | `get_sender_reputation`, `refresh_domain_reputation`, `report_reputation_issue` |
 | [Providers](#providers) | `provider_presets`, `list_email_accounts`, `save_email_account`, `delete_email_account`, `test_email_account`, `test_email_settings`, `sync_email_account`, `sync_all_accounts` |
 | [Sending](#sending) | `send_email`, `list_sent_emails` |
 | [Security](#security) | `get_security_status`, `list_audit_events` |
@@ -455,6 +456,77 @@ auto-filtered by the deleted rule return to **Inbox** if they are still in
 Re-evaluates every non-deleted message and returns the number of blocked
 messages. Manual folder moves clear `blocked_by`, so they are not restored when
 rules change.
+
+## Sender reputation
+
+Source: `apps/desktop/src-tauri/src/reputation.rs`.
+
+Reputation is cached per sender domain in `domain_reputation`. Scores combine
+allow and block rules, official brand domains, brand impersonation and punycode,
+SPF/DKIM/DMARC results from `emails.auth_results`, and cached threat-intelligence
+verdicts. Unknown domains start at Neutral. A score of 25 or more is Suspicious;
+60 or more is Malicious. Allowlisted senders are Trusted.
+
+`AuthResults` is stored as JSON on the message:
+
+```json
+{
+  "spf": "pass",
+  "dkim": "pass",
+  "dmarc": "pass",
+  "source": "Authentication-Results"
+}
+```
+
+`SenderReputation` shape:
+
+```json
+{
+  "emailId": 12,
+  "domain": "example.com",
+  "address": "ada@example.com",
+  "classification": "neutral",
+  "score": 0,
+  "reasons": ["SPF, DKIM and DMARC did not report any problems."],
+  "auth": { "spf": "pass", "dkim": "pass", "dmarc": "pass", "source": "Authentication-Results" },
+  "allowlisted": false,
+  "blocklisted": false,
+  "disputed": false,
+  "feedbackNote": null,
+  "updatedAt": "2026-11-17 10:00:00"
+}
+```
+
+`classification` is `trusted`, `neutral`, `suspicious`, or `malicious`.
+
+### `get_sender_reputation`
+
+```ts
+(id: number) => Promise<SenderReputation>
+```
+
+Recomputes the reputation for one message, updates the domain cache, and returns
+the result. Rejects when the message does not exist.
+
+### `refresh_domain_reputation`
+
+```ts
+(domain?: string) => Promise<number>
+```
+
+Recomputes cached reputations from current local mail and intelligence. Pass a
+domain to limit the refresh; omit it to refresh every sender domain. Returns the
+number of domains refreshed.
+
+### `report_reputation_issue`
+
+```ts
+(id: number, note?: string) => Promise<SenderReputation>
+```
+
+Marks the domain assessment as disputed and stores the optional note in
+`reputation_feedback`. The classification becomes Neutral and stays there until
+new intelligence produces a score above the dismissed score.
 
 ## Providers
 

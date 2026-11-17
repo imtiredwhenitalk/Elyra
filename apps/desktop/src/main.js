@@ -1,5 +1,5 @@
 import { mountSecurityPage } from "./pages/SecurityPage.js";
-import { analyzeMessage, listSecurityAlerts, reportFalsePositive } from "./services/security.js";
+import { analyzeMessage, getSenderReputation, listSecurityAlerts, reportFalsePositive, reportReputationIssue } from "./services/security.js";
 import { invoke, isDesktopRuntime } from "./services/tauri.js";
 import {
   clearSession,
@@ -139,6 +139,109 @@ function threatFlag(id) {
   const threat = state.threats.get(id);
   if (!threat) return "";
   return `<span class="threat-flag ${escapeHtml(threat.risk)}" title="Elyra Shield: ${escapeHtml(threat.risk)} risk">${icon("shield")}</span>`;
+}
+
+const REPUTATION_LABELS = {
+  trusted: "Trusted",
+  neutral: "Neutral",
+  suspicious: "Suspicious",
+  malicious: "Malicious",
+};
+
+function reputationStamp(value) {
+  if (!value) return "just now";
+  const parsed = new Date(`${String(value).replace(" ", "T")}Z`);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return parsed.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function authBadge(label, value) {
+  const normalized = String(value || "").toLowerCase();
+  const tone = normalized === "pass"
+    ? "pass"
+    : ["fail", "softfail", "permerror", "temperror"].includes(normalized)
+      ? "fail"
+      : normalized
+        ? "warn"
+        : "missing";
+  return `<span class="auth-badge ${tone}" title="${escapeHtml(label)} result">${escapeHtml(label)} <b>${escapeHtml(normalized || "n/a")}</b></span>`;
+}
+
+function reputationPanel(reputation) {
+  const classification = ["trusted", "neutral", "suspicious", "malicious"].includes(reputation.classification)
+    ? reputation.classification
+    : "neutral";
+  const label = REPUTATION_LABELS[classification];
+  const auth = reputation.auth || {};
+  const authBadges = [
+    authBadge("SPF", auth.spf),
+    authBadge("DKIM", auth.dkim),
+    authBadge("DMARC", auth.dmarc),
+  ].join("");
+  const reasons = (reputation.reasons || []).map((reason) => `<li>${escapeHtml(reason)}</li>`).join("");
+  return `
+    <div class="reputation-card ${classification}">
+      <div class="reputation-head">
+        <span class="reputation-badge ${classification}">${icon("shield")} ${label}</span>
+        <span class="reputation-domain" title="Sender domain">${escapeHtml(reputation.domain || "Unknown domain")}</span>
+        <span class="reputation-auth">${authBadges}</span>
+        <button class="icon-button tiny" type="button" data-refresh-reputation title="Refresh sender reputation">${icon("refresh")}</button>
+      </div>
+      ${reasons ? `<ul class="reputation-reasons">${reasons}</ul>` : ""}
+      <div class="reputation-foot">
+        <small>${reputation.disputed ? "Assessment reported" : `Updated ${escapeHtml(reputationStamp(reputation.updatedAt))}`}</small>
+        ${reputation.disputed
+          ? `<span class="reputation-reported">${icon("check")} Reported${reputation.feedbackNote ? `: ${escapeHtml(reputation.feedbackNote)}` : ""}</span>`
+          : `<button class="text-button" type="button" data-report-reputation>Report incorrect assessment</button>`}
+      </div>
+    </div>
+  `;
+}
+
+function bindReputationActions(host, id) {
+  host.querySelector("[data-refresh-reputation]")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      const reputation = await getSenderReputation(id);
+      renderReputationCard(host, reputation, id);
+      showToast("Sender reputation refreshed", "success");
+    } catch (error) {
+      button.disabled = false;
+      showToast(error.message || "Could not refresh the reputation", "error");
+    }
+  });
+  host.querySelector("[data-report-reputation]")?.addEventListener("click", async (event) => {
+    const note = window.prompt("What looks wrong with this sender assessment?", "");
+    if (note === null) return;
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      const reputation = await reportReputationIssue(id, note);
+      renderReputationCard(host, reputation, id);
+      showToast("Assessment reported", "success");
+    } catch (error) {
+      button.disabled = false;
+      showToast(error.message || "Could not report the assessment", "error");
+    }
+  });
+}
+
+function renderReputationCard(host, reputation, id) {
+  host.innerHTML = reputationPanel(reputation);
+  bindReputationActions(host, id);
+}
+
+async function renderSenderReputation(viewer, id) {
+  const host = viewer.querySelector("#sender-reputation");
+  if (!host) return;
+  host.innerHTML = `<div class="reputation-card loading">${icon("shield")} Checking sender domain reputation…</div>`;
+  try {
+    renderReputationCard(host, await getSenderReputation(id), id);
+  } catch (error) {
+    host.innerHTML = "";
+    console.error("Sender reputation failed", error);
+  }
 }
 
 function threatBanner(security) {
@@ -1388,6 +1491,7 @@ async function openMessage(id) {
         </label>
         <span class="priority-reason" id="viewer-priority-reason">${escapeHtml(prioritySourceLabel(message))}</span>
       </div>
+      <div class="reputation-host" id="sender-reputation"></div>
       <div class="threat-host" id="message-shield"></div>
       <div class="viewer-body">${escapeHtml(detail.body_text).replace(/\n/g, "<br />")}</div>
       ${detail.attachments.length ? `<div class="attachment-list">${detail.attachments.map((attachment) => `
@@ -1484,6 +1588,7 @@ async function openMessage(id) {
       await loadMailbox();
       showToast(`Message moved to ${action}`);
     }));
+    renderSenderReputation(viewer, message.id).catch(() => {});
     renderMessageShield(viewer, message.id).catch(() => {});
     $$("[data-download]", viewer).forEach((button) => button.addEventListener("click", () => {
       showToast(`Attachment “${button.dataset.download}” is stored in the local preview`);

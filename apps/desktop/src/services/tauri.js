@@ -7,6 +7,7 @@ const CRYPTO_KEYS_STORE = "crypto-keys-v1";
 const CRYPTO_CONTACTS_STORE = "crypto-contacts-v1";
 const INTEGRATION_STATE_STORE = "integrations-v1";
 const SENDER_RULES_STORE = "sender-rules-v1";
+const REPUTATION_STORE = "reputation-v1";
 
 const INTEGRATION_PRESETS = [
   {
@@ -200,6 +201,9 @@ function demoMessages() {
       priority: suggestion.priority,
       priority_source: "auto",
       priority_reason: suggestion.reason,
+      auth_results: String(row[4]).toLowerCase() === "spam"
+        ? { spf: "fail", dkim: "fail", dmarc: "fail", source: "demo" }
+        : { spf: "pass", dkim: "pass", dmarc: "pass", source: "demo" },
       has_attachments: row[8],
       body_text: row[9],
       preview: previewOf(row[9]),
@@ -695,6 +699,214 @@ function fallbackReportFalsePositive(id, note) {
   analysis.falsePositiveNote = note || null;
   writeStore(SECURITY_STORE, state);
   return Promise.resolve(analysis);
+}
+
+function fallbackAuthResults(message) {
+  const value = message.auth_results;
+  if (!value) return {};
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value) || {};
+    } catch {
+      return {};
+    }
+  }
+  return value;
+}
+
+function fallbackHasAuth(auth) {
+  return Boolean(auth.spf || auth.dkim || auth.dmarc);
+}
+
+function fallbackAuthScore(auth, reasons) {
+  let score = 0;
+  const spf = String(auth.spf || "").toLowerCase();
+  const dkim = String(auth.dkim || "").toLowerCase();
+  const dmarc = String(auth.dmarc || "").toLowerCase();
+  if (spf === "fail") {
+    score += 18;
+    reasons.push("SPF failed: the sending server is not authorized for this domain.");
+  } else if (["softfail", "neutral", "permerror", "temperror"].includes(spf)) {
+    score += 8;
+    reasons.push(`SPF did not pass (${spf}), so the sender could not be fully verified.`);
+  }
+  if (dkim === "fail") {
+    score += 12;
+    reasons.push("DKIM failed: the message signature did not verify.");
+  }
+  if (dmarc === "fail") {
+    score += 22;
+    reasons.push("DMARC failed: the message does not align with the domain's published policy.");
+  } else if (dmarc === "none") {
+    reasons.push("The domain has no DMARC policy, so spoofing protection is limited.");
+  } else if (["softfail", "permerror", "temperror"].includes(dmarc)) {
+    score += 8;
+    reasons.push(`DMARC did not pass (${dmarc}).`);
+  }
+  return score;
+}
+
+function fallbackBrandImpersonation(display, address) {
+  const domain = senderDomain(address);
+  if (!domain) return null;
+  if (domain.startsWith("xn--") || domain.includes(".xn--")) {
+    return `The sender domain ${domain} uses punycode, which is often used to imitate a trusted brand.`;
+  }
+  const official = {
+    paypal: ["paypal.com", "paypal.me"],
+    microsoft: ["microsoft.com", "outlook.com", "live.com", "office.com"],
+    google: ["google.com", "gmail.com"],
+    apple: ["apple.com", "icloud.com", "me.com"],
+    amazon: ["amazon.com", "amazon.co.uk"],
+    github: ["github.com"],
+    netflix: ["netflix.com"],
+    dropbox: ["dropbox.com"],
+    docusign: ["docusign.com", "docusign.net"],
+    coinbase: ["coinbase.com"],
+  };
+  const text = String(display || "").toLowerCase();
+  const local = address.split("@")[0] || "";
+  const normalized = domain.replace(/[^a-z0-9]/g, "").replace(/0/g, "o").replace(/1/g, "l").replace(/3/g, "e").replace(/5/g, "s");
+  for (const brand of PREVIEW_BRANDS) {
+    const trusted = official[brand] || [];
+    if (trusted.some((value) => domain === value || domain.endsWith(`.${value}`))) continue;
+    if (text.includes(brand) || local.includes(brand) || normalized.includes(brand)) {
+      return `The sender claims to be ${brand}, but the address ${address} is not on an official ${brand} domain.`;
+    }
+  }
+  return null;
+}
+
+function fallbackSenderReputation(id) {
+  const messages = loadMailbox();
+  const message = messages.find((item) => Number(item.id) === Number(id));
+  if (!message) return Promise.reject(new Error("Message not found"));
+  const address = String(message.sender_address || "").trim().toLowerCase() || senderAddress(message.sender);
+  const domain = senderDomain(address);
+  const rules = loadSenderRules();
+  const allowlisted = rules.some((rule) => rule.kind === "allow" && senderRuleMatches(rule, address, domain));
+  const blockRule = allowlisted ? null : rules.find((rule) => rule.kind === "block" && senderRuleMatches(rule, address, domain));
+  const auth = fallbackAuthResults(message);
+  const reasons = [];
+  let score = 0;
+  let trusted = false;
+
+  if (allowlisted) {
+    trusted = true;
+    reasons.push("You allowlisted this sender, so it is treated as trusted.");
+  } else {
+    if (blockRule) {
+      score += 20;
+      reasons.push(`You blocked this sender ${blockRule.scope} (${blockRule.value}).`);
+    }
+    const impersonation = fallbackBrandImpersonation(message.sender, address);
+    if (impersonation) {
+      score += 28;
+      reasons.push(impersonation);
+    }
+    score += fallbackAuthScore(auth, reasons);
+    const security = fallbackSecurityState()[String(id)] || {};
+    for (const scan of security.urls || []) {
+      if (!scan.host || !domain) continue;
+      const host = String(scan.host).toLowerCase();
+      if (host === domain || host.endsWith(`.${domain}`)) {
+        if (scan.verdict === "malicious") {
+          score += 60;
+          reasons.push(`Threat intelligence flagged a link on ${domain} as malicious.`);
+        } else if (scan.verdict === "suspicious") {
+          score += 30;
+          reasons.push(`Threat intelligence marked a link on ${domain} as suspicious.`);
+        }
+      }
+    }
+    if (!reasons.length) {
+      reasons.push(fallbackHasAuth(auth)
+        ? "SPF, DKIM and DMARC did not report any problems."
+        : "No SPF, DKIM, or DMARC results were available for this domain.");
+    }
+  }
+
+  const classification = trusted ? "trusted" : score >= 60 ? "malicious" : score >= 25 ? "suspicious" : "neutral";
+  const store = readStore(REPUTATION_STORE, {});
+  const existing = domain ? store[domain] || {} : {};
+  let disputed = Boolean(existing.disputed);
+  let dismissedScore = Number(existing.dismissedScore) || 0;
+  const feedbackNote = existing.feedbackNote || null;
+  let finalClass = classification;
+  let finalScore = score;
+  let finalReasons = reasons;
+
+  if (disputed) {
+    if (score <= dismissedScore) {
+      finalClass = "neutral";
+      finalScore = dismissedScore;
+      finalReasons = ["You reported this assessment as incorrect. Elyra is showing it as Neutral until new intelligence arrives."];
+    } else {
+      disputed = false;
+      dismissedScore = 0;
+      finalReasons = [...reasons, "New intelligence changed this assessment after your report."];
+    }
+  }
+
+  const updatedAt = sqlTime();
+  if (domain) {
+    store[domain] = {
+      classification: finalClass,
+      score: finalScore,
+      reasons: finalReasons,
+      disputed,
+      dismissedScore,
+      feedbackNote,
+      updatedAt,
+    };
+    writeStore(REPUTATION_STORE, store);
+  }
+  return Promise.resolve({
+    emailId: Number(id),
+    domain,
+    address: address || null,
+    classification: finalClass,
+    score: finalScore,
+    reasons: finalReasons,
+    auth,
+    allowlisted,
+    blocklisted: Boolean(blockRule),
+    disputed,
+    feedbackNote,
+    updatedAt,
+  });
+}
+
+function fallbackRefreshDomainReputation(domain) {
+  const target = String(domain || "").trim().replace(/^@+/, "").toLowerCase();
+  const messages = loadMailbox();
+  const selected = messages.filter((message) => {
+    if (!target) return true;
+    const address = String(message.sender_address || "").trim().toLowerCase() || senderAddress(message.sender);
+    return senderDomain(address) === target;
+  });
+  return Promise.all(selected.map((message) => fallbackSenderReputation(message.id))).then((items) => {
+    return new Set(items.map((item) => item.domain).filter(Boolean)).size;
+  });
+}
+
+function fallbackReportReputationIssue(id, note) {
+  return fallbackSenderReputation(id).then((reputation) => {
+    if (!reputation.domain) return Promise.reject(new Error("This message has no sender domain to assess."));
+    const store = readStore(REPUTATION_STORE, {});
+    const existing = store[reputation.domain] || {};
+    store[reputation.domain] = {
+      ...existing,
+      classification: "neutral",
+      score: reputation.score,
+      disputed: true,
+      dismissedScore: reputation.score,
+      feedbackNote: String(note || "").trim() || null,
+      updatedAt: sqlTime(),
+    };
+    writeStore(REPUTATION_STORE, store);
+    return fallbackSenderReputation(id);
+  });
 }
 
 function fallbackKeys() {
@@ -1204,6 +1416,12 @@ function fallbackInvoke(command, args = {}) {
       return Promise.resolve(fallbackShieldSummary());
     case "report_false_positive":
       return fallbackReportFalsePositive(args.id, args.note);
+    case "get_sender_reputation":
+      return fallbackSenderReputation(args.id);
+    case "refresh_domain_reputation":
+      return fallbackRefreshDomainReputation(args.domain);
+    case "report_reputation_issue":
+      return fallbackReportReputationIssue(args.id, args.note);
     case "list_crypto_keys":
       return Promise.resolve(fallbackKeys());
     case "generate_crypto_key":

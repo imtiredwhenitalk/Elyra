@@ -699,13 +699,16 @@ fn sync_inbox(
         let is_read = flags.iter().any(|flag| matches!(flag, Flag::Seen));
         let is_starred = flags.iter().any(|flag| matches!(flag, Flag::Flagged));
         let size_bytes = raw.len() as i64;
+        let auth_results = crate::reputation::parse_auth_results(raw)
+            .and_then(|auth| serde_json::to_string(&auth).ok())
+            .unwrap_or_default();
 
         let inserted = database
             .execute(
                 "INSERT INTO emails (account_id, provider_id, sender, sender_address, subject,
                     body_text, body_html, preview, folder_id, is_read, is_starred, received_at,
-                    tag, recipient, has_attachments, updated_at, size_bytes)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'Personal', ?13, 0, ?12, ?14)
+                    tag, recipient, has_attachments, updated_at, size_bytes, auth_results)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'Personal', ?13, 0, ?12, ?14, ?15)
                  ON CONFLICT(account_id, provider_id) DO NOTHING",
                 params![
                     account.id,
@@ -721,7 +724,8 @@ fn sync_inbox(
                     if is_starred { 1 } else { 0 },
                     received_at,
                     account.email,
-                    size_bytes
+                    size_bytes,
+                    auth_results
                 ],
             )
             .map_err(|error| error.to_string())?;
@@ -731,7 +735,7 @@ fn sync_inbox(
                 .execute(
                     "UPDATE emails SET sender = ?3, sender_address = ?4, subject = ?5,
                         body_text = ?6, body_html = ?7, preview = ?8, received_at = ?9,
-                        updated_at = ?9, size_bytes = ?10
+                        updated_at = ?9, size_bytes = ?10, auth_results = ?11
                      WHERE account_id = ?1 AND provider_id = ?2",
                     params![
                         account.id,
@@ -743,7 +747,8 @@ fn sync_inbox(
                         body_html,
                         preview,
                         received_at,
-                        size_bytes
+                        size_bytes,
+                        auth_results
                     ],
                 )
                 .map_err(|error| error.to_string())?;

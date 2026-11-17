@@ -44,6 +44,18 @@ export function reportFalsePositive(id, note = "") {
   return invoke("report_false_positive", { id, note });
 }
 
+export function getSenderReputation(id) {
+  return invoke("get_sender_reputation", { id });
+}
+
+export function refreshDomainReputation(domain = "") {
+  return invoke("refresh_domain_reputation", { domain });
+}
+
+export function reportReputationIssue(id, note = "") {
+  return invoke("report_reputation_issue", { id, note });
+}
+
 export function listCryptoKeys() {
   return invoke("list_crypto_keys");
 }

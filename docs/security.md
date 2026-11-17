@@ -197,6 +197,16 @@ It demonstrates the primitive; it is not a production key-management service.
   themselves can still reveal sensitive information, so leave external scanning
   off if that is a concern.
 
+`apps/desktop/src-tauri/src/reputation.rs` classifies sender domains:
+
+- SPF, DKIM, and DMARC results are parsed from the message header block only;
+  body text cannot spoof them.
+- Scores combine allow and block rules, official brand domains, impersonation
+  and punycode, authentication failures, and cached threat-intelligence verdicts.
+- Unknown domains stay Neutral. The allowlist is always Trusted, and a report
+  neutralizes a disputed assessment until new intelligence raises the score.
+- Results are cached per domain in SQLite and can be refreshed on demand.
+
 ### What is not encrypted
 
 - The SQLite mailbox database is not encrypted at rest by Elyra.

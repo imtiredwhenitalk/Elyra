@@ -11,6 +11,7 @@ import {
   listCryptoKeys,
   listIntegrations,
   listSecurityAlerts,
+  refreshDomainReputation,
   removeIntegrationKey,
   rotateCryptoKey,
   revokeCryptoKey,
@@ -234,6 +235,21 @@ async function loadSecurityStatus(section) {
 
 function bindIntegrationActions(section) {
   section.addEventListener("click", async (event) => {
+    const reputationButton = event.target.closest("[data-refresh-reputations]");
+    if (reputationButton) {
+      reputationButton.disabled = true;
+      try {
+        const refreshed = await refreshDomainReputation("");
+        notify(`${refreshed} sender domain${refreshed === 1 ? "" : "s"} refreshed`, "success");
+        await loadSecurityStatus(section);
+      } catch (error) {
+        notify(error.message || "Could not refresh sender reputations", "error");
+      } finally {
+        reputationButton.disabled = false;
+      }
+      return;
+    }
+
     const external = event.target.closest("[data-open-external]");
     if (external) {
       event.preventDefault();
@@ -410,6 +426,9 @@ export function mountSecurityPage(container) {
         <div><h3>Recent Shield alerts</h3><p>Unified risk results for messages that were analyzed locally or with external providers.</p></div>
       </div>
       <ul class="shield-alert-list" data-shield-alerts><li>Loading Shield results...</li></ul>
+      <div class="panel-actions-row">
+        <button class="text-button" type="button" data-refresh-reputations>${icon("refresh")} Refresh sender reputations</button>
+      </div>
     </section>
 
     <section class="security-card">

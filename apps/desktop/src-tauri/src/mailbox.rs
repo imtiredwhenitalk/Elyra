@@ -242,6 +242,7 @@ pub(crate) fn initialize(app: &AppHandle) -> Result<(), String> {
         ("priority_source", "TEXT NOT NULL DEFAULT 'auto'"),
         ("priority_reason", "TEXT"),
         ("blocked_by", "TEXT"),
+        ("auth_results", "TEXT NOT NULL DEFAULT ''"),
     ] {
         ensure_column(&database, "emails", column, definition)?;
     }
@@ -668,9 +669,14 @@ fn seed_if_empty(database: &Connection) -> Result<(), String> {
             }
         }
         let _ = crate::priority::apply_auto_priority(database, email_id, true);
+        let auth_results = if demo.4.eq_ignore_ascii_case("Spam") {
+            r#"{"spf":"fail","dkim":"fail","dmarc":"fail","source":"demo"}"#
+        } else {
+            r#"{"spf":"pass","dkim":"pass","dmarc":"pass","source":"demo"}"#
+        };
         let _ = database.execute(
-            "UPDATE emails SET sender_address = ?2 WHERE id = ?1",
-            params![email_id, demo_address(demo.0)],
+            "UPDATE emails SET sender_address = ?2, auth_results = ?3 WHERE id = ?1",
+            params![email_id, demo_address(demo.0), auth_results],
         );
         let _ = crate::senders::apply_to_email(database, email_id);
     }

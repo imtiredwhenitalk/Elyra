@@ -220,7 +220,15 @@ fn is_official(domain: &str, official: &[&str]) -> bool {
         .any(|candidate| domain == *candidate || domain.ends_with(&format!(".{candidate}")))
 }
 
-fn brand_impersonation(display: &str, address: Option<&str>) -> Option<String> {
+/// Return the brand whose official domain list contains `domain`.
+pub(crate) fn known_brand(domain: &str) -> Option<&'static str> {
+    BRANDS
+        .iter()
+        .find(|(_, official)| is_official(domain, official))
+        .map(|(brand, _)| *brand)
+}
+
+pub(crate) fn brand_impersonation(display: &str, address: Option<&str>) -> Option<String> {
     let address = address?;
     let domain = domain_of(address)?;
     if domain.starts_with("xn--") || domain.contains(".xn--") {
@@ -525,6 +533,7 @@ pub fn analyze_message(
         if risk == "safe" { "success" } else { "warning" },
         &format!("Message {id} analyzed: {risk} ({score}/100)"),
     )?;
+    let _ = crate::reputation::refresh_for_email(&database, id);
     Ok(analysis)
 }
 

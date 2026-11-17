@@ -3111,6 +3111,218 @@ body[data-density="compact"] .viewer-body {
   color: var(--danger);
 }
 
+.reputation-host {
+  margin: 0 0 12px 57px;
+}
+
+.reputation-host:empty {
+  display: none;
+}
+
+.reputation-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.reputation-card.loading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-muted);
+  border-style: dashed;
+}
+
+.reputation-card.loading .icon {
+  width: 15px;
+  height: 15px;
+  color: var(--accent);
+}
+
+.reputation-card.trusted {
+  border-color: color-mix(in srgb, var(--success) 32%, var(--border));
+  background: color-mix(in srgb, var(--success) 7%, var(--surface));
+}
+
+.reputation-card.suspicious {
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+  background: color-mix(in srgb, var(--warning) 8%, var(--surface));
+}
+
+.reputation-card.malicious {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+}
+
+.reputation-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.reputation-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--text-muted) 11%, transparent);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.reputation-badge .icon {
+  width: 11px;
+  height: 11px;
+}
+
+.reputation-badge.trusted {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+}
+
+.reputation-badge.suspicious {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+}
+
+.reputation-badge.malicious {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+.reputation-domain {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reputation-auth {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.auth-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-faint);
+  font-size: 9px;
+  letter-spacing: 0.02em;
+}
+
+.auth-badge b {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.auth-badge.pass {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 35%, var(--border));
+}
+
+.auth-badge.pass b {
+  color: var(--success);
+}
+
+.auth-badge.fail {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  background: color-mix(in srgb, var(--danger) 7%, transparent);
+}
+
+.auth-badge.fail b {
+  color: var(--danger);
+}
+
+.auth-badge.warn {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 35%, var(--border));
+}
+
+.auth-badge.warn b {
+  color: var(--warning);
+}
+
+.auth-badge.missing {
+  opacity: 0.72;
+}
+
+.reputation-reasons {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding-left: 16px;
+  color: var(--text-muted);
+}
+
+.reputation-reasons li::marker {
+  color: var(--text-faint);
+}
+
+.reputation-card.suspicious .reputation-reasons li::marker {
+  color: var(--warning);
+}
+
+.reputation-card.malicious .reputation-reasons li::marker {
+  color: var(--danger);
+}
+
+.reputation-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.reputation-foot small {
+  color: var(--text-faint);
+  font-size: 9.5px;
+}
+
+.reputation-reported {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--success);
+  font-size: 10px;
+}
+
+.reputation-reported .icon {
+  width: 12px;
+  height: 12px;
+}
+
+.reputation-card .icon-button.tiny {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+}
+
+.reputation-card .icon-button.tiny .icon {
+  width: 13px;
+  height: 13px;
+}
+
 .threat-reasons {
   display: grid;
   gap: 4px;

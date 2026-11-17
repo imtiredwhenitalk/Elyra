@@ -37,7 +37,7 @@ fn normalize_scope(value: &str) -> Option<&'static str> {
     }
 }
 
-fn address_of(sender: &str) -> String {
+pub(crate) fn address_of(sender: &str) -> String {
     let text = sender.trim();
     if let Some(start) = text.rfind('<') {
         if let Some(end) = text[start..].find('>') {
@@ -57,7 +57,7 @@ fn address_of(sender: &str) -> String {
     .to_ascii_lowercase()
 }
 
-fn domain_of(address: &str) -> Option<String> {
+pub(crate) fn domain_of(address: &str) -> Option<String> {
     address
         .rsplit_once('@')
         .map(|(_, domain)| domain.trim_matches('.').to_ascii_lowercase())
@@ -122,18 +122,30 @@ fn load_rules(database: &Connection) -> Result<Vec<SenderRule>, String> {
         .map_err(|error| error.to_string())
 }
 
-fn matching_rule(database: &Connection, sender: &str) -> Result<Option<SenderRule>, String> {
+/// Evaluate the allowlist and blocklist for one sender identity. Allow rules
+/// always win, so `block` is `None` whenever `allowlisted` is true.
+pub(crate) fn rules_for(
+    database: &Connection,
+    sender: &str,
+) -> Result<(bool, Option<SenderRule>), String> {
     let address = address_of(sender);
     let domain = domain_of(&address);
     let rules = load_rules(database)?;
-    if rules.iter().any(|rule| {
+    let allowlisted = rules.iter().any(|rule| {
         rule.kind == "allow" && rule_matches(rule, &address, domain.as_deref())
-    }) {
-        return Ok(None);
-    }
-    Ok(rules.into_iter().find(|rule| {
-        rule.kind == "block" && rule_matches(rule, &address, domain.as_deref())
-    }))
+    });
+    let block = if allowlisted {
+        None
+    } else {
+        rules.into_iter().find(|rule| {
+            rule.kind == "block" && rule_matches(rule, &address, domain.as_deref())
+        })
+    };
+    Ok((allowlisted, block))
+}
+
+fn matching_rule(database: &Connection, sender: &str) -> Result<Option<SenderRule>, String> {
+    Ok(rules_for(database, sender)?.1)
 }
 
 fn blocked_action(database: &Connection) -> String {

@@ -357,6 +357,29 @@ allowlist.
 Rules are stored in the local SQLite database and apply to incoming IMAP mail at
 import time. Allow rules are evaluated before block rules.
 
+### Sender reputation
+
+The reader shows a reputation card under the message header. It classifies the
+sender domain as **Trusted**, **Neutral**, **Suspicious**, or **Malicious** and
+lists the reasons.
+
+- **Trusted** — the sender is on your allowlist or uses an official domain for a
+  known brand.
+- **Neutral** — there is no negative signal. New and unknown domains stay here;
+  they are never treated as malicious without evidence.
+- **Suspicious** and **Malicious** — raised by block rules, brand impersonation
+  or punycode, failed SPF/DKIM/DMARC checks, or threat-intelligence verdicts
+  cached by Shield.
+- **SPF / DKIM / DMARC** badges show the authentication results from the message
+  headers when the provider supplies them. Missing results are shown as `n/a`.
+- **Refresh** recomputes the reputation for the open message, including any new
+  Shield results.
+- **Report incorrect assessment** neutralizes the classification and stores your
+  note. It stays Neutral until new intelligence produces a higher score.
+
+**Security → Refresh sender reputations** recomputes the cached reputation for
+every sender domain. Reputations are stored in SQLite and survive restarts.
+
 ### Mail accounts
 
 See [Mail accounts](#mail-accounts).
