@@ -8,6 +8,7 @@ mod priority;
 mod providers;
 mod secrets;
 mod security;
+mod senders;
 mod shield;
 mod storage;
 mod threats;
@@ -20,6 +21,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             storage::initialize(app.handle()).expect("failed to initialize Elyra local storage");
+            senders::initialize(app.handle()).expect("failed to initialize Elyra sender rules");
             mailbox::initialize(app.handle()).expect("failed to initialize Elyra mailbox engine");
             priority::initialize(app.handle()).expect("failed to initialize Elyra priority engine");
             providers::initialize(app.handle()).expect("failed to initialize Elyra provider accounts");
@@ -54,6 +56,10 @@ pub fn run() {
             mailbox::search_suggestions,
             mailbox::export_mailbox,
             priority::refresh_priority_suggestions,
+            senders::list_sender_rules,
+            senders::save_sender_rule,
+            senders::delete_sender_rule,
+            senders::apply_sender_rules,
             security::get_security_status,
             security::list_audit_events,
             integrations::list_integrations,

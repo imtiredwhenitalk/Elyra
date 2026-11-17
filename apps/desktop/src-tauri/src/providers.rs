@@ -772,6 +772,7 @@ fn sync_inbox(
         // Run the local Shield checks at import time. External link scans are
         // deferred until the message is opened so synchronisation stays fast.
         let _ = crate::priority::apply_auto_priority(&database, email_id, true);
+        let _ = crate::senders::apply_to_email(&database, email_id);
         let _ = shield::analyze_email_local(&database, email_id);
     }
 

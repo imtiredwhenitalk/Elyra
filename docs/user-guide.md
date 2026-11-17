@@ -336,6 +336,27 @@ OLED theme uses true black surfaces for OLED displays.
 - **Refresh suggestions** — recomputes automatic priorities for existing mail
   without touching messages you changed yourself.
 
+### Senders and domains
+
+**Settings → Senders & domains** manages the local blocklist and trusted
+allowlist.
+
+- **Block** rules filter matching mail automatically. A block can target one
+  address (`name@example.com`) or a whole domain (`example.com`, including
+  subdomains).
+- **Allow** rules always win. Use them to keep a trusted address or domain out
+  of the blocklist, even when a broader domain rule would match.
+- **Blocked mail goes to** — choose **Spam** or **Trash**. Changing this
+  re-applies the rules to already-blocked messages.
+- **Apply rules** — re-evaluates every local message against the current rules.
+  Removing a rule returns messages it had auto-filtered to **Inbox** unless you
+  moved them yourself.
+- Blocked messages show a **Blocked** chip in the list and the reader, with the
+  matching address or domain.
+
+Rules are stored in the local SQLite database and apply to incoming IMAP mail at
+import time. Allow rules are evaluated before block rules.
+
 ### Mail accounts
 
 See [Mail accounts](#mail-accounts).

@@ -316,3 +316,30 @@ Validation: [OK] `node --check` for `main.js` and `tauri.js`; [OK] CSS braces
 balanced (525/525); [OK] `git diff --check`; Rust compilation and the Windows
 desktop build run in GitHub Actions because no local Rust toolchain is
 available.
+
+[200 OK] Added sender and domain blocking plus a trusted allowlist (Phase 2, GitHub issue #6):
+
+Added `senders.rs` with local block and allow rules for individual addresses and
+whole domains. Rules are stored in the `sender_rules` table with a unique
+`(kind, scope, value)` key. Allow rules always win, so a trusted address or
+domain is never filtered even when a broader block rule matches. Incoming IMAP
+mail and demo messages are evaluated at import time. Blocked mail moves to Spam
+or Trash according to the new `blocked_sender_action` setting, and the matching
+rule is stored in `emails.blocked_by` as `address:<value>` or `domain:<value>`.
+Removing a rule or adding an allow rule restores auto-filtered messages to the
+Inbox, while manual folder moves clear `blocked_by` so they are never restored.
+
+The inbox and reader now show a **Blocked** chip with the matching address or
+domain. Settings includes a **Senders & domains** section for adding block and
+allow rules, deleting them, choosing the blocked-mail destination, and applying
+rules on demand. Browser preview mirrors the same behavior with `localStorage`
+and `sender-rules-v1`.
+
+Files changed: `senders.rs`, `mailbox.rs`, `providers.rs`, `lib.rs`, `main.js`,
+`index.html`, `styles.css`, `tauri.js`, `task.md`, `docs/user-guide.md`,
+`docs/reference/tauri-commands.md`, `docs/reference/configuration.md`.
+
+Validation: [OK] `node --check` for `main.js` and `tauri.js`; [OK] CSS braces
+balanced (536/536); [OK] `git diff --check`; Rust compilation and the Windows
+desktop build run in GitHub Actions because no local Rust toolchain is
+available.

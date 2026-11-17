@@ -48,6 +48,7 @@ pub struct MessageSummary {
     pub priority: String,
     pub priority_source: String,
     pub priority_reason: Option<String>,
+    pub blocked_by: Option<String>,
     pub has_attachments: bool,
     pub snoozed_until: Option<String>,
 }
@@ -240,6 +241,7 @@ pub(crate) fn initialize(app: &AppHandle) -> Result<(), String> {
         ("priority", "TEXT NOT NULL DEFAULT 'normal'"),
         ("priority_source", "TEXT NOT NULL DEFAULT 'auto'"),
         ("priority_reason", "TEXT"),
+        ("blocked_by", "TEXT"),
     ] {
         ensure_column(&database, "emails", column, definition)?;
     }
@@ -287,6 +289,7 @@ pub(crate) fn initialize(app: &AppHandle) -> Result<(), String> {
         ("reduce_motion", "false"),
         ("auto_priority", "true"),
         ("priority_default", "normal"),
+        ("blocked_sender_action", "spam"),
     ] {
         database
             .execute(
@@ -322,6 +325,21 @@ fn account_id(database: &Connection) -> i64 {
             |row| row.get(0),
         )
         .unwrap_or(1)
+}
+
+fn demo_address(name: &str) -> String {
+    let slug = name
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() {
+                character.to_ascii_lowercase()
+            } else {
+                '.'
+            }
+        })
+        .collect::<String>();
+    let slug = slug.trim_matches('.');
+    format!("{slug}@example.com")
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -650,6 +668,11 @@ fn seed_if_empty(database: &Connection) -> Result<(), String> {
             }
         }
         let _ = crate::priority::apply_auto_priority(database, email_id, true);
+        let _ = database.execute(
+            "UPDATE emails SET sender_address = ?2 WHERE id = ?1",
+            params![email_id, demo_address(demo.0)],
+        );
+        let _ = crate::senders::apply_to_email(database, email_id);
     }
 
     Ok(())
@@ -673,6 +696,7 @@ fn row_to_summary(row: &rusqlite::Row<'_>) -> rusqlite::Result<MessageSummary> {
         priority: row.get(12)?,
         priority_source: row.get(13)?,
         priority_reason: row.get(14)?,
+        blocked_by: row.get(15)?,
         has_attachments: row.get::<_, i64>(9)? != 0,
         snoozed_until: row.get(10)?,
         time: display_time(&received_at),
@@ -731,7 +755,8 @@ fn build_filters(filter: &str, quick_filter: &str, query: &str) -> (String, Vec<
 fn summary_sql() -> &'static str {
     "SELECT e.id, e.sender, e.subject, e.preview, f.name, e.tag, e.is_read,
             e.is_starred, e.received_at, e.has_attachments, e.snoozed_until,
-            e.is_important, e.priority, e.priority_source, e.priority_reason
+            e.is_important, e.priority, e.priority_source, e.priority_reason,
+            e.blocked_by
      FROM emails e JOIN folders f ON f.id = e.folder_id"
 }
 
@@ -851,7 +876,7 @@ fn message_detail(database: &Connection, id: i64) -> Result<MessageDetail, Strin
             "SELECT e.id, e.sender, e.subject, e.preview, f.name, e.tag, e.is_read,
                     e.is_starred, e.received_at, e.has_attachments, e.snoozed_until,
                     e.is_important, e.priority, e.priority_source, e.priority_reason,
-                    e.recipient, e.body_text, e.body_html
+                    e.blocked_by, e.recipient, e.body_text, e.body_html
              FROM emails e JOIN folders f ON f.id = e.folder_id
              WHERE e.id = ?1 AND e.deleted_at IS NULL",
         )
@@ -861,9 +886,9 @@ fn message_detail(database: &Connection, id: i64) -> Result<MessageDetail, Strin
             let summary = row_to_summary(row)?;
             Ok(MessageDetail {
                 message: summary,
-                recipient: row.get(15)?,
-                body_text: row.get(16)?,
-                body_html: row.get(17)?,
+                recipient: row.get(16)?,
+                body_text: row.get(17)?,
+                body_html: row.get(18)?,
                 attachments: Vec::new(),
             })
         })
@@ -1042,6 +1067,7 @@ pub fn update_message(
     if let Some(folder) = folder {
         assignments.push("folder_id = ?");
         values.push(Value::Integer(folder_id(&database, &folder)?));
+        assignments.push("blocked_by = NULL");
     }
     if assignments.is_empty() {
         return Ok(());
@@ -1133,7 +1159,7 @@ pub fn bulk_update_messages(
             };
             values.push(Value::Integer(folder_id(&database, folder)?));
             format!(
-                "UPDATE emails SET folder_id = ?, updated_at = datetime('now') WHERE id IN ({placeholders})"
+                "UPDATE emails SET folder_id = ?, blocked_by = NULL, updated_at = datetime('now') WHERE id IN ({placeholders})"
             )
         }
         "snooze" => {
@@ -1142,7 +1168,7 @@ pub fn bulk_update_messages(
                 until.unwrap_or_else(|| (Utc::now() + Duration::days(1)).format("%Y-%m-%d %H:%M:%S").to_string()),
             ));
             format!(
-                "UPDATE emails SET folder_id = ?, snoozed_until = ?, updated_at = datetime('now') WHERE id IN ({placeholders})"
+                "UPDATE emails SET folder_id = ?, snoozed_until = ?, blocked_by = NULL, updated_at = datetime('now') WHERE id IN ({placeholders})"
             )
         }
         other => return Err(format!("Unsupported action: {other}")),

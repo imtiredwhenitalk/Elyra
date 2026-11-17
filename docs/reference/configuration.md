@@ -60,6 +60,7 @@ UI, not environment variables.
 | `reduce_motion` | `false` | Disable non-essential animation |
 | `auto_priority` | `true` | Apply local priority suggestions at import; `false` uses `priority_default` |
 | `priority_default` | `normal` | `low`, `normal`, `high`, or `urgent` starting priority when suggestions are off |
+| `blocked_sender_action` | `spam` | Destination for mail matched by a sender block rule: `spam` or `trash` |
 | `api_url` | unset | Saved Elyra server base URL |
 | `last_sync_at` | unset | Last successful account sync timestamp |
 | `external_scanning` | `true` | Set to `false` to disable VirusTotal and Google Safe Browsing calls |

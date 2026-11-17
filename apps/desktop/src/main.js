@@ -33,6 +33,7 @@ const state = {
   apiBase: "",
   cloudMailRelay: false,
   threats: new Map(),
+  senderRules: [],
 };
 
 const QUICK_FILTERS = ["all", "unread", "starred", "important", "high", "urgent", "attachments"];
@@ -104,6 +105,18 @@ function priorityBadge(message) {
   const priority = priorityValue(message.priority);
   if (priority === "normal") return "";
   return `<span class="priority-pill ${priority}" title="${escapeHtml(prioritySourceLabel(message))}">${icon("priority")} ${priorityLabel(priority)}</span>`;
+}
+
+function blockedRuleLabel(value) {
+  if (!value) return "";
+  const [scope, ...rest] = String(value).split(":");
+  const target = rest.join(":") || value;
+  return scope === "domain" ? `Blocked domain ${target}` : `Blocked sender ${target}`;
+}
+
+function blockedBadge(message) {
+  if (!message.blocked_by) return "";
+  return `<span class="blocked-chip" title="${escapeHtml(blockedRuleLabel(message.blocked_by))}">${icon("spam")} Blocked</span>`;
 }
 
 function setQuickFilter(value) {
@@ -707,6 +720,7 @@ function renderMessages() {
           <span class="message-tag ${message.color}">${escapeHtml(message.tag)}</span>
           ${importanceFlag(message)}
           ${priorityBadge(message)}
+          ${blockedBadge(message)}
           ${threatFlag(message.id)}
           ${message.has_attachments ? `<span class="attachment-hint" title="Has attachments">${icon("paperclip")}</span>` : ""}
           <span class="message-time">${escapeHtml(message.time)}</span>
@@ -919,7 +933,10 @@ function renderSettings() {
   toggle("#reduce-motion", settings.reduce_motion ?? "false");
   toggle("#auto-priority", settings.auto_priority ?? "true");
   bind("#priority-default", settings.priority_default || "normal");
+  bind("#blocked-sender-action", settings.blocked_sender_action || "spam");
   bind("#api-url-input", state.apiBase || "");
+  renderSenderRules();
+  loadSenderRules();
   const authState = $("#settings-auth-state");
   if (authState) {
     authState.innerHTML = state.session
@@ -927,6 +944,108 @@ function renderSettings() {
       : `<span class="status-dot"></span> Local-only — connect Elyra Cloud for notifications and server mail relay`;
   }
   renderDiagnostics();
+}
+
+function senderRuleScopeLabel(rule) {
+  return rule.scope === "domain" ? "Domain" : "Address";
+}
+
+function renderSenderRules() {
+  const list = $("#sender-rules-list");
+  if (!list) return;
+  const rules = Array.isArray(state.senderRules) ? state.senderRules : [];
+  if (!rules.length) {
+    list.innerHTML = `<p class="settings-note">No sender rules yet. Add an address or domain to block it or keep it trusted.</p>`;
+    return;
+  }
+  const groups = [
+    { kind: "block", label: "Blocked" },
+    { kind: "allow", label: "Trusted" },
+  ];
+  list.innerHTML = groups.map((group) => {
+    const items = rules.filter((rule) => rule.kind === group.kind);
+    if (!items.length) return "";
+    return `
+      <div class="sender-rule-group">
+        <h4>${group.label}</h4>
+        ${items.map((rule) => `
+          <div class="sender-rule-card">
+            <div class="sender-rule-copy">
+              <b>${escapeHtml(rule.value)}</b>
+              <small>${senderRuleScopeLabel(rule)}${rule.note ? ` · ${escapeHtml(rule.note)}` : ""}</small>
+            </div>
+            <button class="icon-button" type="button" data-delete-sender-rule="${rule.id}" aria-label="Delete rule for ${escapeHtml(rule.value)}">${icon("x")}</button>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }).join("");
+}
+
+async function loadSenderRules() {
+  try {
+    const rules = await invoke("list_sender_rules");
+    state.senderRules = Array.isArray(rules) ? rules : [];
+    renderSenderRules();
+  } catch (error) {
+    console.error("Could not load sender rules", error);
+  }
+}
+
+async function addSenderRule() {
+  const kind = $("#sender-rule-kind")?.value || "block";
+  const scope = $("#sender-rule-scope")?.value || "address";
+  const value = $("#sender-rule-value")?.value.trim() || "";
+  const note = $("#sender-rule-note")?.value.trim() || "";
+  if (!value) {
+    showToast("Enter an address or domain", "error");
+    return;
+  }
+  try {
+    await invoke("save_sender_rule", { kind, scope, value, note: note || null });
+    if ($("#sender-rule-value")) $("#sender-rule-value").value = "";
+    if ($("#sender-rule-note")) $("#sender-rule-note").value = "";
+    await loadSenderRules();
+    await refreshStats();
+    await loadMailbox({ keepSelection: true });
+    showToast(kind === "block" ? "Sender blocked" : "Sender trusted", "success");
+  } catch (error) {
+    showToast(error.message || "Could not save the rule", "error");
+  }
+}
+
+async function deleteSenderRule(id) {
+  try {
+    await invoke("delete_sender_rule", { id });
+    await loadSenderRules();
+    await refreshStats();
+    await loadMailbox({ keepSelection: true });
+    showToast("Rule removed", "success");
+  } catch (error) {
+    showToast(error.message || "Could not remove the rule", "error");
+  }
+}
+
+async function applySenderRules({ quiet = false } = {}) {
+  try {
+    const blocked = await invoke("apply_sender_rules");
+    await refreshStats();
+    await loadMailbox({ keepSelection: true });
+    if (!quiet) {
+      showToast(blocked
+        ? `Rules applied · ${blocked} message${blocked === 1 ? "" : "s"} blocked`
+        : "Sender rules applied", "success");
+    }
+  } catch (error) {
+    showToast(error.message || "Could not apply sender rules", "error");
+  }
+}
+
+async function setBlockedSenderAction(value) {
+  const action = value === "trash" ? "trash" : "spam";
+  await persistSettings({ blocked_sender_action: action });
+  await applySenderRules({ quiet: true });
+  showToast(`Blocked mail now moves to ${action === "trash" ? "Trash" : "Spam"}`, "success");
 }
 
 function updateAccountUi() {
@@ -1247,6 +1366,7 @@ async function openMessage(id) {
             <span class="message-tag ${message.color}">${escapeHtml(message.tag)}</span>
             ${message.is_important ? `<span class="importance-chip">${icon("important")} Important</span>` : ""}
             ${priorityValue(message.priority) !== "normal" ? `<span class="priority-chip ${priorityValue(message.priority)}">${icon("priority")} ${priorityLabel(message.priority)} priority</span>` : ""}
+            ${message.blocked_by ? `<span class="blocked-chip">${icon("spam")} ${escapeHtml(blockedRuleLabel(message.blocked_by))}</span>` : ""}
             <span class="secure-inline">${icon("lock")} local</span>
           </div>
           <h2>${escapeHtml(message.subject)}</h2>
@@ -1508,6 +1628,10 @@ function bindEvents() {
     if (event.target.closest("#export-mailbox")) exportMailbox();
     if (event.target.closest("#refresh-diagnostics")) renderDiagnostics();
     if (event.target.closest("#refresh-priority")) refreshPrioritySuggestions();
+    if (event.target.closest("#add-sender-rule")) addSenderRule();
+    if (event.target.closest("#apply-sender-rules")) applySenderRules();
+    const deleteRule = event.target.closest("[data-delete-sender-rule]");
+    if (deleteRule) deleteSenderRule(Number(deleteRule.dataset.deleteSenderRule));
     if (event.target.closest("#sign-out")) signOut();
     if (event.target.closest("#open-auth")) showAuthModal("login");
     if (event.target.closest("#add-mail-account")) openAccountModal();
@@ -1550,6 +1674,16 @@ function bindEvents() {
   });
   $("#reduce-motion")?.addEventListener("change", (event) => {
     persistSettings({ reduce_motion: event.target.checked });
+  });
+  $("#blocked-sender-action")?.addEventListener("change", (event) => {
+    setBlockedSenderAction(event.target.value);
+  });
+  ["#sender-rule-value", "#sender-rule-note"].forEach((selector) => {
+    $(selector)?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      addSenderRule();
+    });
   });
 
   $("#message-list").addEventListener("click", (event) => {
@@ -1648,6 +1782,7 @@ async function persistSettings(patch = {}) {
 async function saveSettingsFromForm() {
   const previousAuto = String(state.settings.auto_priority ?? "true");
   const previousDefault = state.settings.priority_default || "normal";
+  const previousBlockedAction = state.settings.blocked_sender_action || "spam";
   const values = {
     display_name: $("#display-name").value.trim() || "Alex Smith",
     domain_handle: $("#domain-handle").value.trim() || "alex@elyra.com",
@@ -1660,6 +1795,7 @@ async function saveSettingsFromForm() {
     reduce_motion: $("#reduce-motion").checked,
     auto_priority: $("#auto-priority").checked,
     priority_default: $("#priority-default").value,
+    blocked_sender_action: $("#blocked-sender-action")?.value || "spam",
   };
   try {
     await invoke("set_local_settings", { values });
@@ -1671,6 +1807,9 @@ async function saveSettingsFromForm() {
     showToast("Settings saved", "success");
     if (String(values.auto_priority) !== previousAuto || values.priority_default !== previousDefault) {
       await refreshPrioritySuggestions({ quiet: true });
+    }
+    if (values.blocked_sender_action !== previousBlockedAction) {
+      await applySenderRules({ quiet: true });
     }
   } catch (error) {
     showToast(error.message || "Could not save settings", "error");

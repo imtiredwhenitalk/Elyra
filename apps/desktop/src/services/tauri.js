@@ -6,6 +6,7 @@ const SECURITY_STORE = "message-security-v1";
 const CRYPTO_KEYS_STORE = "crypto-keys-v1";
 const CRYPTO_CONTACTS_STORE = "crypto-contacts-v1";
 const INTEGRATION_STATE_STORE = "integrations-v1";
+const SENDER_RULES_STORE = "sender-rules-v1";
 
 const INTEGRATION_PRESETS = [
   {
@@ -187,6 +188,7 @@ function demoMessages() {
     return {
       id: index + 1,
       sender: row[0],
+      sender_address: demoAddress(row[0]),
       recipient: row[1],
       subject: row[2],
       received_at: sqlTime(row[3]),
@@ -210,6 +212,7 @@ function loadMailbox() {
   let messages = readStore(MAILBOX_STORE, null);
   if (!Array.isArray(messages) || !messages.length) {
     messages = demoMessages();
+    applySenderRulesTo(messages);
     writeStore(MAILBOX_STORE, messages);
   }
   return messages;
@@ -237,6 +240,7 @@ function summaryOf(message) {
     priority: message.priority || "normal",
     priority_source: message.priority_source || "auto",
     priority_reason: message.priority_reason || null,
+    blocked_by: message.blocked_by || null,
     has_attachments: Boolean(message.has_attachments),
     snoozed_until: message.snoozed_until || null,
   };
@@ -316,6 +320,86 @@ function pageOf(messages, filter, quickFilter, limit = 100, offset = 0) {
 
 function nextId(messages) {
   return messages.reduce((max, message) => Math.max(max, Number(message.id) || 0), 0) + 1;
+}
+
+function senderAddress(sender) {
+  const text = String(sender || "").trim();
+  const start = text.lastIndexOf("<");
+  if (start !== -1) {
+    const end = text.indexOf(">", start);
+    if (end !== -1) {
+      return text.slice(start + 1, end).trim().replace(/^"|"$/g, "").toLowerCase();
+    }
+  }
+  return text.replace(/[<>",\s]+/g, "").toLowerCase();
+}
+
+function demoAddress(name) {
+  const slug = String(name || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ".")
+    .replace(/^\.+|\.+$/g, "");
+  return `${slug}@example.com`;
+}
+
+function senderDomain(address) {
+  const at = String(address || "").lastIndexOf("@");
+  if (at === -1) return "";
+  return String(address).slice(at + 1).replace(/^\.+|\.+$/g, "").toLowerCase();
+}
+
+function normalizeSenderValue(scope, value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) throw new Error("Enter an address or domain");
+  if (scope === "domain") {
+    const domain = trimmed.replace(/^@+/, "").replace(/^\.+|\.+$/g, "").toLowerCase();
+    if (!domain || domain.includes("@") || /\s/.test(domain)) throw new Error("Enter a domain like example.com");
+    if (!domain.includes(".")) throw new Error("Domains need at least one dot, like example.com");
+    return domain;
+  }
+  const address = senderAddress(trimmed);
+  if (!address.includes("@") || /\s/.test(address)) throw new Error("Enter a full email address like name@example.com");
+  return address;
+}
+
+function senderRuleMatches(rule, address, domain) {
+  if (rule.scope === "address") return rule.value === address;
+  if (!domain) return false;
+  return domain === rule.value || domain.endsWith(`.${rule.value}`);
+}
+
+function loadSenderRules() {
+  const rules = readStore(SENDER_RULES_STORE, []);
+  return Array.isArray(rules) ? rules : [];
+}
+
+function saveSenderRules(rules) {
+  writeStore(SENDER_RULES_STORE, rules);
+}
+
+function applySenderRulesTo(messages) {
+  const rules = loadSenderRules();
+  const action = String(loadSettings().blocked_sender_action || "spam").toLowerCase() === "trash" ? "Trash" : "Spam";
+  let blocked = 0;
+  for (const message of messages) {
+    const folder = String(message.folder || "").toLowerCase();
+    const filteredFolder = folder === "spam" || folder === "trash";
+    if (!["inbox", "snoozed", "spam", "trash"].includes(folder)) continue;
+    if (filteredFolder && !message.blocked_by) continue;
+    const address = String(message.sender_address || "").trim().toLowerCase() || senderAddress(message.sender);
+    const domain = senderDomain(address);
+    const allowed = rules.some((rule) => rule.kind === "allow" && senderRuleMatches(rule, address, domain));
+    const blockRule = allowed ? null : rules.find((rule) => rule.kind === "block" && senderRuleMatches(rule, address, domain));
+    if (blockRule) {
+      message.blocked_by = `${blockRule.scope}:${blockRule.value}`;
+      message.folder = action;
+      blocked += 1;
+    } else if (message.blocked_by) {
+      message.blocked_by = null;
+      if (filteredFolder) message.folder = "Inbox";
+    }
+  }
+  return blocked;
 }
 
 function loadSettings() {
@@ -785,7 +869,10 @@ function fallbackInvoke(command, args = {}) {
         message.priority_source = "manual";
         message.priority_reason = "Set manually.";
       }
-      if (args.folder) message.folder = args.folder;
+      if (args.folder) {
+        message.folder = args.folder;
+        message.blocked_by = null;
+      }
       saveMailbox(messages);
       return Promise.resolve();
     }
@@ -805,6 +892,51 @@ function fallbackInvoke(command, args = {}) {
       }
       saveMailbox(messages);
       return Promise.resolve(updated);
+    }
+    case "list_sender_rules":
+      return Promise.resolve(loadSenderRules());
+    case "save_sender_rule": {
+      const kind = String(args.kind || "").toLowerCase();
+      const scope = String(args.scope || "").toLowerCase();
+      if (!["block", "allow"].includes(kind)) return Promise.reject(new Error("Rule type must be block or allow"));
+      if (!["address", "domain"].includes(scope)) return Promise.reject(new Error("Rule scope must be address or domain"));
+      let value;
+      try {
+        value = normalizeSenderValue(scope, args.value);
+      } catch (error) {
+        return Promise.reject(error);
+      }
+      const note = String(args.note || "").trim() || null;
+      const rules = loadSenderRules();
+      const existing = rules.find((rule) => rule.kind === kind && rule.scope === scope && rule.value === value);
+      let rule;
+      if (existing) {
+        existing.note = note;
+        rule = existing;
+      } else {
+        rule = { id: nextLocalId(rules), kind, scope, value, note, created_at: sqlTime() };
+        rules.push(rule);
+      }
+      saveSenderRules(rules);
+      const messages = loadMailbox();
+      applySenderRulesTo(messages);
+      saveMailbox(messages);
+      return Promise.resolve(rule);
+    }
+    case "delete_sender_rule": {
+      const rules = loadSenderRules();
+      const remaining = rules.filter((rule) => Number(rule.id) !== Number(args.id));
+      saveSenderRules(remaining);
+      const messages = loadMailbox();
+      applySenderRulesTo(messages);
+      saveMailbox(messages);
+      return Promise.resolve(remaining.length !== rules.length);
+    }
+    case "apply_sender_rules": {
+      const messages = loadMailbox();
+      const blocked = applySenderRulesTo(messages);
+      saveMailbox(messages);
+      return Promise.resolve(blocked);
     }
     case "delete_message": {
       let messages = loadMailbox();
@@ -845,6 +977,9 @@ function fallbackInvoke(command, args = {}) {
             message.folder = "Snoozed";
             message.snoozed_until = args.until || sqlTime(-1_440);
           }
+          if (["trash", "spam", "archive", "inbox", "restore", "snooze"].includes(action)) {
+            message.blocked_by = null;
+          }
         }
       }
       saveMailbox(messages);
@@ -881,6 +1016,7 @@ function fallbackInvoke(command, args = {}) {
           priority: "normal",
           priority_source: "auto",
           priority_reason: null,
+          blocked_by: null,
           has_attachments: false,
           attachments: [],
         };
@@ -935,6 +1071,7 @@ function fallbackInvoke(command, args = {}) {
         priority: "normal",
         priority_source: "auto",
         priority_reason: null,
+        blocked_by: null,
         has_attachments: false,
         attachments: [],
         received_at: sqlTime(),

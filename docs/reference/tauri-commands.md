@@ -46,6 +46,7 @@ with `localStorage`. Desktop builds always call the Rust implementations.
 | --- | --- |
 | [Storage](#storage) | `initialize_local_storage`, `cache_email`, `list_cached_emails`, `set_local_setting`, `get_local_settings`, `set_local_settings`, `delete_local_setting` |
 | [Mailbox](#mailbox) | `mailbox_stats`, `seed_demo_mailbox`, `reset_demo_mailbox`, `refresh_mailbox`, `list_mailbox`, `get_message`, `update_message`, `delete_message`, `bulk_update_messages`, `mark_all_read`, `empty_trash`, `save_draft`, `delete_draft`, `search_suggestions`, `export_mailbox`, `refresh_priority_suggestions` |
+| [Senders](#senders) | `list_sender_rules`, `save_sender_rule`, `delete_sender_rule`, `apply_sender_rules` |
 | [Providers](#providers) | `provider_presets`, `list_email_accounts`, `save_email_account`, `delete_email_account`, `test_email_account`, `test_email_settings`, `sync_email_account`, `sync_all_accounts` |
 | [Sending](#sending) | `send_email`, `list_sent_emails` |
 | [Security](#security) | `get_security_status`, `list_audit_events` |
@@ -239,6 +240,7 @@ Returns:
       "priority": "high",
       "priority_source": "auto",
       "priority_reason": "Matches important or time-sensitive signals.",
+      "blocked_by": null,
       "has_attachments": true,
       "snoozed_until": null
     }
@@ -287,8 +289,9 @@ text, not raw HTML.
 Updates only the fields that are provided. `folder` is a folder name such as
 `Archive`, `Trash`, `Spam`, `Snoozed`, or `Inbox`. `priority` accepts `low`,
 `normal`, `high`, or `urgent` and records `priority_source = "manual"`, so the
-choice is never overwritten by automatic suggestions. With no fields, it is a
-no-op.
+choice is never overwritten by automatic suggestions. A manual `folder` move
+also clears `blocked_by`, so later rule changes do not move the message again.
+With no fields, it is a no-op.
 
 ### `delete_message`
 
@@ -389,6 +392,69 @@ Recomputes the automatic priority and reason for every non-deleted message whose
 `priority_source` is `auto`, and returns the number of rows considered. Manual
 priorities and the `is_important` flag are left untouched. Run it after changing
 the automatic-priority preference or the local rules.
+
+## Senders
+
+Source: `apps/desktop/src-tauri/src/senders.rs`.
+
+Rules are local SQLite rows. `kind` is `block` or `allow`, `scope` is `address`
+or `domain`, and `value` is the normalized address or domain. Allow rules are
+evaluated before block rules, so a trusted address or domain is never filtered.
+Blocked messages move to **Spam** or **Trash** according to the
+`blocked_sender_action` setting and record the matching rule in `blocked_by` as
+`address:<value>` or `domain:<value>`.
+
+`SenderRule` shape:
+
+```json
+{
+  "id": 3,
+  "kind": "block",
+  "scope": "domain",
+  "value": "example.com",
+  "note": "Repeated phishing",
+  "created_at": "2026-11-17 09:00:00"
+}
+```
+
+### `list_sender_rules`
+
+```ts
+() => Promise<SenderRule[]>
+```
+
+Returns every rule, ordered by kind, scope, and value.
+
+### `save_sender_rule`
+
+```ts
+(kind: string, scope: string, value: string, note?: string) => Promise<SenderRule>
+```
+
+Creates or updates a rule. `kind` must be `block` or `allow`; `scope` must be
+`address` or `domain`. Domain values accept a leading `@` and are lowercased.
+Address values may include a display name, which is stripped. Saving a rule
+re-applies every rule to local mail.
+
+### `delete_sender_rule`
+
+```ts
+(id: number) => Promise<boolean>
+```
+
+Deletes a rule and re-applies the remaining rules. Messages that were
+auto-filtered by the deleted rule return to **Inbox** if they are still in
+**Spam** or **Trash**. Returns whether a row was deleted.
+
+### `apply_sender_rules`
+
+```ts
+() => Promise<number>
+```
+
+Re-evaluates every non-deleted message and returns the number of blocked
+messages. Manual folder moves clear `blocked_by`, so they are not restored when
+rules change.
 
 ## Providers
 

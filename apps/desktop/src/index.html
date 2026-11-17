@@ -360,6 +360,53 @@
               </fieldset>
 
               <fieldset class="settings-section">
+                <legend>Senders &amp; domains</legend>
+                <p class="settings-note">Blocked senders are filtered automatically. Allow rules always win, so a trusted address or domain is never blocked.</p>
+                <div class="settings-field">
+                  <label for="blocked-sender-action">Blocked mail goes to</label>
+                  <div class="api-url-row">
+                    <select id="blocked-sender-action">
+                      <option value="spam">Spam</option>
+                      <option value="trash">Trash</option>
+                    </select>
+                    <button class="ghost-button" type="button" id="apply-sender-rules">
+                      <svg class="icon"><use href="#i-refresh"></use></svg>
+                      Apply rules
+                    </button>
+                  </div>
+                </div>
+                <div class="sender-rule-form">
+                  <div class="field-grid three">
+                    <label>Rule
+                      <select id="sender-rule-kind">
+                        <option value="block">Block</option>
+                        <option value="allow">Allow</option>
+                      </select>
+                    </label>
+                    <label>Scope
+                      <select id="sender-rule-scope">
+                        <option value="address">Address</option>
+                        <option value="domain">Domain</option>
+                      </select>
+                    </label>
+                    <label>Value
+                      <input id="sender-rule-value" type="text" maxlength="180" placeholder="name@example.com" spellcheck="false" />
+                    </label>
+                  </div>
+                  <label>Note
+                    <input id="sender-rule-note" type="text" maxlength="160" placeholder="Why this rule exists" />
+                  </label>
+                  <div class="panel-actions-row">
+                    <button class="ghost-button" type="button" id="add-sender-rule">
+                      <svg class="icon"><use href="#i-plus"></use></svg>
+                      Add rule
+                    </button>
+                  </div>
+                </div>
+                <div class="sender-rule-list" id="sender-rules-list"></div>
+              </fieldset>
+
+              <fieldset class="settings-section">
                 <legend>Mail accounts</legend>
                 <p class="settings-note">IMAP passwords are stored in the Windows Credential Manager. Account settings and cached mail stay in the local SQLite database.</p>
                 <div class="account-settings-list" id="settings-accounts"></div>
@@ -420,7 +467,7 @@
               </fieldset>
 
               <div class="settings-footer">
-                <p>Appearance changes save immediately. Identity and behaviour changes save when you press Save changes.</p>
+                <p>Appearance changes save immediately. Identity and behaviour changes save when you press Save changes. Sender rules save as you add them.</p>
                 <button class="primary-button" type="button" id="save-settings">
                   <svg class="icon"><use href="#i-check"></use></svg>
                   Save changes
