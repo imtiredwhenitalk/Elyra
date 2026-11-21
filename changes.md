@@ -1,3 +1,11 @@
+[FIX] Restored CI builds after the Phase 3 commit:
+
+The Windows desktop build failed because `updates.rs` referenced `storage::connection` without the `crate::` prefix and used `String(value)` as a function call; both are corrected, and the now-unused `Manager` import was removed. The server tests failed because sqlx 0.8 exposes `acquire_timeout` on `PgPoolOptions`, not `connect_timeout`; both the API test helper and the database integration test now use `acquire_timeout`. The unused `put` re-export was removed from the Axum routing import, and the desktop bundle targets were limited to `msi`/`nsis` so Windows CI does not attempt Linux bundles; the Linux workflow continues to build AppImage and .deb explicitly with `--bundles appimage deb`.
+
+Files changed: `apps/desktop/src-tauri/src/updates.rs`, `apps/desktop/src-tauri/tauri.conf.json`, `server/src/api.rs`, `server/tests/database_integration.rs`, `changes.md`.
+
+Validation: [OK] `git diff --check`; [OK] JSON parse for `tauri.conf.json`; [OK] local Markdown links. Rust compilation and desktop packaging are validated by GitHub Actions.
+
 [200 OK] Added automatic Windows application updates (Phase 3, GitHub issue #11):
 
 Added `tauri-plugin-updater` with the Tauri/minisign public key embedded as a Rust constant and an empty configuration placeholder overridden at runtime. Settings → Updates now shows the current and latest versions, release date, notes, last check, target, and status; it supports manual checks, download and verification progress, direct install, and preferences for automatic checks and notifications. Update results and preferences persist in SQLite, while browser preview uses localStorage with a safe simulated up-to-date result.

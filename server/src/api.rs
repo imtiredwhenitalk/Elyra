@@ -2,7 +2,7 @@ use axum::{
     extract::{Path, State},
     http::{header::AUTHORIZATION, HeaderMap, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, patch, post, put},
+    routing::{get, patch, post},
     Json, Router,
 };
 use chrono::{DateTime, Utc};
@@ -498,7 +498,7 @@ mod tests {
         };
         let pool = match PgPoolOptions::new()
             .max_connections(3)
-            .connect_timeout(Duration::from_secs(2))
+            .acquire_timeout(Duration::from_secs(2))
             .connect(&url)
             .await
         {

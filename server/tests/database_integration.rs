@@ -61,7 +61,7 @@ async fn connect() -> Option<PgPool> {
     };
     match PgPoolOptions::new()
         .max_connections(3)
-        .connect_timeout(Duration::from_secs(2))
+        .acquire_timeout(Duration::from_secs(2))
         .connect(&url)
         .await
     {

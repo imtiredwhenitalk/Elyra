@@ -4,7 +4,7 @@ use serde_json::json;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 use tauri_plugin_updater::{Updater, UpdaterExt};
 
 /// Tauri/minisign public key for Elyra update artifacts.
@@ -85,7 +85,7 @@ fn current_version(app: &AppHandle) -> String {
 }
 
 fn read_setting(app: &AppHandle, key: &str) -> Option<String> {
-    let database = storage::connection(app).ok()?;
+    let database = crate::storage::connection(app).ok()?;
     database
         .query_row(
             "SELECT value FROM settings WHERE key = ?1",
@@ -96,7 +96,7 @@ fn read_setting(app: &AppHandle, key: &str) -> Option<String> {
 }
 
 fn write_setting(app: &AppHandle, key: &str, value: String) -> Result<(), String> {
-    let database = storage::connection(app)?;
+    let database = crate::storage::connection(app)?;
     database
         .execute(
             "INSERT INTO settings (key, value) VALUES (?1, ?2)
@@ -108,7 +108,7 @@ fn write_setting(app: &AppHandle, key: &str, value: String) -> Result<(), String
 }
 
 fn bool_setting(raw: Option<String>, default: bool) -> bool {
-    raw.map(|value| String(value) == "true").unwrap_or(default)
+    raw.map(|value| value == "true").unwrap_or(default)
 }
 
 fn status(
