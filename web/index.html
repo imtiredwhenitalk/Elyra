@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Elyra is a private, local-first email workspace for Windows. Mailbox logic runs in Rust, your messages stay in a local SQLite database, and the installer is one download away." />
+    <meta name="description" content="Elyra is a private, local-first email workspace for Windows and Linux. Mailbox logic runs in Rust, your messages stay in a local SQLite database, and signed updates are built in." />
     <meta name="theme-color" content="#f4f1e8" />
     <meta property="og:title" content="Elyra — Private email, built on Rust" />
-    <meta property="og:description" content="A calm desktop inbox with a Rust mailbox engine, local SQLite storage and a straightforward Windows installer." />
+    <meta property="og:description" content="A calm desktop inbox with a Rust mailbox engine, local SQLite storage, verified installers and signed in-app updates." />
     <meta property="og:type" content="website" />
     <title>Elyra — Private email, built on Rust</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
@@ -40,22 +40,24 @@
       <section class="hero">
         <div class="hero-glow" aria-hidden="true"></div>
         <div class="hero-copy reveal">
-          <p class="eyebrow"><span class="eyebrow-dot"></span> Windows desktop · v0.3.0</p>
+          <p class="eyebrow"><span class="eyebrow-dot"></span> Windows + Linux · v0.3.0</p>
           <h1>Your inbox,<br /><em>back on your side.</em></h1>
           <p class="lede">
-            Elyra is a quiet, local-first email workspace. Filtering, search, drafts and
-            statistics run in a Rust engine, while your messages stay in a SQLite
-            database on your PC — not someone else's cloud.
+            Elyra is a quiet, local-first email workspace for Windows and Linux.
+            Filtering, search, drafts and statistics run in a Rust engine, while your
+            messages stay in a SQLite database on your own machine — not someone
+            else's cloud.
           </p>
           <div class="hero-actions">
-            <a class="button button-solid button-large" href="#download" data-primary-download>
+            <a class="button button-solid button-large" href="#download-windows" data-primary-download>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14" /></svg>
               Download for Windows
             </a>
-            <a class="button button-quiet button-large" href="#product">See what's inside</a>
+            <a class="button button-quiet button-large" href="#download-linux">Linux builds</a>
           </div>
+          <a class="hero-text-link" href="#product">See what's inside <span>→</span></a>
           <p class="hero-note">
-            MSI installer · Windows 10/11 · 64-bit · no account required to start
+            MSI · NSIS · AppImage · .deb · x86_64 · no account required to start
           </p>
           <ul class="hero-proof" aria-label="Key properties">
             <li><b>Rust</b><span>mailbox engine</span></li>
@@ -136,7 +138,8 @@
         <span>Tauri desktop shell</span><i></i>
         <span>SQLite local database</span><i></i>
         <span>AES-256-GCM crypto</span><i></i>
-        <span>MSI + NSIS installers</span>
+        <span>Signed Windows updates</span><i></i>
+        <span>AppImage + .deb packages</span>
       </section>
 
       <section class="section product" id="product">
@@ -257,21 +260,24 @@
       <section class="section download" id="download">
         <div class="download-copy reveal">
           <p class="eyebrow">Download</p>
-          <h2>Three clicks to a local inbox.</h2>
+          <h2>Pick your platform. Keep your mail.</h2>
           <p>
-            Download the MSI, run it, and Elyra opens with a demo mailbox you can
-            explore. The MSI installs for all users and may ask for administrator
-            approval. Prefer no elevation? Use the NSIS setup, which installs
-            per-user by default.
+            Windows users can choose the MSI, the per-user NSIS setup, or the
+            portable launcher that verifies every download. Linux users get a
+            portable AppImage, a Debian package and a maintained PKGBUILD.
           </p>
           <ol class="steps">
-            <li><span>1</span><div><b>Download the MSI</b><small>Stable name: Elyra-latest-x64.msi</small></div></li>
-            <li><span>2</span><div><b>Run the installer</b><small>Windows Installer handles upgrades in place.</small></div></li>
-            <li><span>3</span><div><b>Open Elyra</b><small>The Rust core seeds your first local mailbox.</small></div></li>
+            <li><span>1</span><div><b>Pick your build</b><small>MSI, NSIS, AppImage or .deb — all x86_64.</small></div></li>
+            <li><span>2</span><div><b>Verify if you like</b><small>SHA-256 sidecars sit next to every release asset.</small></div></li>
+            <li><span>3</span><div><b>Open Elyra</b><small>The Rust core seeds a local workspace on first launch.</small></div></li>
           </ol>
+          <nav class="download-tabs" aria-label="Jump to download cards">
+            <a href="#download-windows">Windows builds</a>
+            <a href="#download-linux">Linux builds</a>
+          </nav>
         </div>
 
-        <div class="download-card reveal">
+        <div class="download-card reveal" id="download-windows">
           <div class="download-card-head">
             <span class="platform-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3V5.5ZM12 4.1 21 2.8v8.7h-9V4.1ZM3 12.5h7.5v7.1L3 18.5v-6ZM12 12.5h9v8.7l-9-1.3v-7.4Z"/></svg>
@@ -297,14 +303,16 @@
           </div>
 
           <div class="download-meta">
-            <span><b>Windows 10/11</b><small>64-bit · WebView2</small></span>
-            <span><b>Compact installer</b><small>exact size on the release page</small></span>
-            <span><b>MSI or NSIS</b><small>NSIS supports per-user install</small></span>
+            <span><b>Windows 10/11</b><small>x86_64 · WebView2</small></span>
+            <span><b>MSI or NSIS</b><small>per-machine or per-user</small></span>
+            <span><b>Signed updates</b><small>Settings → Updates</small></span>
           </div>
 
           <p class="download-caveat">
-            Buttons resolve to the newest published GitHub Release. If a download is
-            not available yet, the release workflow is still publishing the build.
+            Buttons resolve to the newest published GitHub Release. Signed in-app
+            updates require the maintainer to configure
+            <code>TAURI_SIGNING_PRIVATE_KEY</code>; unsigned releases still publish
+            installers and checksums without a <code>latest.json</code> feed.
           </p>
           <a class="release-link" href="https://github.com/imtiredwhenitalk/Elyra/releases" target="_blank" rel="noreferrer">
             Browse all releases <span>↗</span>
@@ -312,15 +320,18 @@
           <a class="release-link" href="https://github.com/imtiredwhenitalk/Elyra/releases/latest/download/Elyra-latest-x64.msi.sha256" target="_blank" rel="noreferrer">
             Verify with SHA-256 <span>↗</span>
           </a>
+          <a class="release-link" href="https://github.com/imtiredwhenitalk/Elyra/blob/main/docs/desktop-updates.md" target="_blank" rel="noreferrer">
+            How updates work <span>↗</span>
+          </a>
         </div>
 
-        <div class="download-card reveal">
+        <div class="download-card reveal" id="download-linux">
           <div class="download-card-head">
             <span class="platform-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5c-4.5 0-6.3 2.2-6.3 4.7v4.2c0 2.3-1.5 3.7-1.5 4.9 0 1 .9 1.8 2.2 1.8 1.2 0 2.2-.7 3.4-.7 1 0 1.7.7 2.2.7.6 0 1.4-.7 2.5-.7 1.2 0 2.4.7 3.5.7 1.3 0 2.1-.8 2.1-1.8 0-1.2-1.5-2.6-1.5-4.9V8.2c0-2.5-1.8-4.7-6.3-4.7Z"/></svg>
             </span>
             <div><b>Elyra for Linux</b><small>Version 0.3.0 · x86_64</small></div>
-            <span class="download-badge">Beta</span>
+            <span class="download-badge">New</span>
           </div>
 
           <a class="download-primary" href="https://github.com/imtiredwhenitalk/Elyra/releases/latest/download/Elyra-latest-x64.AppImage">
@@ -347,14 +358,17 @@
 
           <p class="download-caveat">
             Linux assets are published when the repository enables
-            ELYRA_LINUX_PUBLISH_RELEASE. Until then, use the workflow artifacts
-            or build from source.
+            ELYRA_LINUX_PUBLISH_RELEASE. In-app updates currently cover Windows;
+            Linux uses the checksummed assets below.
           </p>
           <a class="release-link" href="https://github.com/imtiredwhenitalk/Elyra/releases" target="_blank" rel="noreferrer">
             Browse all releases <span>↗</span>
           </a>
           <a class="release-link" href="https://github.com/imtiredwhenitalk/Elyra/releases/latest/download/Elyra-latest-x64.AppImage.sha256" target="_blank" rel="noreferrer">
-            Verify with SHA-256 <span>↗</span>
+            Verify AppImage <span>↗</span>
+          </a>
+          <a class="release-link" href="https://github.com/imtiredwhenitalk/Elyra/releases/latest/download/Elyra-latest-x64.deb.sha256" target="_blank" rel="noreferrer">
+            Verify .deb <span>↗</span>
           </a>
         </div>
       </section>
@@ -362,10 +376,10 @@
       <section class="section changes" id="changes">
         <div class="section-heading reveal">
           <p class="eyebrow">What shipped</p>
-          <h2>Release 0.3.0 connects your inbox to Elyra.</h2>
+          <h2>Release 0.3.0 is ready to run, host and update.</h2>
           <p>
-            Connect real IMAP accounts, register once to send mail through your own
-            Elyra server, and deploy that server with one command.
+            Connect real IMAP accounts, host the API yourself, receive signed desktop
+            updates, and install Elyra on Windows or Linux — all from the same Rust core.
           </p>
         </div>
         <div class="change-grid">
@@ -383,8 +397,32 @@
           </article>
           <article class="change-card reveal">
             <span class="change-version">0.3.0</span>
-            <h3>One-command server deploy</h3>
-            <p>A production Compose stack, optional automatic HTTPS with Caddy, health-checked <code>deploy.sh</code>, and an opt-in GitHub Actions SSH deploy workflow.</p>
+            <h3>Self-host the API</h3>
+            <p>A production Compose stack, optional automatic HTTPS with Caddy, a health-checked <code>deploy.sh</code>, and an opt-in GitHub Actions SSH deploy workflow.</p>
+            <span class="change-tag">shipped</span>
+          </article>
+          <article class="change-card reveal">
+            <span class="change-version">0.3.0</span>
+            <h3>Signed in-app updates</h3>
+            <p>Settings → Updates checks a signed manifest, verifies the installer with the embedded public key, and reports download progress before it installs.</p>
+            <span class="change-tag">shipped</span>
+          </article>
+          <article class="change-card reveal">
+            <span class="change-version">0.3.0</span>
+            <h3>Linux packages</h3>
+            <p>AppImage and .deb bundles, an Arch PKGBUILD, desktop entry, icon and checksums are produced by a dedicated release workflow.</p>
+            <span class="change-tag">shipped</span>
+          </article>
+          <article class="change-card reveal">
+            <span class="change-version">0.3.0</span>
+            <h3>An installer you control</h3>
+            <p>The portable launcher resumes interrupted downloads, verifies SHA-256 sidecars, and can clean app data and credential entries only when you ask.</p>
+            <span class="change-tag">shipped</span>
+          </article>
+          <article class="change-card reveal">
+            <span class="change-version">0.3.0</span>
+            <h3>Tested before you ship</h3>
+            <p>Database-backed integration tests cover auth, sync cursors, notifications and relay fail-closed behavior, with a production verification checklist for your own deployment.</p>
             <span class="change-tag">shipped</span>
           </article>
           <article class="change-card next reveal">
@@ -408,11 +446,19 @@
           </details>
           <details>
             <summary>Where is my mail stored?</summary>
-            <p>In a SQLite database in your Windows app-local data folder, usually <code>%LOCALAPPDATA%\com.elyra.desktop\elyra.sqlite3</code>. The Settings panel shows the exact path.</p>
+            <p>In a local SQLite database. On Windows it is usually <code>%LOCALAPPDATA%\com.elyra.desktop\elyra.sqlite3</code>; on Linux it lives under your XDG data directory, typically <code>~/.local/share/com.elyra.desktop/elyra.sqlite3</code>. Settings → Diagnostics shows the exact path.</p>
           </details>
           <details>
             <summary>How large is the download?</summary>
             <p>The app itself is compact, and the exact installer size is listed on the release page. Tauri uses the WebView2 runtime that ships with Windows 10 and 11; the installer embeds a bootstrapper if the runtime is missing.</p>
+          </details>
+          <details>
+            <summary>How do updates work?</summary>
+            <p>When the release signing key is configured, Windows checks a signed feed in Settings → Updates, downloads the verified MSI or NSIS installer, and applies it with progress shown in the app. A failed check or bad signature leaves your current installation untouched. Linux builds are updated by replacing the checksummed AppImage or .deb.</p>
+          </details>
+          <details>
+            <summary>Is Linux supported?</summary>
+            <p>Yes. The x86_64 AppImage and .deb packages ship with SHA-256 checksums, and the repository includes a PKGBUILD and build guide. Linux keychain integration is still hardening, so cloud sign-in may be limited until a Secret Service backend is available.</p>
           </details>
           <details>
             <summary>What about Gmail and Outlook?</summary>
@@ -424,7 +470,7 @@
           </details>
           <details>
             <summary>Can I uninstall cleanly?</summary>
-            <p>Yes. Use Windows Settings → Apps → Elyra. Your local database can be removed separately from the app-local data folder if you want a full reset.</p>
+            <p>Yes. Use Windows Settings → Apps → Elyra, or the portable launcher's <code>uninstall --dry-run</code> to preview what it would remove. Data and keychain entries are kept by default; add <code>--remove-data</code> (with optional <code>--backup-data</code>) only when you want a full reset.</p>
           </details>
         </div>
       </section>
@@ -434,8 +480,8 @@
           <p class="eyebrow">Ready when you are</p>
           <h2>Give your inbox a quieter home.</h2>
         </div>
-        <a class="button button-solid button-large" href="https://github.com/imtiredwhenitalk/Elyra/releases/latest/download/Elyra-latest-x64.msi">
-          Download Elyra
+        <a class="button button-solid button-large" href="#download">
+          Get Elyra
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></svg>
         </a>
       </section>
@@ -450,6 +496,8 @@
         <a href="#product">Product</a>
         <a href="#privacy">Privacy</a>
         <a href="#download">Download</a>
+        <a href="#changes">Changes</a>
+        <a href="https://github.com/imtiredwhenitalk/Elyra/tree/main/docs" target="_blank" rel="noreferrer">Docs</a>
         <a href="https://github.com/imtiredwhenitalk/Elyra" target="_blank" rel="noreferrer">Source</a>
         <a href="https://github.com/imtiredwhenitalk/Elyra/actions" target="_blank" rel="noreferrer">Build status</a>
       </div>

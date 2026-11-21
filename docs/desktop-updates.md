@@ -12,9 +12,9 @@ installer, and a failed update leaves the currently installed version in place.
   `https://github.com/imtiredwhenitalk/Elyra/releases/latest/download/latest.json`
 - Accepted installer keys in `latest.json`: `windows-x86_64-msi`,
   `windows-x86_64-nsis`, and the generic `windows-x86_64` fallback.
-- Local `npm run build` emits `msi`, `nsis`, `appimage` and `deb` bundles; Tauri
-  skips targets that are not supported on the current host. Linux bundles are
-  for the separate Linux packaging workflow and are not consumed by the Windows
+- The desktop config declares `msi` and `nsis` as the Windows bundle targets;
+  the Linux release workflow explicitly builds `appimage` and `deb` with
+  `--bundles appimage deb`. Linux bundles are not consumed by the Windows
   updater.
 
 The application version shown in **Settings → Updates** comes from

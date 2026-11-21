@@ -1,3 +1,13 @@
+[200 OK] Refreshed the public website and README for the shipped 0.3.0 feature set:
+
+The marketing page now presents Windows and Linux as first-class targets, with jump links for each download card, current MSI/NSIS/AppImage/.deb assets and checksums, signed-update and launcher/uninstall FAQ answers, and a release grid that reflects Phase 3 instead of repeating the server deploy card. The Windows update copy is explicit that a signed `latest.json` is published only when the maintainer configures the signing secret. Small CSS polish adds card hover states, a text link treatment, and accessible focus-friendly navigation chips.
+
+`README.md` was rewritten around the current repository: cross-platform feature table, download and checksum inventory, launcher/update/uninstall behavior, Windows and Linux build commands, database test opt-in, release workflow overview, local data paths for both platforms, and a status section marking Phase 3 complete. `docs/desktop-updates.md` no longer claims that local builds emit Linux bundles; the Linux workflow builds them explicitly.
+
+Files changed: `README.md`, `web/index.html`, `web/styles.css`, `docs/desktop-updates.md`, `changes.md`.
+
+Validation: [OK] `git diff --check`; [OK] HTML tag/structure sanity check; [OK] CSS brace balance; [OK] local Markdown links. GitHub Pages is redeployed from `web/**` by the existing workflow.
+
 [FIX] Restored CI builds after the Phase 3 commit:
 
 The Windows desktop build failed because `updates.rs` referenced `storage::connection` without the `crate::` prefix and used `String(value)` as a function call; both are corrected, and the now-unused `Manager` import was removed. The server tests failed because sqlx 0.8 exposes `acquire_timeout` on `PgPoolOptions`, not `connect_timeout`; both the API test helper and the database integration test now use `acquire_timeout`. The unused `put` re-export was removed from the Axum routing import, and the desktop bundle targets were limited to `msi`/`nsis` so Windows CI does not attempt Linux bundles; the Linux workflow continues to build AppImage and .deb explicitly with `--bundles appimage deb`.
