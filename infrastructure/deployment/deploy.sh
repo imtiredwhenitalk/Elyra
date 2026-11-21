@@ -93,7 +93,7 @@ if [[ "$DO_BACKUP" == "1" ]]; then
     mkdir -p "$ROOT_DIR/backups"
     backup="$ROOT_DIR/backups/elyra-$(date +%Y%m%d-%H%M%S).sql.gz"
     echo "Backing up PostgreSQL to $backup…"
-    compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > "$backup"
+    compose exec -T postgres sh -c 'pg_dump --clean --if-exists -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > "$backup"
     echo "Backup written."
   else
     echo "PostgreSQL is not running; skipping the pre-deploy backup."

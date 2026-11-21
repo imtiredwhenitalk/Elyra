@@ -1,0 +1,82 @@
+# Maintainer: Elyra contributors
+# AUR-style package: installs the published x86_64 AppImage into /opt/elyra.
+#
+# The `latest` asset is replaced by every release, so its hash cannot be pinned
+# in sha256sums. Instead, prepare() verifies the published .sha256 file before
+# packaging. For a pinned AUR submission, set ELYRA_APPIMAGE_URL to a versioned
+# asset (for example Elyra-0.3.0-x64.AppImage) and put its hash in sha256sums[0].
+pkgname=elyra
+pkgver=0.3.0
+pkgrel=1
+pkgdesc="Private, local-first email workspace with a local Rust mail engine"
+arch=('x86_64')
+url="https://github.com/imtiredwhenitalk/Elyra"
+license=('MIT')
+depends=(
+  'webkit2gtk-4.1'
+  'gtk3'
+  'libayatana-appindicator'
+  'hicolor-icon-theme'
+  'desktop-file-utils'
+  'shared-mime-info'
+)
+optdepends=(
+  'fuse2: run the AppImage without --appimage-extract-and-run'
+  'libnotify: desktop notifications'
+)
+options=('!strip')
+
+_appimage_url="${ELYRA_APPIMAGE_URL:-https://github.com/imtiredwhenitalk/Elyra/releases/latest/download/Elyra-latest-x64.AppImage}"
+_checksum_url="${ELYRA_CHECKSUM_URL:-${_appimage_url}.sha256}"
+
+source=(
+  "Elyra-latest-x64.AppImage::${_appimage_url}"
+  "Elyra-latest-x64.AppImage.sha256::${_checksum_url}"
+  'elyra.desktop'
+  'elyra.png'
+)
+# The downloaded files are verified in prepare(); the local packaging files are
+# pinned. Regenerate the last two hashes if you edit those files.
+sha256sums=('SKIP' 'SKIP' 'a3960fa0a6c81cadebd73227aeab64848785292a8336a0284011776ae7c932f0' '464c9a5ea6d61b84c07f19e2c8f6d30009f8578854eb3689f19302adffd2f324')
+
+prepare() {
+  local image="$srcdir/Elyra-latest-x64.AppImage"
+  local sumfile="$srcdir/Elyra-latest-x64.AppImage.sha256"
+  local expected actual
+
+  msg "Verifying the published AppImage checksum..."
+  if [ ! -s "$sumfile" ]; then
+    error "Missing published checksum: $_checksum_url"
+    error "Set ELYRA_CHECKSUM_URL to a valid .sha256 URL, or ELYRA_ALLOW_UNVERIFIED=1 to skip."
+    [ "${ELYRA_ALLOW_UNVERIFIED:-0}" = "1" ] || return 1
+    warning "ELYRA_ALLOW_UNVERIFIED=1: continuing without checksum verification."
+    return 0
+  fi
+
+  expected=$(awk 'NF { print tolower($1); exit }' "$sumfile")
+  if ! printf '%s' "$expected" | grep -Eq '^[0-9a-f]{64}$'; then
+    error "Published checksum is not a SHA-256 digest: $expected"
+    [ "${ELYRA_ALLOW_UNVERIFIED:-0}" = "1" ] || return 1
+    warning "ELYRA_ALLOW_UNVERIFIED=1: continuing without checksum verification."
+    return 0
+  fi
+
+  actual=$(sha256sum "$image" | awk '{print $1}')
+  if [ "$actual" != "$expected" ]; then
+    error "AppImage SHA-256 mismatch: expected $expected, got $actual"
+    return 1
+  fi
+  msg "AppImage SHA-256 verified: $actual"
+}
+
+package() {
+  install -d "$pkgdir/opt/elyra" \
+    "$pkgdir/usr/bin" \
+    "$pkgdir/usr/share/applications" \
+    "$pkgdir/usr/share/icons/hicolor/256x256/apps"
+
+  install -m 755 "$srcdir/Elyra-latest-x64.AppImage" "$pkgdir/opt/elyra/elyra.AppImage"
+  ln -s /opt/elyra/elyra.AppImage "$pkgdir/usr/bin/elyra"
+  install -m 644 "$srcdir/elyra.desktop" "$pkgdir/usr/share/applications/elyra.desktop"
+  install -m 644 "$srcdir/elyra.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/elyra.png"
+}

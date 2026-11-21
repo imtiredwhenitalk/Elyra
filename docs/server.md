@@ -515,6 +515,26 @@ The desktop resolves the API base in this order:
 Trailing slashes are removed. Production URLs must include `/api` because the
 public Nginx site proxies `/api/` to the API container.
 
+## Testing
+
+The server has pure tests that run anywhere and database-backed tests that skip
+gracefully unless a disposable PostgreSQL instance is provided:
+
+```sh
+cargo test -p elyra-server
+
+ELYRA_TEST_DATABASE_URL=postgres://elyra:elyra@127.0.0.1:5432/elyra_test \
+  cargo test -p elyra-server
+```
+
+`ELYRA_TEST_DATABASE_URL` is an explicit opt-in; an unusable URL fails the run.
+`DATABASE_URL` is only a fallback when reachable. The tests cover auth and JWT
+handling, API validation, bearer-header and error handling, register/login, sync
+cursors, notification privacy, disabled SMTP relay behavior, and schema
+constraints. No test sends real SMTP traffic. See
+[Development → Automated tests](development.md#automated-tests) for details and
+[Production verification](deploy/VERIFY.md) for the deployment smoke tests.
+
 ## Operational notes
 
 ### Health and logs

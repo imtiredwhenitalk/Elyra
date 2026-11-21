@@ -1064,6 +1064,10 @@ code {
   gap: 54px;
 }
 
+.download > .download-card + .download-card {
+  grid-column: 2;
+}
+
 .download-copy h2 {
   margin: 0 0 18px;
   font-family: var(--display);
@@ -1615,6 +1619,10 @@ code {
   .download {
     grid-template-columns: minmax(0, 1fr);
     gap: 36px;
+  }
+
+  .download > .download-card + .download-card {
+    grid-column: auto;
   }
 }
 

@@ -16,8 +16,9 @@ local mailbox.
 | Network | Optional. Needed for IMAP sync, Elyra Cloud, updates, and the server mail relay |
 | Administrator rights | Not required for the per-user NSIS installer. The MSI may request elevation because it is a per-machine package |
 
-The macOS and Linux bundles are not published. The Tauri project can be built on
-other platforms, but only the Windows delivery path is tested and released.
+macOS bundles are not published. Linux `x86_64` AppImage and `.deb` packages are
+built by a separate release workflow; see [Linux](linux.md) for installation and
+known limitations. Only the Windows delivery path has launcher support.
 
 ## 2. Choose an installer
 
@@ -27,7 +28,7 @@ Download from the [latest release](https://github.com/imtiredwhenitalk/Elyra/rel
 | --- | --- | --- |
 | `Elyra-latest-x64.msi` | Managed machines, standard Windows Installer deployment | Per-machine install, may request administrator approval |
 | `Elyra-latest-x64-setup.exe` | Normal personal installation | NSIS setup with a per-user install mode |
-| `Elyra-Launcher-x64.exe` | Users who want the smallest download and automatic updates | Downloads the MSI, verifies it, installs it, and opens Elyra |
+| `Elyra-Launcher-x64.exe` | Users who want the smallest download and automatic updates | Downloads the MSI with resume/retry, verifies it, installs it, and opens Elyra |
 | `Elyra-latest-x64.msi.sha256` | Integrity verification | SHA-256 digest of the MSI |
 
 All release assets use stable file names so links keep working between
@@ -66,7 +67,9 @@ again. Do not run an installer whose checksum does not match.
 The launcher is a single executable. Running it with no arguments downloads
 `Elyra-latest-x64.msi` from the latest GitHub release, validates the MSI magic
 bytes, verifies the published `.sha256` sidecar, runs Windows Installer, and
-opens the app.
+opens the app. Downloads are written to a `.part` file, resume after an
+interrupted transfer, retry temporary failures, and are only promoted to the
+final MSI name after verification. An already-verified cached MSI is reused.
 
 ```powershell
 .\Elyra-Launcher-x64.exe
@@ -79,21 +82,32 @@ Useful commands and flags:
 | `Elyra-Launcher-x64.exe` | Install or update, then launch |
 | `Elyra-Launcher-x64.exe install` | Same as no arguments |
 | `Elyra-Launcher-x64.exe update` | Alias for install |
+| `Elyra-Launcher-x64.exe download` | Download and verify the installer without installing |
 | `Elyra-Launcher-x64.exe launch` | Open an already installed Elyra |
-| `Elyra-Launcher-x64.exe info` | Show launcher version, install path, and download folder |
+| `Elyra-Launcher-x64.exe info` | Show versions, paths, install record, and download folder |
+| `Elyra-Launcher-x64.exe cleanup` | Delete stale downloaded installers |
 | `Elyra-Launcher-x64.exe uninstall` | Remove Elyra but keep the local mailbox database |
 | `Elyra-Launcher-x64.exe --msi <path>` | Install a local MSI instead of downloading |
-| `Elyra-Launcher-x64.exe --url <url>` | Download from a custom URL |
+| `Elyra-Launcher-x64.exe --url <url>` | Download from a custom HTTPS URL |
 | `Elyra-Launcher-x64.exe --sha256 <digest>` | Require a specific checksum |
+| `Elyra-Launcher-x64.exe --require-checksum` | Refuse to install when no checksum is published |
+| `Elyra-Launcher-x64.exe --retries <n>` | Download attempts, 0–10 (default: 3) |
+| `Elyra-Launcher-x64.exe --download-only` | Alias for the download command |
+| `Elyra-Launcher-x64.exe --dry-run` | Validate and report without changing anything |
 | `Elyra-Launcher-x64.exe --silent` | Quiet Windows Installer mode |
 | `Elyra-Launcher-x64.exe --no-launch` | Install without opening the app |
+| `Elyra-Launcher-x64.exe --cleanup` | Remove the downloaded MSI after installing |
+| `Elyra-Launcher-x64.exe --allow-insecure-http` | Permit a plain HTTP mirror (not recommended) |
 | `Elyra-Launcher-x64.exe --version` | Print the launcher version |
 | `Elyra-Launcher-x64.exe help` | Show the built-in help |
 
-The launcher writes downloads to `%TEMP%\elyra-installer\`. When installing
-from a URL, it tries to fetch `<url>.sha256` automatically. If no checksum is
-published, it prints the computed hash and relies on the MSI signature and
-Windows Installer validation.
+The launcher writes downloads to `%TEMP%\elyra-installer\` and keeps an MSI
+install log there at `install.log`. When installing from a URL, it tries to
+fetch `<url>.sha256` automatically before downloading, so a bad mirror is
+rejected early. If no checksum is published, it prints the computed hash and
+relies on the MSI signature and Windows Installer validation; pass
+`--require-checksum` to make a checksum mandatory. Downloads are HTTPS-only by
+default; `--allow-insecure-http` is for trusted local or isolated mirrors.
 
 ## 4. First launch
 
@@ -125,6 +139,8 @@ https://mail.example.com/api
 
 The resolution order is documented in
 [Configuration reference → Desktop API URL](reference/configuration.md#desktop-api-url).
+To verify a self-hosted server after deployment, use the
+[production verification checklist](deploy/VERIFY.md).
 
 ## 5. A five-minute tour
 
@@ -209,16 +225,29 @@ Use Windows **Settings → Apps → Elyra → Uninstall**, or run:
 ```
 
 Uninstalling removes the application but deliberately keeps the local mailbox
-database so an accidental uninstall does not destroy mail. To remove all local
-data afterwards, delete:
+database so an accidental uninstall does not destroy mail. The launcher can do
+the full cleanup for you:
+
+| Flag | Purpose |
+| --- | --- |
+| `--remove-data` (or `--purge`) | Delete `%LOCALAPPDATA%\com.elyra.desktop` and Elyra entries in Windows Credential Manager |
+| `--backup-data <folder>` | Copy database files to a folder before `--remove-data` deletes them |
+| `--product-code <GUID>` | Remove a specific registered Windows Installer product |
+| `--dry-run` | Show what would be removed without changing anything |
+
+```powershell
+.\Elyra-Launcher-x64.exe uninstall --backup-data C:\Elyra-backup --remove-data
+```
+
+Without `--remove-data`, you can still delete local data manually:
 
 ```text
 %LOCALAPPDATA%\com.elyra.desktop
 ```
 
-Remove stored credentials in **Windows Credential Manager → Windows
-Credentials** if you also want to delete keychain entries. Entries use the
-service name `com.elyra.desktop`.
+Credential Manager entries created by `keyring-rs` contain the
+`com.elyra.desktop` marker; the launcher removes those automatically only with
+`--remove-data`.
 
 ## Next steps
 

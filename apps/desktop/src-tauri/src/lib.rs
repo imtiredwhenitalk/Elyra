@@ -14,6 +14,7 @@ mod senders;
 mod shield;
 mod storage;
 mod threats;
+mod updates;
 #[path = "../../services/sendemail.rs"]
 mod sendemail;
 
@@ -21,8 +22,14 @@ mod sendemail;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(
+            tauri_plugin_updater::Builder::new()
+                .pubkey(updates::UPDATE_PUBLIC_KEY)
+                .build(),
+        )
         .setup(|app| {
             storage::initialize(app.handle()).expect("failed to initialize Elyra local storage");
+            updates::initialize(app.handle());
             senders::initialize(app.handle()).expect("failed to initialize Elyra sender rules");
             mailbox::initialize(app.handle()).expect("failed to initialize Elyra mailbox engine");
             attachments::initialize(app.handle()).expect("failed to initialize Elyra attachment scanning");
@@ -108,6 +115,10 @@ pub fn run() {
             providers::sync_all_accounts,
             diagnostics::get_changelog,
             diagnostics::get_app_diagnostics,
+            updates::get_update_preferences,
+            updates::set_update_preferences,
+            updates::check_for_updates,
+            updates::download_and_install_update,
             cloud::cloud_register,
             cloud::cloud_login,
             cloud::cloud_session,

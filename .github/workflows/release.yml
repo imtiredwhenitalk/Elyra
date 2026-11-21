@@ -16,6 +16,9 @@ concurrency:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -99,6 +102,77 @@ jobs:
           "$hash  Elyra-latest-x64.msi" | Set-Content -Encoding ascii (Join-Path $dist "Elyra-latest-x64.msi.sha256")
 
           Get-ChildItem $dist | Format-Table Name, Length
+
+      - name: Sign updater artifacts and write latest.json
+        if: ${{ env.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        working-directory: apps/desktop
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $dist = Join-Path $env:GITHUB_WORKSPACE "dist"
+          $version = "${{ steps.version.outputs.version }}"
+
+          # Accept both real newlines and escaped "\n" sequences in the GitHub secret.
+          $env:TAURI_SIGNING_PRIVATE_KEY = ($env:TAURI_SIGNING_PRIVATE_KEY -replace '\\r\\n', "`n" -replace '\\n', "`n")
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) {
+            Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
+          }
+
+          $assets = @(
+            @{ File = (Join-Path $dist "Elyra-latest-x64.msi"); Platform = "windows-x86_64-msi" },
+            @{ File = (Join-Path $dist "Elyra-latest-x64-setup.exe"); Platform = "windows-x86_64-nsis" }
+          )
+
+          foreach ($asset in $assets) {
+            if (-not (Test-Path $asset.File)) { throw "Missing installer: $($asset.File)" }
+            npm.cmd run tauri -- signer sign --app-version $version $asset.File
+            $signaturePath = "$($asset.File).sig"
+            if (-not (Test-Path $signaturePath)) { throw "Signer did not create $signaturePath" }
+          }
+
+          $nsisHash = (Get-FileHash (Join-Path $dist "Elyra-latest-x64-setup.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$nsisHash  Elyra-latest-x64-setup.exe" | Set-Content -Encoding ascii (Join-Path $dist "Elyra-latest-x64-setup.exe.sha256")
+
+          $tag = "${{ github.ref_name }}"
+          if (-not $tag.StartsWith("v")) { $tag = "v$version" }
+          $assetBase = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/releases/download/$tag"
+          $msiSignature = (Get-Content (Join-Path $dist "Elyra-latest-x64.msi.sig") -Raw).Trim()
+          $nsisSignature = (Get-Content (Join-Path $dist "Elyra-latest-x64-setup.exe.sig") -Raw).Trim()
+          $publishedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+
+          $manifest = [ordered]@{
+            version = $version
+            notes = "Elyra $version is available. See the GitHub release page for the full changelog."
+            pub_date = $publishedAt
+            platforms = [ordered]@{
+              "windows-x86_64-msi" = [ordered]@{
+                url = "$assetBase/Elyra-latest-x64.msi"
+                signature = $msiSignature
+              }
+              "windows-x86_64-nsis" = [ordered]@{
+                url = "$assetBase/Elyra-latest-x64-setup.exe"
+                signature = $nsisSignature
+              }
+              "windows-x86_64" = [ordered]@{
+                url = "$assetBase/Elyra-latest-x64.msi"
+                signature = $msiSignature
+              }
+            }
+          }
+
+          $manifestJson = $manifest | ConvertTo-Json -Depth 6
+          [System.IO.File]::WriteAllText(
+            (Join-Path $dist "latest.json"),
+            $manifestJson,
+            (New-Object System.Text.UTF8Encoding $false)
+          )
+          Write-Host "Wrote signed update manifest for $version"
+
+      - name: Warn when release is unsigned
+        if: ${{ env.TAURI_SIGNING_PRIVATE_KEY == '' }}
+        shell: pwsh
+        run: |
+          Write-Warning "TAURI_SIGNING_PRIVATE_KEY is not configured; publishing without latest.json. In-app updates will work after the first signed release is published."
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

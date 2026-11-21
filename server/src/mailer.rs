@@ -43,6 +43,18 @@ pub struct MailService {
     config: Option<MailConfig>,
 }
 
+fn normalize_security(raw: &str) -> String {
+    if raw.trim().eq_ignore_ascii_case("tls") {
+        "tls".to_string()
+    } else {
+        "starttls".to_string()
+    }
+}
+
+fn port_for_security(security: &str) -> u16 {
+    if security == "tls" { 465 } else { 587 }
+}
+
 impl MailService {
     pub fn from_env() -> Result<Self, MailError> {
         let host = env::var("ELYRA_SMTP_HOST")
@@ -67,15 +79,10 @@ impl MailService {
             }
         }
 
-        let security = env::var("ELYRA_SMTP_SECURITY")
-            .map(|value| value.trim().to_ascii_lowercase())
-            .unwrap_or_else(|_| "starttls".to_string());
-        let security = if security == "tls" {
-            "tls".to_string()
-        } else {
-            "starttls".to_string()
-        };
-        let default_port = if security == "tls" { 465 } else { 587 };
+        let security = normalize_security(
+            &env::var("ELYRA_SMTP_SECURITY").unwrap_or_else(|_| "starttls".to_string()),
+        );
+        let default_port = port_for_security(&security);
         let port = env::var("ELYRA_SMTP_PORT")
             .ok()
             .and_then(|value| value.parse::<u16>().ok())
@@ -94,6 +101,11 @@ impl MailService {
                 from,
             }),
         })
+    }
+
+    /// A relay that is explicitly disabled, for tests and local tooling.
+    pub(crate) fn unconfigured() -> Self {
+        Self { config: None }
     }
 
     pub fn configured(&self) -> bool {
@@ -164,5 +176,31 @@ impl MailService {
         })
         .await
         .map_err(|error| MailError::Send(error.to_string()))?
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn security_modes_normalize_to_supported_values() {
+        assert_eq!(normalize_security(" TLS "), "tls");
+        assert_eq!(normalize_security("starttls"), "starttls");
+        assert_eq!(normalize_security("something-else"), "starttls");
+        assert_eq!(port_for_security("tls"), 465);
+        assert_eq!(port_for_security("starttls"), 587);
+    }
+
+    #[tokio::test]
+    async fn disabled_relay_fails_closed_without_network_access() {
+        let mail = MailService::unconfigured();
+        assert!(!mail.configured());
+        assert_eq!(mail.from_address(), None);
+        let error = mail
+            .send("to@example.test", "Subject", "Body", None)
+            .await
+            .expect_err("a disabled relay must not send mail");
+        assert!(matches!(error, MailError::NotConfigured));
     }
 }

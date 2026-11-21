@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Elyra
+GenericName=Email Client
+Comment=A private, local-first email workspace
+Exec=/opt/elyra/elyra.AppImage %F
+Icon=elyra
+Terminal=false
+Categories=Office;Email;Network;
+Keywords=email;mail;inbox;privacy;
+MimeType=x-scheme-handler/mailto;
+StartupWMClass=Elyra

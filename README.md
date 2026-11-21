@@ -17,6 +17,7 @@
   <a href="https://github.com/imtiredwhenitalk/Elyra/actions/workflows/rust.yml"><img src="https://github.com/imtiredwhenitalk/Elyra/actions/workflows/rust.yml/badge.svg?branch=main" alt="Rust build" /></a>
   <a href="https://imtiredwhenitalk.github.io/Elyra/"><img src="https://img.shields.io/badge/website-live-4d7a61?style=flat-square" alt="Website" /></a>
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-4d7a61?style=flat-square&logo=windows&logoColor=white" alt="Windows 10 and 11" />
+  <img src="https://img.shields.io/badge/platform-Linux%20x86_64-4d7a61?style=flat-square&logo=linux&logoColor=white" alt="Linux x86_64" />
   <img src="https://img.shields.io/badge/stack-Rust%20%2B%20Tauri-4d7a61?style=flat-square&logo=rust&logoColor=white" alt="Rust and Tauri" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-4d7a61?style=flat-square" alt="MIT license" /></a>
 </p>
@@ -74,8 +75,11 @@ The newest published installer is on the [releases page](https://github.com/imti
 | `Elyra-latest-x64-setup.exe` | NSIS setup with a per-user install mode |
 | `Elyra-Launcher-x64.exe` | Portable launcher that downloads, verifies, installs, and starts Elyra |
 | `Elyra-latest-x64.msi.sha256` | SHA-256 checksum used by the launcher |
+| `Elyra-latest-x64.AppImage` | Portable Linux x86_64 AppImage |
+| `Elyra-latest-x64.deb` | Debian/Ubuntu package |
+| `Elyra-latest-x64.AppImage.sha256` | SHA-256 checksum used by the PKGBUILD and manual verification |
 
-The launcher accepts `--msi <path>` for an already-downloaded installer and automatically fetches `<url>.sha256` when installing from a URL.
+The launcher accepts `--msi <path>` for an already-downloaded installer and automatically fetches `<url>.sha256` when installing from a URL. Linux packages are published when the `ELYRA_LINUX_PUBLISH_RELEASE` repository variable is enabled; see [Linux](docs/linux.md).
 
 ## Build from source
 
@@ -126,6 +130,8 @@ The Rust workspace also contains the reusable [`elyra-crypto`](packages/crypto) 
 | Page | Covers |
 | :--- | :--- |
 | [Getting started](docs/getting-started.md) | Install, launcher flags, onboarding, local data, uninstall |
+| [Linux](docs/linux.md) | AppImage, .deb, Arch PKGBUILD, dependencies, Flatpak status |
+| [Desktop updates](docs/desktop-updates.md) | Signed Windows updates, Settings controls, signing keys, release checklist |
 | [User guide](docs/user-guide.md) | Mailboxes, reading, composing, mail accounts, settings |
 | [Architecture](ai.md) | System diagram, project rules, stack, and repository layout |
 | [Server and API](docs/server.md) | Local server, endpoints, PostgreSQL schema, SMTP relay |

@@ -17,6 +17,7 @@ system, data flows, trust boundaries, and known limitations.
 | Development and release | [`development.md`](development.md) |
 | Deployment overview | [`deployment.md`](deployment.md) |
 | Full VPS runbook | [`deploy/SERVER.md`](deploy/SERVER.md) |
+| Production verification checklist | [`deploy/VERIFY.md`](deploy/VERIFY.md) |
 | Troubleshooting | [`troubleshooting.md`](troubleshooting.md) |
 | Configuration reference | [`reference/configuration.md`](reference/configuration.md) |
 | Tauri command reference | [`reference/tauri-commands.md`](reference/tauri-commands.md) |

@@ -197,18 +197,29 @@ Or directly:
 ```sh
 docker compose --env-file infrastructure/deployment/.env.prod \
   -f infrastructure/deployment/docker-compose.prod.yml \
-  exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
+  exec -T postgres sh -c 'pg_dump --clean --if-exists -U "$POSTGRES_USER" "$POSTGRES_DB"' \
   | gzip > backups/elyra-$(date +%Y%m%d-%H%M%S).sql.gz
 ```
 
-Restore:
+Restore (stop the API first, then start it again):
 
 ```sh
+docker compose --env-file infrastructure/deployment/.env.prod \
+  -f infrastructure/deployment/docker-compose.prod.yml stop api
+
 gunzip -c backups/elyra-YYYYMMDD-HHMMSS.sql.gz \
   | docker compose --env-file infrastructure/deployment/.env.prod \
       -f infrastructure/deployment/docker-compose.prod.yml \
-      exec -T postgres sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"'
+      exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+
+docker compose --env-file infrastructure/deployment/.env.prod \
+  -f infrastructure/deployment/docker-compose.prod.yml start api
 ```
+
+New dumps use `--clean --if-exists`, so they can be replayed into the existing
+database. Older dumps need an empty database. See
+[SERVER.md §9](deploy/SERVER.md#9-backups-and-maintenance) for the full restore
+procedure, including archive checks and verification.
 
 Copy backups off the server and test restores periodically. The server stores no
 separate file uploads.
@@ -251,6 +262,18 @@ JWT secret change invalidates all sessions.
 - [ ] SPF, DKIM, and DMARC exist for the relay domain.
 - [ ] Registration and relay abuse controls are planned before public sign-ups.
 - [ ] Logs and `/health` are monitored.
+
+## Verification
+
+After every deploy, run the [production verification checklist](deploy/VERIFY.md).
+It covers configuration checks before deployment, public and authenticated API
+smoke tests, HTTPS and HSTS checks, restart persistence, backup/restore drill,
+rollback, and sign-off. It also lists the automated test commands; CI already
+runs `cargo test -p elyra-server`, and a database service container can enable
+the DB-backed cases with `ELYRA_TEST_DATABASE_URL`.
+
+Site-specific settings never require editing tracked source: use `.env.prod`,
+DNS, the desktop Server URL, and the `ELYRA_DEFAULT_API_URL` repository variable.
 
 ## Troubleshooting
 

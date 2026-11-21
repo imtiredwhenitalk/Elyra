@@ -60,3 +60,11 @@
 * Added address and domain block/allow rules with allowlist precedence, automatic Spam/Trash filtering, blocked-sender indicators, and Settings management.
 * Added sender-domain reputation with SPF/DKIM/DMARC parsing, Trusted/Neutral/Suspicious/Malicious classifications, reader explanations, domain refresh, and incorrect-assessment reporting.
 * Added attachment security scanning with real-content type detection, risky-file and double-extension warnings, optional ClamAV, consent-based VirusTotal uploads, reader risk cards, and configurable scanning settings.
+
+### Phase 3 (GitHub issue #4)
+
+* **Custom launcher download and uninstall** - resumable atomic downloads with retry and checksum sidecar verification, verified MSI cache, download-only and dry-run modes, and opt-in data/keychain cleanup with backup [200 OK]
+* **Linux Package Distribution** - AppImage and .deb release workflow, Arch PKGBUILD, desktop entry/icon, stable asset names with SHA-256 checksums, and Linux install docs [200 OK]
+* **Automated server testing & production verification** - pure unit tests plus database-backed API/schema integration tests for auth, sync, notifications, SMTP fail-closed behavior and PostgreSQL constraints; `docs/deploy/VERIFY.md` production checklist and safe restore procedure [200 OK]
+* **Automatic Application Updates for Windows** - signed update manifest, cryptographic verification, in-app check/download/install with progress, user notification preferences, safe failure behavior, and documented key/release procedure [200 OK]
+* **Flatpak Packaging** - investigated and documented; not shipped in 0.3.0 [NEXT]

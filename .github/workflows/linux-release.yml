@@ -1,0 +1,177 @@
+name: Release Linux
+
+# Builds the Tauri desktop bundles for x86_64 Linux on every v* tag and on
+# demand. Artifact upload needs only `contents: read`; publishing to the GitHub
+# Release is opt-in via the repository variable ELYRA_LINUX_PUBLISH_RELEASE.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-linux
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+
+      - name: Install Linux build dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            pkg-config \
+            curl \
+            wget \
+            file \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            dpkg-dev \
+            libfuse2
+          pkg-config --modversion webkit2gtk-4.1 gtk+-3.0
+          pkg-config --exists ayatana-appindicator3-0.1 || pkg-config --exists appindicator3-0.1
+
+      - name: Read app version
+        id: version
+        run: |
+          set -euo pipefail
+          version="$(jq -r '.version' apps/desktop/src-tauri/tauri.conf.json)"
+          if [ -z "$version" ] || [ "$version" = "null" ]; then
+            echo "Could not read the version from tauri.conf.json" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install frontend dependencies
+        working-directory: apps/desktop
+        run: npm ci
+
+      - name: Build AppImage and .deb bundles
+        working-directory: apps/desktop
+        env:
+          # Optional production API base, same variable as the Windows release.
+          ELYRA_DEFAULT_API_URL: ${{ vars.ELYRA_DEFAULT_API_URL }}
+          # Optional signing: set both secrets to produce updater signatures.
+          # When the key is absent we explicitly disable updater artifacts so a
+          # config change by another worker cannot break unsigned builds.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          args=(--bundles appimage deb)
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            echo "::notice::No TAURI_SIGNING_PRIVATE_KEY secret; updater artifacts disabled for this Linux build."
+            args+=(--config '{"bundle":{"createUpdaterArtifacts":false}}')
+          fi
+          npm run build -- "${args[@]}"
+
+      - name: Collect release assets
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          dist="$PWD/dist"
+          mkdir -p "$dist"
+
+          newest() {
+            find "$PWD" -type f -iname "$1" -not -path '*/node_modules/*' \
+              -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-
+          }
+
+          appimage="$(newest '*.AppImage')"
+          deb="$(newest '*.deb')"
+          if [ -z "$appimage" ]; then
+            echo "The desktop build did not produce an AppImage." >&2
+            exit 1
+          fi
+          if [ -z "$deb" ]; then
+            echo "The desktop build did not produce a .deb package." >&2
+            exit 1
+          fi
+          echo "AppImage: $appimage"
+          echo "Debian:   $deb"
+
+          # Stable names are what the PKGBUILD and docs link to; versioned
+          # copies keep every release addressable from the same workflow run.
+          cp "$appimage" "$dist/Elyra-latest-x64.AppImage"
+          cp "$deb" "$dist/Elyra-latest-x64.deb"
+          cp "$appimage" "$dist/Elyra-${VERSION}-x64.AppImage"
+          cp "$deb" "$dist/Elyra-${VERSION}-x64.deb"
+
+          cd "$dist"
+          for file in Elyra-*; do
+            case "$file" in
+              *.sha256) continue ;;
+            esac
+            sha256sum "$file" > "$file.sha256"
+          done
+          sha256sum -c ./*.sha256
+          ls -lh
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: elyra-linux-x64
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    # Opt-in: set repository variable ELYRA_LINUX_PUBLISH_RELEASE to `true`
+    # once the Windows release workflow and this workflow should share a
+    # GitHub Release. The build job itself keeps read-only permissions.
+    needs: build
+    if: vars.ELYRA_LINUX_PUBLISH_RELEASE == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: elyra-linux-x64
+          path: dist
+
+      - name: Attach Linux assets to the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref_name, 'v') && github.ref_name || format('v{0}', needs.build.outputs.version) }}
+          name: Elyra ${{ needs.build.outputs.version }}
+          generate_release_notes: false
+          files: |
+            dist/Elyra-*

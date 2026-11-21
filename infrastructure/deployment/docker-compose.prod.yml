@@ -9,6 +9,7 @@ services:
         environment:
             DATABASE_URL: postgres://${POSTGRES_USER:-elyra}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-elyra}
             ELYRA_JWT_SECRET: ${ELYRA_JWT_SECRET:?ELYRA_JWT_SECRET must be set}
+            ELYRA_ACCESS_TOKEN_TTL_HOURS: ${ELYRA_ACCESS_TOKEN_TTL_HOURS:-24}
             ELYRA_SERVER_ADDR: 0.0.0.0:8787
             RUST_LOG: ${RUST_LOG:-elyra_server=info,tower_http=info}
             ELYRA_SMTP_HOST: ${ELYRA_SMTP_HOST:-}

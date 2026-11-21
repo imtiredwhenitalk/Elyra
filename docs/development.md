@@ -118,8 +118,61 @@ cargo check -p elyra-server
 cargo test -p elyra-server
 ```
 
-Server unit tests do not require a live database unless a test explicitly
-connects. Integration testing against a real PostgreSQL instance is manual.
+### Automated tests
+
+The server test suite has pure and database-backed layers across three locations:
+
+| Layer | Location | Without PostgreSQL |
+| --- | --- | --- |
+| Pure unit tests | `server/src/auth.rs`, `server/src/mailer.rs`, `server/src/api.rs` | Run normally |
+| API integration tests | `server/src/api.rs` (`#[cfg(test)]`) | Database cases skip with a message |
+| Schema integration tests | `server/tests/database_integration.rs` | Skips with a message |
+
+The database-backed cases cover registration/login, bearer-token security, sync
+cursor round-trips, notification privacy and read ownership, disabled-relay
+fail-closed behavior, schema idempotency, email uniqueness, cursor upserts, and
+cascade deletes. No test sends real SMTP traffic.
+
+A plain `cargo test -p elyra-server` therefore works anywhere. To run the full
+suite, point the tests at a disposable database:
+
+```sh
+ELYRA_TEST_DATABASE_URL=postgres://elyra:elyra@127.0.0.1:5432/elyra_test \
+  cargo test -p elyra-server
+```
+
+PowerShell equivalent:
+
+```powershell
+$env:ELYRA_TEST_DATABASE_URL = "postgres://elyra:elyra@127.0.0.1:5432/elyra_test"
+cargo test -p elyra-server
+```
+
+`ELYRA_TEST_DATABASE_URL` is an explicit opt-in: a bad URL or failed migration
+then fails the test run. `DATABASE_URL` is used as a fallback only when it is
+reachable; otherwise the database cases print a skip message. The `Rust` CI
+workflow already runs `cargo test -p elyra-crypto -p elyra-server -p
+elyra-launcher` on Linux, so pure tests are enforced automatically. A CI service
+container can set `ELYRA_TEST_DATABASE_URL` to enforce the database cases too;
+the workflow file does not need to change to pick up new tests.
+
+### Testing procedures
+
+Local server smoke test after `cargo run -p elyra-server` (see
+[Run the server locally](#run-the-server-locally)):
+
+```sh
+curl -fsS http://127.0.0.1:8787/health
+curl -sS -X POST http://127.0.0.1:8787/v1/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"dev@example.test","password":"local-dev-passphrase","display_name":"Dev"}'
+# Use the returned access_token as: -H "Authorization: Bearer <token>"
+```
+
+For production deployments, follow the
+[production verification checklist](deploy/VERIFY.md) instead: it includes
+pre-deploy checks, HTTPS verification, restart persistence, backup/restore
+drill, and sign-off.
 
 ### Formatting and linting
 
@@ -314,8 +367,11 @@ git push origin main --tags
 ```
 
 The `Release Windows` workflow builds the MSI, NSIS setup, and launcher, renames
-them to stable asset names, writes the MSI checksum, and publishes a GitHub
-Release.
+them to stable asset names, writes checksums, and publishes a GitHub Release.
+When `TAURI_SIGNING_PRIVATE_KEY` is configured it also signs both installers and
+publishes `latest.json` for in-app updates; see
+[Desktop updates](desktop-updates.md) for the signing setup and verification
+steps.
 
 Expected assets:
 
@@ -323,6 +379,16 @@ Expected assets:
 - `Elyra-latest-x64-setup.exe`
 - `Elyra-Launcher-x64.exe`
 - `Elyra-latest-x64.msi.sha256`
+- `Elyra-latest-x64-setup.exe.sha256`
+- `Elyra-latest-x64.msi.sig` and `Elyra-latest-x64-setup.exe.sig` (signed releases)
+- `latest.json` (signed releases)
+- `Elyra-latest-x64.AppImage`
+- `Elyra-latest-x64.deb`
+- `Elyra-latest-x64.AppImage.sha256`
+- `Elyra-latest-x64.deb.sha256`
+
+Linux packaging, runtime dependencies, source builds, and Flatpak status are in
+the [Linux installation guide](linux.md).
 
 ### 5. Optional: bake the production API URL
 
@@ -336,6 +402,7 @@ passes it to the desktop build so new installs default to your server.
 | --- | --- | --- |
 | `Rust` | Push/PR to `main` | Tests crypto, server, launcher on Linux; installs npm deps and builds the desktop app on Windows |
 | `Release Windows` | Tag `v*` or manual | Builds installers and launcher, publishes a GitHub Release |
+| `Release Linux` | Tag `v*` or manual | Builds AppImage + .deb with checksums, uploads `elyra-linux-x64`; optional release publishing via `ELYRA_LINUX_PUBLISH_RELEASE` |
 | `Deploy GitHub Pages` | Push to `main` or manual | Publishes `web/` to GitHub Pages |
 | `Deploy server` | Push to `main` touching server/web/infrastructure, or manual | Opt-in SSH deploy gated by `ELYRA_DEPLOY_ENABLED` |
 
@@ -406,4 +473,5 @@ Elyra/
 - [Tauri command reference](reference/tauri-commands.md) — command surface.
 - [Configuration reference](reference/configuration.md) — environment variables.
 - [Deployment](deployment.md) — production operations.
+- [Production verification](deploy/VERIFY.md) — deployment checklist and smoke tests.
 - [Troubleshooting](troubleshooting.md) — build and runtime fixes.

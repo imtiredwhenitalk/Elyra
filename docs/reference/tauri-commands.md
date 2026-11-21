@@ -57,6 +57,7 @@ with `localStorage`. Desktop builds always call the Rust implementations.
 | [Identity keys](#identity-keys) | `list_crypto_keys`, `generate_crypto_key`, `rotate_crypto_key`, `revoke_crypto_key`, `export_public_key`, `import_public_key`, `list_crypto_contacts`, `delete_crypto_contact` |
 | [Crypto](#crypto) | `generate_encryption_key`, `encrypt_text`, `decrypt_text`, `fingerprint` |
 | [Diagnostics](#diagnostics) | `get_changelog`, `get_app_diagnostics` |
+| [Updates](#updates) | `get_update_preferences`, `set_update_preferences`, `check_for_updates`, `download_and_install_update` |
 | [Cloud](#cloud) | `cloud_register`, `cloud_login`, `cloud_session`, `cloud_logout`, `cloud_list_notifications`, `cloud_send_notification`, `cloud_mark_notification_read`, `cloud_sync_cursor`, `cloud_update_cursor`, `cloud_health`, `cloud_api_url`, `cloud_set_api_url`, `cloud_mail_status` |
 
 `secrets.rs` contains helper functions only; it registers no commands.
@@ -1251,6 +1252,59 @@ Returns `snake_case` diagnostics:
 
 `cloud_configured` is true when the resolved API base is not the local default.
 `keychain_available` reports whether the OS credential store is reachable.
+
+## Updates
+
+Source: `apps/desktop/src-tauri/src/updates.rs`. These commands use the signed
+Tauri updater feed; see [Desktop updates](../desktop-updates.md) for keys, release
+steps, and failure behavior. The frontend is notified through the
+`elyra-update-available` and `elyra-update-progress` events.
+
+### `get_update_preferences`
+
+```ts
+() => Promise<{
+  autoCheck: boolean;
+  notifyAvailable: boolean;
+  lastCheckedAt: string | null;
+  lastResult: UpdateStatus | null;
+}>
+```
+
+Reads the persisted notification preferences and the last check result from the
+local `settings` table. Both toggles default to `true`.
+
+### `set_update_preferences`
+
+```ts
+(options: { autoCheck?: boolean; notifyAvailable?: boolean }) => Promise<UpdatePreferences>
+```
+
+Persists only the supplied toggles and returns the refreshed preferences. Manual
+checks remain available when automatic checks are disabled.
+
+### `check_for_updates`
+
+```ts
+() => Promise<UpdateStatus>
+```
+
+Fetches and validates `latest.json`, returning `status` (`available`,
+`upToDate`, `error`, or `busy`), the current and latest versions, release date,
+notes, target, check timestamp, and a human-readable message. Concurrent checks
+return `busy` instead of starting a second transfer.
+
+### `download_and_install_update`
+
+```ts
+() => Promise<{ installed: true; version: string; restartRecommended: boolean }>
+```
+
+Checks again, downloads the signed installer while emitting
+`elyra-update-progress` events with `stage`, `downloaded`, `total`, and `percent`,
+verifies the signature, and installs it. Failures return an error without
+modifying the existing installation. On Windows the app exits when the verified
+installer starts, so the UI treats a disconnected command as an expected restart.
 
 ## Cloud
 

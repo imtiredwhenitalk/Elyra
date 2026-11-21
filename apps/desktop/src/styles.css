@@ -1729,6 +1729,163 @@ body[data-theme="oled"] .sender-avatar {
   font-weight: 750;
 }
 
+.update-card {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+
+.update-card-top {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.update-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.update-card-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.update-card-title b {
+  font-size: 13px;
+}
+
+.update-card-title small,
+.update-meta-grid small,
+.update-details small {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.update-badge {
+  margin-left: auto;
+  padding: 4px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.update-badge.available {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.update-badge.error {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.update-badge.busy,
+.update-badge.checking {
+  border-color: var(--gold);
+  color: var(--warning);
+}
+
+.update-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.update-meta-grid > div,
+.update-details > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.update-meta-grid strong,
+.update-details strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-details {
+  display: grid;
+  gap: 8px;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.update-details p {
+  max-height: 92px;
+  margin: 0;
+  overflow: auto;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.update-progress {
+  display: grid;
+  gap: 6px;
+}
+
+.update-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text);
+  font-size: 11px;
+}
+
+.update-progress-head b {
+  color: var(--accent-strong);
+}
+
+.update-progress-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.update-progress-track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 180ms ease;
+}
+
+.update-progress small {
+  color: var(--text-faint);
+  font-size: 10px;
+}
+
+.update-card .settings-note {
+  margin: 0;
+}
+
 .field-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3087,7 +3244,8 @@ body[data-density="compact"] .viewer-body {
     flex-direction: column;
   }
 
-  .field-grid {
+  .field-grid,
+  .update-meta-grid {
     grid-template-columns: 1fr;
   }
 

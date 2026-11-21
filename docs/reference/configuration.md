@@ -127,6 +127,16 @@ Loaded from the process environment and, in development, from `server/.env` via
 - `ELYRA_SMTP_SECURITY=tls` → implicit TLS.
 - Any other security value → STARTTLS.
 
+### Server tests
+
+| Variable | Required | Default | Notes |
+| --- | --- | --- | --- |
+| `ELYRA_TEST_DATABASE_URL` | No | unset | PostgreSQL URL for database-backed tests. Without it, DB tests skip; with it, failures are reported |
+
+Run `cargo test -p elyra-server`. Pure unit tests always run; set
+`ELYRA_TEST_DATABASE_URL` to a disposable database to exercise schema migrations,
+API flows, and PostgreSQL constraints.
+
 ## Production deployment
 
 Set in `infrastructure/deployment/.env.prod` (copy from `.env.prod.example`).
@@ -138,6 +148,7 @@ Set in `infrastructure/deployment/.env.prod` (copy from `.env.prod.example`).
 | `POSTGRES_PASSWORD` | Yes | — | Compose fails if missing |
 | `REDIS_PASSWORD` | Yes | — | Compose fails if missing; Redis requires auth |
 | `ELYRA_JWT_SECRET` | Yes | — | At least 32 characters |
+| `ELYRA_ACCESS_TOKEN_TTL_HOURS` | No | `24` | JWT lifetime; now forwarded to the API container |
 | `WEB_BIND` | No | `0.0.0.0` | Use `127.0.0.1` with Caddy |
 | `WEB_PORT` | No | `8080` | Host port for the website |
 | `RUST_LOG` | No | `elyra_server=info,tower_http=info` | API logging |
@@ -153,6 +164,10 @@ Set in `infrastructure/deployment/.env.prod` (copy from `.env.prod.example`).
 | `ELYRA_ENABLE_TLS` | value from env file or `0` | Same as `--tls` |
 
 CLI flags: `--tls`, `--no-build`, `--backup`, `--check`, `--help`.
+
+Backups use `pg_dump --clean --if-exists`, so the resulting SQL can be restored
+into an empty database with `psql -v ON_ERROR_STOP=1`. See
+[`docs/deploy/VERIFY.md`](../deploy/VERIFY.md) for the full backup/restore drill.
 
 ## Development Docker stack
 
@@ -187,8 +202,11 @@ Set in `infrastructure/docker/.env` (copy from `.env.example`).
 | `ELYRA_DOWNLOAD_URL` | `https://github.com/imtiredwhenitalk/Elyra/releases/latest/download/Elyra-latest-x64.msi` | MSI URL when `--url` is not passed |
 | `ELYRA_MSI_SHA256` | unset | Expected checksum when `--sha256` is not passed |
 
-The launcher also accepts `--url`, `--sha256`, `--msi`, `--silent`, and
-`--no-launch`. See [Getting started](../getting-started.md#option-c-portable-launcher).
+The launcher also accepts `--url`, `--sha256`, `--require-checksum`, `--retries`,
+`--msi`, `--download-only`, `--dry-run`, `--silent`, `--no-launch`, `--cleanup`,
+`--allow-insecure-http`, and the uninstall flags `--remove-data`,
+`--backup-data`, and `--product-code`. See
+[Getting started](../getting-started.md#option-c-portable-launcher).
 
 ## Website
 

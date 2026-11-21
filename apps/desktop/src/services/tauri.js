@@ -1111,6 +1111,38 @@ function fallbackScanAllAttachments() {
   return Promise.resolve(scanned);
 }
 
+function fallbackPreference(value, fallback) {
+  if (value === undefined || value === null) return fallback;
+  return value === true || String(value) === "true";
+}
+
+function fallbackUpdatePreferences() {
+  const settings = loadSettings();
+  return {
+    autoCheck: fallbackPreference(settings.updatesAutoCheck, true),
+    notifyAvailable: fallbackPreference(settings.updatesNotifyAvailable, true),
+    lastCheckedAt: settings.updatesLastCheckedAt || null,
+    lastResult: settings.updatesLastResult || null,
+  };
+}
+
+function fallbackCheckForUpdates() {
+  const checkedAt = new Date().toISOString();
+  const status = {
+    status: "upToDate",
+    available: false,
+    currentVersion: "0.3.0",
+    latestVersion: null,
+    publishedAt: null,
+    notes: null,
+    target: "browser-preview",
+    checkedAt,
+    message: "Browser preview does not download desktop updates. Build the Windows app to check the signed release feed.",
+  };
+  saveSettings({ updatesLastCheckedAt: checkedAt, updatesLastResult: status });
+  return Promise.resolve(status);
+}
+
 function fallbackInvoke(command, args = {}) {
   switch (command) {
     case "initialize_local_storage":
@@ -1454,6 +1486,24 @@ function fallbackInvoke(command, args = {}) {
       return Promise.resolve({ accounts: [], imported: 0 });
     case "get_changelog":
       return Promise.resolve(changelog());
+    case "get_update_preferences":
+      return Promise.resolve(fallbackUpdatePreferences());
+    case "set_update_preferences": {
+      const current = fallbackUpdatePreferences();
+      const next = {
+        autoCheck: args.autoCheck === undefined ? current.autoCheck : Boolean(args.autoCheck),
+        notifyAvailable: args.notifyAvailable === undefined ? current.notifyAvailable : Boolean(args.notifyAvailable),
+      };
+      saveSettings({
+        updatesAutoCheck: String(next.autoCheck),
+        updatesNotifyAvailable: String(next.notifyAvailable),
+      });
+      return Promise.resolve({ ...current, ...next });
+    }
+    case "check_for_updates":
+      return fallbackCheckForUpdates();
+    case "download_and_install_update":
+      return Promise.reject(new Error("Updates can only be installed from the Windows desktop build."));
     case "get_app_diagnostics": {
       const stats = statsOf(loadMailbox());
       return Promise.resolve({
@@ -1566,4 +1616,12 @@ export function invoke(command, args = {}) {
     return tauri.core.invoke(command, args);
   }
   return fallbackInvoke(command, args);
+}
+
+export function listen(event, handler) {
+  const eventApi = window.__TAURI__?.event;
+  if (eventApi?.listen) {
+    return eventApi.listen(event, handler);
+  }
+  return Promise.resolve(() => {});
 }

@@ -12,12 +12,15 @@ Start with the page that matches what you want to do.
 | Goal | Read |
 | --- | --- |
 | Install Elyra on Windows | [Getting started](getting-started.md) |
+| Install Elyra on Linux | [Linux](linux.md) |
 | Learn the interface and features | [User guide](user-guide.md) |
 | Understand how the system fits together | [Architecture](architecture.md) |
 | Run or extend the Rust server | [Server and API](server.md) |
 | Deploy the website and API to a VPS | [Deployment](deployment.md) and [server runbook](deploy/SERVER.md) |
+| Verify a production deployment | [Production verification checklist](deploy/VERIFY.md) |
 | Review the security model | [Security](security.md) |
 | Build from source, test, or release | [Development](development.md) |
+| Run or extend the automated tests | [Development → automated tests](development.md#automated-tests) |
 | Look up environment variables | [Configuration reference](reference/configuration.md) |
 | Look up Tauri commands | [Tauri command reference](reference/tauri-commands.md) |
 | Fix a problem | [Troubleshooting and FAQ](troubleshooting.md) |
@@ -29,6 +32,10 @@ Start with the page that matches what you want to do.
 
 - **[Getting started](getting-started.md)** — download options, launcher flags,
   first-run onboarding, local data, uninstall.
+- **[Linux](linux.md)** — AppImage, .deb, Arch PKGBUILD, dependencies, source
+  build, Flatpak status.
+- **[Desktop updates](desktop-updates.md)** — signed Windows updater, Settings
+  controls, signing keys, and the release checklist.
 - **[User guide](user-guide.md)** — mailboxes, search, message viewer, compose,
   mail accounts, Elyra Cloud, settings, themes, keyboard shortcuts.
 - **[Troubleshooting and FAQ](troubleshooting.md)** — install, sign-in, IMAP,
@@ -38,8 +45,8 @@ Start with the page that matches what you want to do.
 
 - **[Architecture](architecture.md)** — components, trust boundaries, data
   flows, directory layout, technology choices, and extension points.
-- **[Development](development.md)** — prerequisites, commands, validation,
-  release process, repository conventions.
+- **[Development](development.md)** — prerequisites, commands, automated tests,
+  validation, release process, repository conventions.
 - **[Tauri command reference](reference/tauri-commands.md)** — every command the
   desktop webview can invoke.
 - **[Configuration reference](reference/configuration.md)** — desktop, server,
@@ -53,6 +60,8 @@ Start with the page that matches what you want to do.
   links to the full runbook.
 - **[Server runbook](deploy/SERVER.md)** — the complete VPS walkthrough: DNS,
   secrets, Caddy HTTPS, backups, updates, GitHub Actions.
+- **[Production verification](deploy/VERIFY.md)** — deployment checklist,
+  smoke tests, HTTPS checks, restart persistence, backup/restore drill.
 - **[Security](security.md)** — threat model, keychain usage, crypto boundary,
   server trust boundary, known gaps.
 
@@ -93,6 +102,7 @@ behavior:
 | Production services | `infrastructure/deployment/docker-compose.prod.yml` |
 | Installer and bundle config | `apps/desktop/src-tauri/tauri.conf.json` |
 | Release pipeline | `.github/workflows/release.yml`, `.github/workflows/rust.yml` |
+| Linux release pipeline | `.github/workflows/linux-release.yml`, `packaging/linux/PKGBUILD` |
 
 ## Keeping the docs current
 

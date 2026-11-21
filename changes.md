@@ -1,3 +1,13 @@
+[200 OK] Added automatic Windows application updates (Phase 3, GitHub issue #11):
+
+Added `tauri-plugin-updater` with the Tauri/minisign public key embedded as a Rust constant and an empty configuration placeholder overridden at runtime. Settings → Updates now shows the current and latest versions, release date, notes, last check, target, and status; it supports manual checks, download and verification progress, direct install, and preferences for automatic checks and notifications. Update results and preferences persist in SQLite, while browser preview uses localStorage with a safe simulated up-to-date result.
+
+The Windows release workflow signs the MSI and NSIS installers when `TAURI_SIGNING_PRIVATE_KEY` is configured, writes `.sig` and SHA-256 sidecars, and publishes `latest.json` with absolute HTTPS asset URLs and both Windows bundle keys. `requireSignedVersion` is enabled so the signed version must match the announced manifest version. Unsigned releases still publish, but skip signing and `latest.json` with a warning. A failed download, signature check, or install leaves the existing installation untouched; on Windows the app exits when the verified installer starts.
+
+Files changed: `Cargo.toml`, `tauri.conf.json`, `capabilities/default.json`, `lib.rs`, `updates.rs`, `index.html`, `main.js`, `tauri.js`, `styles.css`, `.github/workflows/release.yml`, `docs/desktop-updates.md`, `docs/reference/tauri-commands.md`, `docs/README.md`, `docs/development.md`, `README.md`, `task.md`.
+
+Validation: [OK] `node --check` for `main.js` and `tauri.js`; [OK] JSON parse for `tauri.conf.json`, `capabilities/default.json`, `package.json`, and root `package.json`; [OK] YAML parse for `release.yml`, `rust.yml` and the Linux workflow; [OK] Tauri CLI keypair generation and test signing succeeded; [OK] `git diff --check`; Rust compilation and the Windows desktop build run in GitHub Actions because no local Rust toolchain is available.
+
 [200 OK] Added MIT licensing across the repository:
 
 Added a root `LICENSE` file with the standard MIT text
@@ -439,3 +449,84 @@ checks with `node`; [OK] `git diff --check`; Rust compilation and the Windows
 desktop build run in GitHub Actions because no local Rust toolchain is
 available. Also fixed a borrow-checker error in the Issue #6 `load_rules` query
 that the Windows CI build surfaced.
+
+[200 OK] Rebuilt the launcher download and uninstall flows:
+
+The launcher now downloads through a `.part` file, resumes interrupted transfers
+with HTTP Range requests, retries temporary failures with backoff, and promotes
+the file to the final MSI name only after verification. A published
+`<url>.sha256` sidecar is fetched before the transfer; `--sha256` and
+`--require-checksum` cover mirrors without one, and a verified cached MSI is
+reused. Progress shows percentage, transferred bytes and speed. Plain HTTP is
+rejected unless `--allow-insecure-http` is passed, with localhost mirrors
+allowed for local testing.
+
+New commands and flags: `download` / `--download-only`, `cleanup`, `--retries`,
+`--dry-run`, and `--cleanup`. Uninstall remains non-destructive by default but
+now accepts `--remove-data` (or `--purge`) to delete the local data folder and
+Elyra entries in Windows Credential Manager, `--backup-data <folder>` to copy
+database files first, `--product-code <GUID>` for a specific registered product,
+and `--dry-run` to preview the actions. The built-in help, getting-started,
+troubleshooting, and configuration docs describe every flag.
+
+Files changed: `apps/launcher/src/main.rs`, `docs/getting-started.md`,
+`docs/troubleshooting.md`, `docs/reference/configuration.md`.
+
+Validation: [OK] reviewed parse/download/uninstall paths and constructor flags;
+[OK] `git diff --check`. Rust compilation and tests run in GitHub Actions
+because no local Rust toolchain is available.
+
+[200 OK] Added Linux package distribution support (Phase 3, GitHub issue #12):
+
+Added `.github/workflows/linux-release.yml` to build Tauri AppImage and .deb
+bundles on `ubuntu-latest` for every `v*` tag and manual dispatch, with Tauri
+v2 Linux system dependencies, optional signing secrets, stable and versioned
+asset names, SHA-256 checksums, and artifact upload. Publishing the Linux
+assets to the GitHub Release is opt-in via `ELYRA_LINUX_PUBLISH_RELEASE`.
+
+Added `packaging/linux/` with an AUR-style `PKGBUILD` that verifies the
+published `.sha256` before installing the AppImage to `/opt/elyra`, a desktop
+entry, a 256x256 hicolor icon, a refresh script, and a README. Added
+`docs/linux.md` with install, dependency, source-build, update/uninstall,
+troubleshooting, and Flatpak investigation notes (Flatpak not shipped). Linked
+the new assets and guide from `README.md` and the website download section.
+
+Files changed: `.github/workflows/linux-release.yml`, `docs/linux.md`,
+`packaging/linux/PKGBUILD`, `packaging/linux/elyra.desktop`,
+`packaging/linux/elyra.png`, `packaging/linux/copy-icon.sh`,
+`packaging/linux/README.md`, `README.md`, `web/index.html`, `web/styles.css`.
+
+Validation: [OK] YAML parsed with PyYAML; [OK] `bash -n` on all workflow run
+blocks and the PKGBUILD; [OK] `sh -n` on `copy-icon.sh`; [OK] simulated
+checksum verification (match accepted, mismatch rejected) and asset collection
+(stables + versioned names + checksums); [OK] relative links and whitespace
+checks. The AppImage/.deb builds are validated in GitHub Actions because no
+local Rust toolchain is available.
+
+[200 OK] Added automated server tests and production verification docs (Phase 3, GitHub issues #9 and #10):
+
+Added pure Rust tests for Argon2id hashing, JWT expiry/secret isolation, SMTP
+config normalization, disabled-relay fail-closed behavior, API validation,
+bearer-header parsing and error status mapping. Added database-backed API tests
+covering register/login, sync cursors, notification privacy/read ownership and
+unconfigured mail; they skip gracefully without PostgreSQL and use a shared
+advisory lock to avoid migration races. Added `server/tests/database_integration.rs`
+for schema idempotency, uniqueness, upserts and cascade deletes. Forwarded
+`ELYRA_ACCESS_TOKEN_TTL_HOURS` through production Compose, changed backups to
+`pg_dump --clean --if-exists`, and documented a safe restore with
+`ON_ERROR_STOP=1`. Added `docs/deploy/VERIFY.md` with smoke tests, HTTPS checks,
+restart persistence, backup/restore drill and sign-off, plus explicit
+documentation that custom domains need no source edits.
+
+Files changed: `server/src/auth.rs`, `server/src/mailer.rs`, `server/src/api.rs`,
+`server/tests/database_integration.rs`, `infrastructure/deployment/docker-compose.prod.yml`,
+`infrastructure/deployment/.env.prod.example`, `infrastructure/deployment/deploy.sh`,
+`docs/deploy/VERIFY.md`, `docs/deploy/SERVER.md`, `docs/deployment.md`,
+`docs/development.md`, `docs/server.md`, `docs/README.md`, `docs/ARCHITECTURE.md`,
+`docs/reference/configuration.md`, `docs/getting-started.md`,
+`docs/troubleshooting.md`.
+
+Validation: [OK] `git diff --check`; [OK] Compose YAML parses; [OK] local Markdown
+links resolve; [OK] Linux packaging doc additions included. [OK] Rust tests are
+intended for CI: no local toolchain is available, so `cargo test -p elyra-server`
+was not executed here.

@@ -323,6 +323,64 @@
                 </div>
               </fieldset>
 
+              <fieldset class="settings-section update-section">
+                <legend>Updates</legend>
+                <div class="update-card">
+                  <div class="update-card-top">
+                    <span class="update-icon"><svg class="icon"><use href="#i-updates"></use></svg></span>
+                    <div class="update-card-title">
+                      <b>Desktop updater</b>
+                      <small>Current version <span id="update-current-version">0.3.0</span></small>
+                    </div>
+                    <span class="update-badge" id="update-state-badge">Ready</span>
+                  </div>
+
+                  <div class="update-meta-grid">
+                    <div><small>Latest version</small><strong id="update-latest-version">Not checked</strong></div>
+                    <div><small>Last checked</small><strong id="update-last-checked">Never</strong></div>
+                    <div><small>Target</small><strong id="update-target">Windows x64</strong></div>
+                  </div>
+
+                  <p class="settings-note" id="update-summary">Check the signed release feed to see whether a newer desktop build is available.</p>
+
+                  <div class="update-details" id="update-details" hidden>
+                    <div><small>Release date</small><strong id="update-published-at">—</strong></div>
+                    <div><small>Release notes</small><p id="update-notes"></p></div>
+                  </div>
+
+                  <div class="update-progress" id="update-progress" hidden>
+                    <div class="update-progress-head">
+                      <span id="update-progress-label">Preparing update…</span>
+                      <b id="update-progress-percent">0%</b>
+                    </div>
+                    <div class="update-progress-track"><span id="update-progress-bar"></span></div>
+                    <small id="update-progress-bytes">Waiting to start</small>
+                  </div>
+
+                  <div class="panel-actions-row wrap">
+                    <button class="ghost-button" type="button" id="check-updates">
+                      <svg class="icon"><use href="#i-refresh"></use></svg>
+                      Check now
+                    </button>
+                    <button class="primary-button" type="button" id="install-update" hidden>
+                      <svg class="icon"><use href="#i-download"></use></svg>
+                      Install update
+                    </button>
+                  </div>
+
+                  <p class="settings-note">Installers are verified with Elyra's embedded Ed25519 public key before installation. On Windows, the app closes while the installer runs.</p>
+                </div>
+
+                <label class="setting-toggle">
+                  <span><b>Check for updates automatically</b><small>Check the signed release feed when Elyra starts.</small></span>
+                  <input id="updates-auto-check" type="checkbox" checked />
+                </label>
+                <label class="setting-toggle">
+                  <span><b>Notify me when an update is available</b><small>Show a notification after an automatic check finds a newer version.</small></span>
+                  <input id="updates-notify-available" type="checkbox" checked />
+                </label>
+              </fieldset>
+
               <fieldset class="settings-section">
                 <legend>Behaviour</legend>
                 <label class="setting-toggle">

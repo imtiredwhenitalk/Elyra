@@ -67,7 +67,15 @@ Required values:
 | `WEB_BIND` | `127.0.0.1` with Caddy, `0.0.0.0` without |
 | `WEB_PORT` | Host port for the website, default `8080` |
 
+| `ELYRA_ACCESS_TOKEN_TTL_HOURS` | No | Access token lifetime in hours, default `24` |
+
 `.env.prod` is ignored by Git. Never commit it.
+
+No source edits are required to host Elyra on your own domain: the domain,
+ports, secrets, and relay settings come only from `.env.prod`, DNS, and the
+desktop **Server URL** setting. For release installers, set the repository
+variable `ELYRA_DEFAULT_API_URL`. Keeping the checkout unmodified means upgrades
+stay a plain `git pull`.
 
 ## 4. Deploy
 
@@ -79,7 +87,9 @@ Without HTTPS (quick test, open `http://SERVER_IP:8080`):
 
 The script validates the Compose file, builds the API and website images,
 starts the stack, waits for `/health`, and prints the URLs. Use `--backup` to
-dump PostgreSQL first and `--check` to only validate the configuration.
+dump PostgreSQL first and `--check` to only validate the configuration. After a
+deploy, work through the [production verification checklist](VERIFY.md) for
+smoke tests, HTTPS checks, restart persistence, and sign-off.
 
 Check the stack:
 
@@ -212,21 +222,56 @@ Manual backup:
 # or
 docker compose --env-file infrastructure/deployment/.env.prod \
   -f infrastructure/deployment/docker-compose.prod.yml \
-  exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
+  exec -T postgres sh -c 'pg_dump --clean --if-exists -U "$POSTGRES_USER" "$POSTGRES_DB"' \
   | gzip > backups/elyra-$(date +%Y%m%d-%H%M%S).sql.gz
 ```
 
-Restore:
+New dumps include `DROP ... IF EXISTS` statements so they can be replayed into
+the existing database. Backups made before that flag was added need an empty
+database (or a dropped and recreated `public` schema) before import.
 
-```sh
-gunzip -c backups/elyra-YYYYMMDD-HHMMSS.sql.gz \
-  | docker compose --env-file infrastructure/deployment/.env.prod \
-      -f infrastructure/deployment/docker-compose.prod.yml \
-      exec -T postgres sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"'
-```
+### Restore procedure
+
+1. Pick a verified archive and test its integrity:
+
+   ```sh
+   ls -lh backups/
+   gzip -t backups/elyra-YYYYMMDD-HHMMSS.sql.gz
+   ```
+
+2. Stop the API so nothing writes during the restore:
+
+   ```sh
+   docker compose --env-file infrastructure/deployment/.env.prod \
+     -f infrastructure/deployment/docker-compose.prod.yml stop api
+   ```
+
+3. Rehearse first on a staging instance or a scratch database whenever
+   possible. To restore into the live database:
+
+   ```sh
+   gunzip -c backups/elyra-YYYYMMDD-HHMMSS.sql.gz \
+     | docker compose --env-file infrastructure/deployment/.env.prod \
+         -f infrastructure/deployment/docker-compose.prod.yml \
+         exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+   ```
+
+   `ON_ERROR_STOP=1` makes the restore fail loudly instead of leaving a
+   half-imported schema. Do not ignore a non-zero exit code.
+
+4. Start the API and confirm it reapplies its idempotent migrations:
+
+   ```sh
+   docker compose --env-file infrastructure/deployment/.env.prod \
+     -f infrastructure/deployment/docker-compose.prod.yml start api
+   ```
+
+5. Verify health, sign-in, and restored data with the
+   [production verification checklist](VERIFY.md). If `ELYRA_JWT_SECRET`
+   changed since the backup, users must sign in again.
 
 Copy backups off the server (object storage or another host) and test restores
-periodically.
+periodically. The server has no separate file uploads to restore.
 
 Update:
 

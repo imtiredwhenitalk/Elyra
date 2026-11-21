@@ -1,6 +1,6 @@
 import { mountSecurityPage } from "./pages/SecurityPage.js";
 import { analyzeMessage, getSenderReputation, listSecurityAlerts, reportFalsePositive, reportReputationIssue } from "./services/security.js";
-import { invoke, isDesktopRuntime } from "./services/tauri.js";
+import { invoke, isDesktopRuntime, listen } from "./services/tauri.js";
 import {
   clearSession,
   createNotification,
@@ -34,6 +34,9 @@ const state = {
   cloudMailRelay: false,
   threats: new Map(),
   senderRules: [],
+  updatePreferences: null,
+  updateStatus: null,
+  updateBusy: false,
 };
 
 const QUICK_FILTERS = ["all", "unread", "starred", "important", "high", "urgent", "attachments"];
@@ -1052,6 +1055,204 @@ function renderSettings() {
       : `<span class="status-dot"></span> Local-only — connect Elyra Cloud for notifications and server mail relay`;
   }
   renderDiagnostics();
+  renderUpdates();
+  loadUpdateState().catch((error) => console.error("Update preferences failed", error));
+}
+
+function formatUpdateTime(value) {
+  if (!value) return "Never";
+  const text = String(value);
+  const normalized = text.includes(" ") && !text.endsWith("Z") ? `${text.replace(" ", "T")}Z` : text;
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) return text;
+  return parsed.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function setUpdateProgress(payload) {
+  const panel = $("#update-progress");
+  if (!panel) return;
+  if (!payload) {
+    panel.hidden = true;
+    return;
+  }
+  panel.hidden = false;
+  const labels = {
+    checking: "Checking the signed release feed…",
+    preparing: "Preparing update…",
+    downloading: "Downloading signed installer…",
+    verified: "Installer signature verified",
+    installing: "Installing update…",
+    error: "Update stopped safely",
+  };
+  const label = $("#update-progress-label");
+  const percent = $("#update-progress-percent");
+  const bar = $("#update-progress-bar");
+  const bytes = $("#update-progress-bytes");
+  const value = Number(payload.percent);
+  const safePercent = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+  if (label) label.textContent = labels[payload.stage] || "Working…";
+  if (percent) percent.textContent = `${Math.round(safePercent)}%`;
+  if (bar) bar.style.width = `${safePercent}%`;
+  if (bytes) {
+    if (payload.total) {
+      bytes.textContent = `${formatBytes(payload.downloaded)} of ${formatBytes(payload.total)}`;
+    } else if (payload.downloaded) {
+      bytes.textContent = `${formatBytes(payload.downloaded)} received`;
+    } else {
+      bytes.textContent = payload.stage === "verified" ? "Signature check passed" : "Waiting for installer data";
+    }
+  }
+}
+
+function renderUpdates() {
+  const status = state.updateStatus;
+  const badge = $("#update-state-badge");
+  const current = $("#update-current-version");
+  const latest = $("#update-latest-version");
+  const checked = $("#update-last-checked");
+  const target = $("#update-target");
+  const summary = $("#update-summary");
+  const details = $("#update-details");
+  const published = $("#update-published-at");
+  const notes = $("#update-notes");
+  const install = $("#install-update");
+  const check = $("#check-updates");
+
+  if (check) check.disabled = state.updateBusy;
+  if (install) install.disabled = state.updateBusy;
+  if (current) current.textContent = status?.currentVersion || "0.3.0";
+
+  if (!status) {
+    if (badge) {
+      badge.textContent = "Not checked";
+      badge.className = "update-badge";
+    }
+    if (latest) latest.textContent = "Not checked";
+    if (checked) checked.textContent = "Never";
+    if (target) target.textContent = isDesktopRuntime() ? "Windows x64" : "Browser preview";
+    if (summary) summary.textContent = "Check the signed release feed to see whether a newer desktop build is available.";
+    if (details) details.hidden = true;
+    if (install) install.hidden = true;
+    return;
+  }
+
+  const labels = {
+    available: "Update available",
+    upToDate: "Up to date",
+    error: "Check failed",
+    busy: "Checking…",
+    installed: "Installed",
+  };
+  if (badge) {
+    badge.textContent = labels[status.status] || status.status;
+    badge.className = `update-badge ${escapeHtml(status.status)}`;
+  }
+  if (latest) latest.textContent = status.latestVersion || "—";
+  if (checked) checked.textContent = formatUpdateTime(status.checkedAt);
+  if (target) target.textContent = status.target || (isDesktopRuntime() ? "Windows x64" : "Browser preview");
+  if (summary) {
+    summary.textContent = status.message
+      || (status.available ? "A newer release is available." : "No update information is available yet.");
+  }
+  if (details) details.hidden = !status.available;
+  if (published) published.textContent = formatUpdateTime(status.publishedAt);
+  if (notes) notes.textContent = status.notes || "No release notes were published for this version.";
+  if (install) install.hidden = !status.available;
+}
+
+async function loadUpdateState() {
+  const preferences = await invoke("get_update_preferences");
+  state.updatePreferences = preferences;
+  const auto = $("#updates-auto-check");
+  const notify = $("#updates-notify-available");
+  if (auto) auto.checked = Boolean(preferences.autoCheck);
+  if (notify) notify.checked = Boolean(preferences.notifyAvailable);
+  state.updateStatus = preferences.lastResult || null;
+  renderUpdates();
+  if (!isDesktopRuntime() && preferences.autoCheck) {
+    await invoke("check_for_updates");
+    const refreshed = await invoke("get_update_preferences");
+    state.updatePreferences = refreshed;
+    state.updateStatus = refreshed.lastResult || null;
+    if ($("#updates-auto-check")) $("#updates-auto-check").checked = Boolean(refreshed.autoCheck);
+    if ($("#updates-notify-available")) $("#updates-notify-available").checked = Boolean(refreshed.notifyAvailable);
+    renderUpdates();
+  }
+}
+
+async function setUpdatePreference(key, value) {
+  try {
+    const preferences = await invoke("set_update_preferences", { [key]: value });
+    state.updatePreferences = preferences;
+    showToast(key === "autoCheck"
+      ? (value ? "Automatic update checks enabled" : "Automatic update checks disabled")
+      : (value ? "Update notifications enabled" : "Update notifications disabled"), "success");
+  } catch (error) {
+    showToast(error.message || "Could not save the update preference", "error");
+    await loadUpdateState().catch(() => {});
+  }
+}
+
+async function runUpdateCheck({ quiet = false } = {}) {
+  if (state.updateBusy) return null;
+  state.updateBusy = true;
+  setUpdateProgress({ stage: "checking" });
+  renderUpdates();
+  try {
+    const result = await invoke("check_for_updates");
+    state.updateStatus = result;
+    renderUpdates();
+    if (!quiet) {
+      if (result.status === "available") showToast(`Update ${result.latestVersion} is available`, "success");
+      else if (result.status === "error") showToast(result.message || "Could not check for updates", "error");
+      else if (result.status === "busy") showToast(result.message || "An update check is already running");
+      else showToast("You are running the latest version", "success");
+    }
+    return result;
+  } catch (error) {
+    if (!quiet) showToast(error.message || "Could not check for updates", "error");
+    throw error;
+  } finally {
+    state.updateBusy = false;
+    setUpdateProgress(null);
+    renderUpdates();
+  }
+}
+
+async function installAvailableUpdate() {
+  if (!state.updateStatus?.available || state.updateBusy) return;
+  const version = state.updateStatus.latestVersion || "the newest version";
+  if (!window.confirm(`Download and install Elyra ${version}? The app will close on Windows while the installer runs.`)) return;
+
+  state.updateBusy = true;
+  setUpdateProgress({ stage: "preparing" });
+  renderUpdates();
+  let installed = false;
+  try {
+    const result = await invoke("download_and_install_update");
+    installed = true;
+    state.updateStatus = {
+      ...state.updateStatus,
+      status: "installed",
+      available: false,
+      message: result.restartRecommended
+        ? "The update was installed. Elyra will reopen when the installer finishes."
+        : "The update was installed. Restart Elyra when you are ready.",
+    };
+    showToast("Update installed successfully", "success");
+  } catch (error) {
+    setUpdateProgress({ stage: "error" });
+    showToast(error.message || "The update could not be installed", "error");
+  } finally {
+    state.updateBusy = false;
+    if (installed) setUpdateProgress(null);
+    renderUpdates();
+  }
 }
 
 function senderRuleScopeLabel(rule) {
@@ -1846,6 +2047,8 @@ function bindEvents() {
     if (event.target.closest("#reset-demo")) resetDemo();
     if (event.target.closest("#export-mailbox")) exportMailbox();
     if (event.target.closest("#refresh-diagnostics")) renderDiagnostics();
+    if (event.target.closest("#check-updates")) runUpdateCheck();
+    if (event.target.closest("#install-update")) installAvailableUpdate();
     if (event.target.closest("#refresh-priority")) refreshPrioritySuggestions();
     if (event.target.closest("#add-sender-rule")) addSenderRule();
     if (event.target.closest("#apply-sender-rules")) applySenderRules();
@@ -1894,6 +2097,12 @@ function bindEvents() {
   });
   $("#reduce-motion")?.addEventListener("change", (event) => {
     persistSettings({ reduce_motion: event.target.checked });
+  });
+  $("#updates-auto-check")?.addEventListener("change", (event) => {
+    setUpdatePreference("autoCheck", event.target.checked);
+  });
+  $("#updates-notify-available")?.addEventListener("change", (event) => {
+    setUpdatePreference("notifyAvailable", event.target.checked);
   });
   $("#blocked-sender-action")?.addEventListener("change", (event) => {
     setBlockedSenderAction(event.target.value);
@@ -2013,6 +2222,8 @@ async function saveSettingsFromForm() {
     local_only: $("#local-only").checked,
     desktop_notifications: $("#desktop-notifications").checked,
     reduce_motion: $("#reduce-motion").checked,
+    updates_auto_check: $("#updates-auto-check")?.checked ?? true,
+    updates_notify_available: $("#updates-notify-available")?.checked ?? true,
     auto_priority: $("#auto-priority").checked,
     priority_default: $("#priority-default").value,
     blocked_sender_action: $("#blocked-sender-action")?.value || "spam",
@@ -2122,6 +2333,15 @@ async function boot() {
   updateAccountUi();
   bindEvents();
   mountSecurityPage($("#settings-panel"));
+  listen("elyra-update-available", (event) => {
+    if (!event.payload?.available) return;
+    state.updateStatus = event.payload;
+    renderUpdates();
+    showToast(`Update ${event.payload.latestVersion || ""} is available`.replace("  ", " "), "success");
+  }).catch(() => {});
+  listen("elyra-update-progress", (event) => {
+    if (event.payload) setUpdateProgress(event.payload);
+  }).catch(() => {});
 
   try {
     await invoke("seed_demo_mailbox");
@@ -2136,6 +2356,7 @@ async function boot() {
   renderProfile();
   renderSettings();
   renderDiagnostics();
+  window.setTimeout(() => loadUpdateState().catch(() => {}), 2000);
   if (!state.session && !localStorage.getItem("elyra-onboarding-skipped")) {
     showAuthModal("register", { onboarding: true });
   }

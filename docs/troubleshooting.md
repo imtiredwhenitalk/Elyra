@@ -33,13 +33,17 @@ supports a per-user install mode.
 
 ### The launcher cannot download the MSI
 
-- Check that GitHub Releases is reachable from your network.
+- Check that GitHub Releases is reachable from your network. The launcher
+  retries up to three times by default (`--retries <n>` changes this).
 - Pass a local file instead: `Elyra-Launcher-x64.exe --msi C:\path\Elyra-latest-x64.msi`.
 - Pass a mirror URL: `Elyra-Launcher-x64.exe --url https://example.com/Elyra-latest-x64.msi`.
-- The launcher writes downloads to `%TEMP%\elyra-installer\`; check free space
-  and permissions there.
+  Plain HTTP is rejected unless you add `--allow-insecure-http`.
+- The launcher writes downloads to `%TEMP%\elyra-installer\` and resumes from a
+  `.part` file. Run `Elyra-Launcher-x64.exe cleanup` to remove stale transfers.
 - If a checksum is published but does not match, the launcher refuses to install.
   Re-download the MSI and the `.sha256` sidecar together.
+- Add `--require-checksum` if you want the launcher to refuse any installer
+  without a published digest.
 
 ### `msiexec` fails during install
 
@@ -55,14 +59,17 @@ group policy. Uninstall the previous version first, reboot, and try again.
 ### Uninstall did not delete my mail
 
 That is intentional. Uninstalling keeps the local mailbox database so an
-accidental uninstall does not destroy mail. To remove everything:
+accidental uninstall does not destroy mail. Use the launcher's opt-in cleanup
+to remove everything:
 
-```text
-%LOCALAPPDATA%\com.elyra.desktop
+```powershell
+.\Elyra-Launcher-x64.exe uninstall --backup-data C:\Elyra-backup --remove-data
 ```
 
-Also delete the `com.elyra.desktop` entries in **Windows Credential Manager** if
-you want to remove stored passwords and the cloud session.
+`--remove-data` deletes `%LOCALAPPDATA%\com.elyra.desktop` and the Elyra entries
+in **Windows Credential Manager**. Preview the actions first with
+`--dry-run`, and keep the `--backup-data` folder until you are sure you no
+longer need the mail. Without the flag, remove the folder manually.
 
 ## First run and sign-in
 
@@ -402,8 +409,19 @@ until you add rate limiting, or restrict who can register.
 ### Backups fail
 
 Run the documented `pg_dump` command and confirm the `backups/` directory is
-writable. Copy backups off the server and test a restore periodically. See
-[Deployment → Backups](deployment.md#backups).
+writable. Copy backups off the server and test a restore periodically. New dumps
+use `pg_dump --clean --if-exists`; restore them into an empty database with
+`psql -v ON_ERROR_STOP=1`. If an older dump fails with `relation already exists`,
+start from an empty database instead. See
+[Deployment → Backups](deployment.md#backups) and the
+[production verification checklist](deploy/VERIFY.md).
+
+### Database-backed server tests skip
+
+`cargo test -p elyra-server` runs pure unit tests without PostgreSQL, but the
+database-backed API and schema tests skip unless `ELYRA_TEST_DATABASE_URL` points
+to a disposable database. Set it explicitly to make those failures visible. See
+[Configuration → Server tests](reference/configuration.md#server-tests).
 
 ### Auto-deploy did not run
 
