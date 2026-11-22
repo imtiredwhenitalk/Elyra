@@ -417,9 +417,11 @@ Please allow time for a fix before disclosure.
 
 ## Related pages
 
-- [Architecture](architecture.md) — components and trust boundaries.
+- [Architecture](architecture/ARCHITECTURE.md) — components and trust boundaries.
 - [Server and API](server.md) — authentication and endpoint behavior.
 - [Deployment](deployment.md) — production hardening steps.
 - [`docs/security/ARCHITECTURE.md`](security/ARCHITECTURE.md) — short directory
   scope note.
+- [`docs/security/e2ee.md`](security/e2ee.md) — planned end-to-end encryption
+  protocol, threat model, key lifecycle, and limitations.
 - [`docs/crypto/README.md`](crypto/README.md) — crypto layer notes.

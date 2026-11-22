@@ -10,13 +10,13 @@ mod providers;
 mod reputation;
 mod secrets;
 mod security;
+#[path = "../../services/sendemail.rs"]
+mod sendemail;
 mod senders;
 mod shield;
 mod storage;
 mod threats;
 mod updates;
-#[path = "../../services/sendemail.rs"]
-mod sendemail;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -32,14 +32,20 @@ pub fn run() {
             updates::initialize(app.handle());
             senders::initialize(app.handle()).expect("failed to initialize Elyra sender rules");
             mailbox::initialize(app.handle()).expect("failed to initialize Elyra mailbox engine");
-            attachments::initialize(app.handle()).expect("failed to initialize Elyra attachment scanning");
+            attachments::initialize(app.handle())
+                .expect("failed to initialize Elyra attachment scanning");
             priority::initialize(app.handle()).expect("failed to initialize Elyra priority engine");
-            providers::initialize(app.handle()).expect("failed to initialize Elyra provider accounts");
-            security::initialize(app.handle()).expect("failed to initialize Elyra security controls");
-            threats::initialize(app.handle()).expect("failed to initialize Elyra threat intelligence");
-            integrations::initialize(app.handle()).expect("failed to initialize Elyra integrations");
+            providers::initialize(app.handle())
+                .expect("failed to initialize Elyra provider accounts");
+            security::initialize(app.handle())
+                .expect("failed to initialize Elyra security controls");
+            threats::initialize(app.handle())
+                .expect("failed to initialize Elyra threat intelligence");
+            integrations::initialize(app.handle())
+                .expect("failed to initialize Elyra integrations");
             shield::initialize(app.handle()).expect("failed to initialize Elyra Shield");
-            reputation::initialize(app.handle()).expect("failed to initialize Elyra sender reputation");
+            reputation::initialize(app.handle())
+                .expect("failed to initialize Elyra sender reputation");
             keys::initialize(app.handle()).expect("failed to initialize Elyra key management");
             Ok(())
         })
@@ -98,10 +104,21 @@ pub fn run() {
             keys::export_public_key,
             keys::import_public_key,
             keys::list_crypto_contacts,
+            keys::verify_crypto_contact,
+            keys::revoke_crypto_contact,
             keys::delete_crypto_contact,
+            keys::import_crypto_encryption_public_key,
+            keys::list_crypto_encryption_keys,
+            keys::generate_crypto_encryption_key,
+            keys::rotate_crypto_encryption_key,
+            keys::revoke_crypto_encryption_key,
+            keys::export_crypto_encryption_public_key,
             crypto::generate_encryption_key,
             crypto::encrypt_text,
             crypto::decrypt_text,
+            crypto::encrypt_text_for_recipient,
+            crypto::seal_message_envelope,
+            crypto::open_message_envelope,
             crypto::fingerprint,
             sendemail::send_email,
             sendemail::list_sent_emails,

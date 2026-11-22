@@ -87,3 +87,11 @@ export function listCryptoContacts() {
 export function deleteCryptoContact(id) {
   return invoke("delete_crypto_contact", { id });
 }
+
+export function verifyCryptoContact(id) {
+  return invoke("verify_crypto_contact", { id });
+}
+
+export function revokeCryptoContact(id) {
+  return invoke("revoke_crypto_contact", { id });
+}

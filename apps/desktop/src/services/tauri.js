@@ -517,6 +517,24 @@ async function fallbackDecrypt(key, payload) {
   return new TextDecoder().decode(plainTex);
 }
 
+async function fallbackEncryptTextForRecipient(recipientId, key, plaintext) {
+  const contact = fallbackContacts().find((item) => Number(item.id) === Number(recipientId));
+  if (!contact) throw new Error("Recipient key not found.");
+  if (contact.trustState === "revoked") {
+    throw new Error("Recipient key is revoked; new encryption is blocked.");
+  }
+  if (contact.trustState === "changed") {
+    throw new Error("Recipient key changed; verify the fingerprint before sending.");
+  }
+  if ((contact.trustState || "unverified") === "unverified") {
+    throw new Error("Recipient key is unverified; verify the fingerprint before sending.");
+  }
+  if (contact.trustState !== "verified") {
+    throw new Error(`Recipient trust state is unknown: ${contact.trustState}`);
+  }
+  return fallbackEncrypt(key, plaintext);
+}
+
 async function fallbackFingerprint(value) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest))
@@ -997,9 +1015,20 @@ function nextLocalId(items) {
 }
 
 async function fallbackNewKey(label, keys) {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  const publicKey = toBase64([...bytes]);
+  if (!crypto.subtle?.generateKey || !crypto.subtle?.exportKey) {
+    throw new Error("Ed25519 key generation is unavailable in this browser.");
+  }
+  let publicKeyBytes;
+  try {
+    const pair = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
+    publicKeyBytes = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
+  } catch (_error) {
+    throw new Error("Ed25519 key generation is unavailable in this browser.");
+  }
+  if (publicKeyBytes.length !== 32) {
+    throw new Error("Ed25519 public key must contain 32 bytes.");
+  }
+  const publicKey = toBase64([...publicKeyBytes]);
   return {
     id: nextLocalId(keys),
     label,
@@ -1059,8 +1088,26 @@ async function fallbackImportContact(email, label, publicKey) {
   const encoded = String(publicKey || "").replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
   const bytes = fromBase64(encoded);
   if (bytes.length !== 32) throw new Error("An Ed25519 public key must contain 32 bytes.");
+  if (!crypto.subtle?.importKey) {
+    throw new Error("Ed25519 public-key validation is unavailable in this browser.");
+  }
+  try {
+    await crypto.subtle.importKey("raw", bytes, { name: "Ed25519" }, false, ["verify"]);
+  } catch (_error) {
+    throw new Error("The public key is not a valid Ed25519 point.");
+  }
   const contacts = fallbackContacts();
   const existing = contacts.find((contact) => contact.email === address);
+  let trustState = "unverified";
+  let verifiedAt = null;
+  if (existing?.trustState === "revoked") {
+    trustState = "revoked";
+  } else if (existing?.publicKey === encoded) {
+    trustState = existing.trustState || "unverified";
+    verifiedAt = existing.verifiedAt || null;
+  } else if (existing) {
+    trustState = "changed";
+  }
   const contact = {
     id: existing?.id || nextLocalId(contacts),
     email: address,
@@ -1068,9 +1115,34 @@ async function fallbackImportContact(email, label, publicKey) {
     publicKey: encoded,
     fingerprint: await fallbackFingerprint(encoded),
     importedAt: sqlTime(),
+    trustState,
+    verifiedAt,
   };
   writeStore(CRYPTO_CONTACTS_STORE, existing ? contacts.map((item) => (item.id === existing.id ? contact : item)) : [...contacts, contact]);
   return contact;
+}
+
+function fallbackVerifyContact(id) {
+  const contacts = fallbackContacts();
+  const contact = contacts.find((item) => Number(item.id) === Number(id));
+  if (!contact) return Promise.reject(new Error("Contact key not found."));
+  if (contact.trustState === "revoked") {
+    return Promise.reject(new Error("A revoked contact key cannot be verified."));
+  }
+  contact.trustState = "verified";
+  contact.verifiedAt = sqlTime();
+  writeStore(CRYPTO_CONTACTS_STORE, contacts);
+  return Promise.resolve(contact);
+}
+
+function fallbackRevokeContact(id) {
+  const contacts = fallbackContacts();
+  const contact = contacts.find((item) => Number(item.id) === Number(id));
+  if (!contact) return Promise.reject(new Error("Contact key not found."));
+  contact.trustState = "revoked";
+  contact.verifiedAt = null;
+  writeStore(CRYPTO_CONTACTS_STORE, contacts);
+  return Promise.resolve(contact);
 }
 
 function fallbackDeleteContact(id) {
@@ -1525,6 +1597,14 @@ function fallbackInvoke(command, args = {}) {
       return fallbackEncrypt(args.key, args.plaintext);
     case "decrypt_text":
       return fallbackDecrypt(args.key, args.payload);
+    case "encrypt_text_for_recipient":
+      return fallbackEncryptTextForRecipient(args.recipientId, args.key, args.plaintext);
+    case "seal_message_envelope":
+      throw new Error("HPKE message envelopes are available in the native desktop runtime only.");
+    case "open_message_envelope":
+      throw new Error("HPKE message envelopes are available in the native desktop runtime only.");
+    case "import_crypto_encryption_public_key":
+      throw new Error("Encryption public-key imports require the native desktop runtime.");
     case "fingerprint":
       return fallbackFingerprint(args.value);
     case "get_security_status":
@@ -1601,6 +1681,10 @@ function fallbackInvoke(command, args = {}) {
       return Promise.resolve(fallbackContacts());
     case "delete_crypto_contact":
       return fallbackDeleteContact(args.id);
+    case "verify_crypto_contact":
+      return fallbackVerifyContact(args.id);
+    case "revoke_crypto_contact":
+      return fallbackRevokeContact(args.id);
     default:
       return Promise.resolve();
   }

@@ -20,8 +20,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Cache Rust
         uses: swatinem/rust-cache@v2
-      - name: Test crypto, server and launcher
-        run: cargo test -p elyra-crypto -p elyra-server -p elyra-launcher --verbose
+      - name: Test elyra-crypto security suite
+        run: cargo test --locked -p elyra-crypto --verbose
+      - name: Test server and launcher
+        run: cargo test --locked -p elyra-server -p elyra-launcher --verbose
 
   desktop:
     name: Desktop shell (Windows)

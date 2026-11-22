@@ -89,3 +89,7 @@ pub(crate) fn integration_user(provider: &str) -> String {
 pub(crate) fn crypto_key_user(key_id: i64) -> String {
     format!("crypto-key-{key_id}")
 }
+
+pub(crate) fn crypto_encryption_key_user(key_id: i64) -> String {
+    format!("crypto-encryption-key-{key_id}")
+}
