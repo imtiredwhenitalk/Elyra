@@ -210,12 +210,12 @@ does not group with its launcher, compare `xprop WM_CLASS` with
 `<version>` is read from `apps/desktop/src-tauri/tauri.conf.json`, so the asset
 names always match the app version. The build job uploads all of them to the
 `elyra-linux-x64` GitHub Actions artifact with read-only `contents` permission.
-To attach them to the same GitHub Release as the Windows installers, set the
-repository variable `ELYRA_LINUX_PUBLISH_RELEASE` to `true`; the opt-in publish
-job then gets `contents: write` and merges the files into the release for the
-tag (or the version-derived tag on manual dispatch). Until then, the release
-page only contains the Windows assets and the Linux files are available from
-the workflow run.
+The publish job is controlled by the repository variable
+`ELYRA_LINUX_PUBLISH_RELEASE`. It is enabled as of 0.4.0, so the same GitHub
+Release contains the Windows installers and these Linux assets with their
+checksums. The job uses `contents: write` only for publication; the build job
+remains read-only. If the variable is ever disabled, the files are still
+available from the `elyra-linux-x64` workflow artifact.
 
 ## Flatpak investigation
 
