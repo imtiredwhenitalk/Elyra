@@ -696,7 +696,7 @@ pub fn import_public_key(
         .optional()
         .map_err(|error| error.to_string())?;
     let (trust_state, verified_at) = match existing {
-        Some((_, "revoked", _)) => ("revoked", None),
+        Some((_, state, _)) if state == "revoked" => ("revoked", None),
         Some((old_public_key, old_state, verified_at))
             if old_public_key == BASE64.encode(array) =>
         {
