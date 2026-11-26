@@ -23,7 +23,7 @@ makepkg -si
 Use a specific, immutable release instead of the rolling `latest` asset:
 
 ```sh
-ELYRA_APPIMAGE_URL=https://github.com/imtiredwhenitalk/Elyra/releases/download/v0.3.0/Elyra-0.3.0-x64.AppImage \
+ELYRA_APPIMAGE_URL=https://github.com/imtiredwhenitalk/Elyra/releases/download/v0.4.0/Elyra-0.4.0-x64.AppImage \
   makepkg -si
 ```
 
@@ -58,5 +58,6 @@ If the window does not group with its launcher, check the real class with
 
 The workflow must publish `Elyra-latest-x64.AppImage` and
 `Elyra-latest-x64.AppImage.sha256` to the GitHub Release before this PKGBUILD
-works out of the box. See `docs/linux.md` for the publishing switch
-(`ELYRA_LINUX_PUBLISH_RELEASE`) and for the alternative installation methods.
+works out of the box; this is enabled as of 0.4.0. See `docs/linux.md` for the
+publishing switch (`ELYRA_LINUX_PUBLISH_RELEASE`) and for the alternative
+installation methods.

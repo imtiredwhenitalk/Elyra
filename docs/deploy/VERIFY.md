@@ -157,7 +157,7 @@ curl -sS -o /dev/null -w '%{http_code}\n' -X POST "$BASE/v1/auth/register" \
 
 If the relay reports `configured: true`, send exactly one message to a mailbox
 you control and confirm delivery, `Reply-To`, SPF/DKIM/DMARC results, and that
-the 0.3.0 relay has no rate limit. Do not use the public verification user for
+the 0.4.0 relay has no rate limit. Do not use the public verification user for
 bulk sends.
 
 ## 4. HTTPS checks (TLS profile)

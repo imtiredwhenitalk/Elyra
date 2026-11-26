@@ -37,6 +37,11 @@ const state = {
   updatePreferences: null,
   updateStatus: null,
   updateBusy: false,
+  advancedActive: false,
+  advanced: {},
+  syncStatus: null,
+  outbox: [],
+  diagnosticEvents: [],
 };
 
 const QUICK_FILTERS = ["all", "unread", "starred", "important", "high", "urgent", "attachments"];
@@ -125,8 +130,161 @@ function blockedBadge(message) {
 function setQuickFilter(value) {
   state.quickFilter = value;
   const button = $("#filter-button");
-  if (button) button.innerHTML = `${QUICK_FILTER_LABELS[value] || "All mail"} ${icon("chevron-down")}`;
+  if (button) {
+    button.innerHTML = `${QUICK_FILTER_LABELS[value] || "All mail"} ${icon("chevron-down")}`;
+    button.setAttribute("aria-label", `Quick filter: ${QUICK_FILTER_LABELS[value] || "all mail"}. Click to change.`);
+  }
   loadMailbox();
+}
+
+function selectedOptions(selector) {
+  const node = $(selector);
+  if (!node) return [];
+  return [...node.selectedOptions].map((option) => option.value).filter(Boolean);
+}
+
+function advancedSearchArgs() {
+  const args = {
+    query: state.query,
+    from: $("#advanced-from")?.value || "",
+    to: $("#advanced-to")?.value || "",
+    subject: $("#advanced-subject")?.value || "",
+    folder: $("#advanced-folder")?.value || "",
+    dateFrom: $("#advanced-date-from")?.value || "",
+    dateTo: $("#advanced-date-to")?.value || "",
+    priorities: selectedOptions("#advanced-priorities"),
+    security: selectedOptions("#advanced-security"),
+    reputation: selectedOptions("#advanced-reputation"),
+    limit: 200,
+    offset: 0,
+  };
+  // Only checked boxes become filters; unchecked means "any value".
+  if ($("#advanced-attachments")?.checked) args.hasAttachments = true;
+  if ($("#advanced-important")?.checked) args.important = true;
+  return args;
+}
+
+function setAdvancedPanel(open) {
+  const panel = $("#advanced-search-panel");
+  const toggle = $("#advanced-toggle");
+  if (!panel || !toggle) return;
+  panel.hidden = !open;
+  toggle.setAttribute("aria-expanded", String(open));
+  toggle.setAttribute("aria-label", open ? "Close advanced search" : "Open advanced search");
+}
+
+function clearAdvancedSearch({ reload = true } = {}) {
+  state.advancedActive = false;
+  state.advanced = {};
+  ["#advanced-from", "#advanced-to", "#advanced-subject", "#advanced-folder", "#advanced-date-from", "#advanced-date-to"].forEach((selector) => {
+    const node = $(selector);
+    if (node) node.value = "";
+  });
+  ["#advanced-priorities", "#advanced-security", "#advanced-reputation"].forEach((selector) => {
+    const node = $(selector);
+    if (node) [...node.options].forEach((option) => { option.selected = false; });
+  });
+  ["#advanced-attachments", "#advanced-important"].forEach((selector) => {
+    const node = $(selector);
+    if (node) node.checked = false;
+  });
+  setAdvancedPanel(false);
+  if (reload) loadMailbox();
+}
+
+function applyAdvancedSearch() {
+  state.advancedActive = true;
+  state.advanced = advancedSearchArgs();
+  updateHeader();
+  loadMailbox();
+}
+
+function renderSyncStatus(status) {
+  state.syncStatus = status;
+  const badge = $("#sync-status");
+  if (badge && status) {
+    const count = Number(status.queued || 0) + Number(status.failed || 0) + Number(status.blocked || 0);
+    const text = status.offline_mode
+      ? "Offline"
+      : status.last_error
+        ? "Sync issue"
+        : count > 0
+          ? `${count} queued`
+          : `Synced ${formatSync(status.last_sync_at)}`;
+    badge.textContent = text;
+    badge.dataset.state = status.offline_mode || status.last_error ? "error" : count > 0 ? "queued" : "ok";
+    badge.title = status.last_error || (status.offline_mode ? "Work offline is enabled" : "Local cache is current");
+  }
+  const summary = $("#outbox-summary");
+  if (summary && status) {
+    summary.textContent = status.offline_mode
+      ? "Work offline is on. Queued messages stay on this device."
+      : `${status.queued || 0} queued · ${status.failed || 0} retrying · ${status.blocked || 0} blocked · ${status.accounts || 0} account${status.accounts === 1 ? "" : "s"}`;
+  }
+  const offline = $("#offline-mode");
+  if (offline && status) offline.checked = Boolean(status.offline_mode);
+}
+
+function renderOutbox(entries) {
+  state.outbox = Array.isArray(entries) ? entries : [];
+  const host = $("#outbox-list");
+  if (!host) return;
+  if (!state.outbox.length) {
+    host.innerHTML = `<span>No queued messages. Outgoing mail is sent immediately when the connection works.</span>`;
+    return;
+  }
+  host.innerHTML = state.outbox.map((entry) => `
+    <div class="outbox-entry">
+      <b>${escapeHtml(entry.recipient)}</b>
+      <span>${escapeHtml(entry.subject || "(no subject)")}</span>
+      <small>${escapeHtml(entry.status)} · ${Number(entry.attempts || 0)} attempt${Number(entry.attempts || 0) === 1 ? "" : "s"}</small>
+      ${entry.last_error ? `<small title="${escapeHtml(entry.last_error)}">Retry error</small>` : ""}
+      <button class="text-button" type="button" data-outbox-retry="${entry.id}">Retry</button>
+      <button class="text-button danger-text" type="button" data-outbox-discard="${entry.id}">Discard</button>
+    </div>
+  `).join("");
+}
+
+function renderDiagnosticEvents(events) {
+  state.diagnosticEvents = Array.isArray(events) ? events : [];
+  const host = $("#diagnostic-events");
+  if (!host) return;
+  if (!state.diagnosticEvents.length) {
+    host.innerHTML = `<span>No diagnostic events yet. Recent errors will appear here after they are redacted.</span>`;
+    return;
+  }
+  host.innerHTML = state.diagnosticEvents.slice(0, 20).map((event) => `
+    <div class="diagnostic-event">
+      <b>${escapeHtml(event.level || "info")}</b>
+      <span>${escapeHtml(event.code || event.category || "event")}</span>
+      <span>${escapeHtml(event.message || "")}</span>
+      <small>${escapeHtml(event.created_at || "")}</small>
+    </div>
+  `).join("");
+}
+
+async function refreshSyncState() {
+  try {
+    renderSyncStatus(await invoke("get_sync_status"));
+    renderOutbox(await invoke("list_outgoing_queue"));
+  } catch (error) {
+    console.error("Sync status failed", error);
+    logDiagnosticEvent(error.message || "Sync status failed", { category: "sync", code: "sync.status" });
+  }
+}
+
+async function refreshDiagnosticEvents() {
+  try {
+    renderDiagnosticEvents(await invoke("list_diagnostic_events", { limit: 50 }));
+    const status = await invoke("get_crash_reporting_status");
+    const crash = $("#crash-reporting");
+    if (crash) crash.checked = Boolean(status.enabled);
+    const logging = await invoke("get_diagnostic_logging_status");
+    const loggingNode = $("#diagnostic-logging");
+    if (loggingNode) loggingNode.checked = Boolean(logging.enabled);
+  } catch (error) {
+    console.error("Diagnostic events failed", error);
+  }
 }
 
 function openExternalUrl(url) {
@@ -288,7 +446,7 @@ async function renderMessageShield(viewer, id) {
         showToast(error.message || "Could not report the message", "error");
       }
     });
-    host.querySelectorAll("[data-threat-link]").forEach((link) => link.addEventListener("click", (event) => {
+    host.querySelectorAll("[data-threat-link]").forEach((link) => link.addEventListener("click", async (event) => {
       event.preventDefault();
       const url = link.dataset.threatLink;
       const verdict = link.dataset.verdict;
@@ -296,7 +454,15 @@ async function renderMessageShield(viewer, id) {
         showToast("Blocked: this link is flagged as malicious", "error");
         return;
       }
-      if ((verdict === "suspicious" || verdict === "unscanned") && !window.confirm("This link has not been verified as safe. Open it anyway?")) return;
+      if (verdict === "suspicious" || verdict === "unscanned") {
+        const confirmed = await confirmAction({
+          title: "Open unverified link?",
+          message: "Elyra could not verify that this link is safe. Open it only if you trust the sender.",
+          confirmLabel: "Open link",
+          destructive: true,
+        });
+        if (!confirmed) return;
+      }
       openExternalUrl(url);
     }));
   } catch (error) {
@@ -316,6 +482,75 @@ function showToast(message, tone = "default") {
     toast.classList.remove("visible");
     window.setTimeout(() => toast.remove(), 220);
   }, 2800);
+}
+
+function logDiagnosticEvent(message, options = {}) {
+  invoke("log_diagnostic_event", {
+    input: {
+      message: String(message),
+      level: options.level || "error",
+      category: options.category || "ui",
+      code: options.code || "ui.exception",
+    },
+  }).catch(() => {});
+}
+
+/** Accessible replacement for window.confirm with focus trapping and restore. */
+function confirmAction({ title, message, confirmLabel = "Confirm", destructive = false }) {
+  return new Promise((resolve) => {
+    const previous = document.activeElement;
+    const backdrop = document.createElement("div");
+    backdrop.className = "modal-backdrop";
+    backdrop.setAttribute("role", "dialog");
+    backdrop.setAttribute("aria-modal", "true");
+    backdrop.setAttribute("aria-label", title);
+    backdrop.innerHTML = `
+      <div class="modal-card compact-modal">
+        <div class="modal-header">
+          <div><h2>${escapeHtml(title)}</h2><p class="modal-message">${escapeHtml(message)}</p></div>
+          <button class="icon-button" type="button" data-close aria-label="Close dialog">${icon("x")}</button>
+        </div>
+        <div class="panel-actions-row">
+          <button class="${destructive ? "danger-button" : "primary-button"}" type="button" data-confirm>${escapeHtml(confirmLabel)}</button>
+          <button class="ghost-button" type="button" data-cancel>Cancel</button>
+        </div>
+      </div>`;
+    document.body.append(backdrop);
+    const finish = (answer) => {
+      document.removeEventListener("keydown", onKeydown, true);
+      backdrop.remove();
+      if (previous instanceof HTMLElement) previous.focus();
+      resolve(answer);
+    };
+    const focusables = () => [...backdrop.querySelectorAll("button")];
+    const onKeydown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        finish(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusables();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeydown, true);
+    backdrop.querySelector("[data-confirm]").addEventListener("click", () => finish(true));
+    backdrop.querySelector("[data-cancel]").addEventListener("click", () => finish(false));
+    backdrop.querySelector("[data-close]").addEventListener("click", () => finish(false));
+    backdrop.addEventListener("click", (event) => {
+      if (event.target === backdrop) finish(false);
+    });
+    backdrop.querySelector("[data-confirm]").focus();
+  });
 }
 
 function formatBytes(bytes) {
@@ -635,7 +870,13 @@ async function openAccountModal(accountId = null) {
 
   modal.querySelector("[data-delete-account]")?.addEventListener("click", async () => {
     if (!account) return;
-    if (!window.confirm(`Remove ${account.email} and its local messages from Elyra?`)) return;
+    const confirmed = await confirmAction({
+      title: "Remove account?",
+      message: `Remove ${account.email} and its local messages from Elyra?`,
+      confirmLabel: "Remove account",
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       await invoke("delete_email_account", { id: account.id });
       modal.remove();
@@ -723,6 +964,7 @@ function activeNav(filter) {
 
 function showPanel(name) {
   state.filter = name;
+  clearAdvancedSearch({ reload: false });
   state.selected.clear();
   activeNav(name);
   $("#bulk-bar").hidden = true;
@@ -743,6 +985,7 @@ function showMailbox(filter) {
   state.filter = filter;
   state.query = "";
   state.quickFilter = "all";
+  clearAdvancedSearch({ reload: false });
   const search = $("#search-input");
   if (search) search.value = "";
   const filterButton = $("#filter-button");
@@ -805,6 +1048,7 @@ function renderMessages() {
       state.query = "";
       $("#search-input").value = "";
       $("#filter-button").innerHTML = `All mail ${icon("chevron-down")}`;
+      clearAdvancedSearch({ reload: false });
       loadMailbox();
     });
     updateHeader();
@@ -842,13 +1086,15 @@ function renderMessages() {
 async function loadMailbox({ keepSelection = false } = {}) {
   setLoading(true);
   try {
-    const page = await invoke("list_mailbox", {
-      filter: state.filter,
-      quickFilter: state.quickFilter,
-      query: state.query,
-      limit: 200,
-      offset: 0,
-    });
+    const page = state.advancedActive
+      ? await invoke("advanced_search", advancedSearchArgs())
+      : await invoke("list_mailbox", {
+          filter: state.filter,
+          quickFilter: state.quickFilter,
+          query: state.query,
+          limit: 200,
+          offset: 0,
+        });
     state.page = page;
     state.messages = page.messages;
     if (!keepSelection) state.selected.clear();
@@ -901,7 +1147,7 @@ function updateStats(stats) {
   set("#storage-label", `${formatBytes(stats.storage_bytes)} local`);
   const meter = $("#storage-meter");
   if (meter) meter.style.setProperty("--value", `${Math.min(100, Math.max(4, (stats.storage_bytes / (50 * 1024 * 1024)) * 100))}%`);
-  set("#sync-status", `Synced ${formatSync(stats.last_sync_at)}`);
+  if (!state.syncStatus) set("#sync-status", `Synced ${formatSync(stats.last_sync_at)}`);
   const profileTotal = $("#profile-total");
   const profileUnread = $("#profile-unread");
   const profileStarred = $("#profile-starred");
@@ -1056,6 +1302,8 @@ function renderSettings() {
   }
   renderDiagnostics();
   renderUpdates();
+  refreshSyncState();
+  refreshDiagnosticEvents();
   loadUpdateState().catch((error) => console.error("Update preferences failed", error));
 }
 
@@ -1125,7 +1373,7 @@ function renderUpdates() {
 
   if (check) check.disabled = state.updateBusy;
   if (install) install.disabled = state.updateBusy;
-  if (current) current.textContent = status?.currentVersion || "0.3.0";
+  if (current) current.textContent = status?.currentVersion || "0.4.0";
 
   if (!status) {
     if (badge) {
@@ -1227,7 +1475,13 @@ async function runUpdateCheck({ quiet = false } = {}) {
 async function installAvailableUpdate() {
   if (!state.updateStatus?.available || state.updateBusy) return;
   const version = state.updateStatus.latestVersion || "the newest version";
-  if (!window.confirm(`Download and install Elyra ${version}? The app will close on Windows while the installer runs.`)) return;
+  const confirmed = await confirmAction({
+    title: `Install Elyra ${version}?`,
+    message: "The signed installer will be verified first. The app will close on Windows while the installer runs.",
+    confirmLabel: "Install update",
+    destructive: false,
+  });
+  if (!confirmed) return;
 
   state.updateBusy = true;
   setUpdateProgress({ stage: "preparing" });
@@ -1705,8 +1959,15 @@ function attachmentCard(attachment) {
 
 async function downloadAttachment(attachment) {
   const risk = attachmentRisk(attachment);
-  if (risk === "malicious" && !window.confirm(`“${attachment.name}” is flagged as malicious. Download it anyway?`)) return;
-  if (risk === "suspicious" && !window.confirm(`“${attachment.name}” looks suspicious. Download it anyway?`)) return;
+  if (risk === "malicious" || risk === "suspicious") {
+    const confirmed = await confirmAction({
+      title: "Download flagged attachment?",
+      message: `“${attachment.name}” is marked ${risk}. Download it only if you trust the source.`,
+      confirmLabel: "Download anyway",
+      destructive: true,
+    });
+    if (!confirmed) return;
+  }
   try {
     const content = await invoke("get_attachment_content", { id: attachment.id });
     const binary = atob(content.data_base64);
@@ -1892,7 +2153,13 @@ async function openMessage(id) {
       const attachmentId = Number(button.closest("[data-attachment-id]")?.dataset.attachmentId);
       const attachment = detail.attachments.find((item) => Number(item.id) === attachmentId);
       if (!attachment) return;
-      if (!window.confirm(`Upload “${attachment.name}” to VirusTotal?\n\nThis sends the file to a third party. Only continue if you trust the service and have permission to share this file.`)) return;
+      const confirmed = await confirmAction({
+        title: "Upload to VirusTotal?",
+        message: `This sends “${attachment.name}” to a third party. Only continue if you trust the service and have permission to share this file.`,
+        confirmLabel: "Upload file",
+        destructive: true,
+      });
+      if (!confirmed) return;
       button.disabled = true;
       try {
         await invoke("scan_attachment_external", { id: attachmentId, consent: true });
@@ -1918,7 +2185,15 @@ async function openMessage(id) {
 async function bulkAction(action) {
   const ids = [...state.selected];
   if (!ids.length) return;
-  if (action === "delete" && !window.confirm(`Permanently delete ${ids.length} message${ids.length === 1 ? "" : "s"}?`)) return;
+  if (action === "delete") {
+    const confirmed = await confirmAction({
+      title: "Delete messages permanently?",
+      message: `${ids.length} message${ids.length === 1 ? "" : "s"} will be removed from the local mailbox. This cannot be undone.`,
+      confirmLabel: "Delete permanently",
+      destructive: true,
+    });
+    if (!confirmed) return;
+  }
   try {
     await invoke("bulk_update_messages", { ids, action });
     state.selected.clear();
@@ -1991,6 +2266,72 @@ function openCommandPalette() {
   };
 }
 
+async function exportDiagnosticReport() {
+  try {
+    const report = await invoke("export_diagnostic_report");
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `elyra-diagnostics-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showToast("Diagnostic report exported", "success");
+  } catch (error) {
+    showToast(error.message || "Diagnostic export failed", "error");
+  }
+}
+
+async function clearDiagnosticLog() {
+  const confirmed = await confirmAction({
+    title: "Clear diagnostic log?",
+    message: "This removes locally stored diagnostic events. Nothing is uploaded.",
+    confirmLabel: "Clear log",
+    destructive: true,
+  });
+  if (!confirmed) return;
+  try {
+    await invoke("clear_diagnostic_log");
+    await refreshDiagnosticEvents();
+    showToast("Diagnostic log cleared", "success");
+  } catch (error) {
+    showToast(error.message || "Could not clear the log", "error");
+  }
+}
+
+async function flushOutbox() {
+  try {
+    const result = await invoke("flush_outgoing_queue");
+    await refreshSyncState();
+    if (result.sent > 0) showToast(`Sent ${result.sent} queued message${result.sent === 1 ? "" : "s"}`, "success");
+    else if (result.blocked > 0) showToast(`${result.blocked} message${result.blocked === 1 ? "" : "s"} blocked; retry after fixing the error`, "error");
+    else showToast("Outbox is up to date", "default");
+  } catch (error) {
+    showToast(error.message || "Could not flush the outbox", "error");
+    logDiagnosticEvent(error.message || "Outbox flush failed", { category: "sync", code: "outbox.flush" });
+  }
+}
+
+async function queueTestMessage() {
+  const input = $("#settings-compose-to");
+  const to = input?.value?.trim();
+  if (!to) {
+    showToast("Enter a recipient address first", "error");
+    input?.focus();
+    return;
+  }
+  try {
+    await invoke("queue_outgoing_message", { to, subject: "Elyra offline test", body: "This message was queued locally from Elyra." });
+    if (input) input.value = "";
+    await refreshSyncState();
+    showToast("Message queued on this device", "success");
+  } catch (error) {
+    showToast(error.message || "Could not queue the message", "error");
+  }
+}
+
 async function exportMailbox() {
   try {
     const payload = await invoke("export_mailbox");
@@ -2020,6 +2361,25 @@ function bindEvents() {
     setQuickFilter(next);
   });
 
+  $("#advanced-toggle")?.addEventListener("click", () => {
+    const panel = $("#advanced-search-panel");
+    const open = panel?.hidden;
+    setAdvancedPanel(Boolean(open));
+    if (open) $("#advanced-from")?.focus();
+  });
+  $("#advanced-apply")?.addEventListener("click", applyAdvancedSearch);
+  $("#advanced-clear")?.addEventListener("click", () => {
+    state.query = "";
+    const search = $("#search-input");
+    if (search) search.value = "";
+    clearAdvancedSearch();
+  });
+  $$("#advanced-search-panel input, #advanced-search-panel select").forEach((node) => {
+    node.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") applyAdvancedSearch();
+    });
+  });
+
   $("#compose-button").addEventListener("click", () => openComposer());
   $("#refresh-button").addEventListener("click", (event) => refreshMailbox(event.currentTarget));
   $(".notification-button").addEventListener("click", openNotifications);
@@ -2047,6 +2407,12 @@ function bindEvents() {
     if (event.target.closest("#reset-demo")) resetDemo();
     if (event.target.closest("#export-mailbox")) exportMailbox();
     if (event.target.closest("#refresh-diagnostics")) renderDiagnostics();
+    if (event.target.closest("#refresh-diagnostic-events")) refreshDiagnosticEvents();
+    if (event.target.closest("#export-diagnostics")) exportDiagnosticReport();
+    if (event.target.closest("#clear-diagnostics")) clearDiagnosticLog();
+    if (event.target.closest("#refresh-sync-status")) refreshSyncState();
+    if (event.target.closest("#flush-outbox")) flushOutbox();
+    if (event.target.closest("#queue-test-message")) queueTestMessage();
     if (event.target.closest("#check-updates")) runUpdateCheck();
     if (event.target.closest("#install-update")) installAvailableUpdate();
     if (event.target.closest("#refresh-priority")) refreshPrioritySuggestions();
@@ -2061,7 +2427,7 @@ function bindEvents() {
     if (event.target.closest("#sync-all-accounts")) refreshMailbox($("#sync-all-accounts"));
   });
 
-  document.addEventListener("click", (event) => {
+  document.addEventListener("click", async (event) => {
     const action = event.target.closest("[data-account-action]");
     if (!action) return;
     const accountId = Number(action.dataset.accountId);
@@ -2069,7 +2435,14 @@ function bindEvents() {
     if (action.dataset.accountAction === "sync") syncAccount(accountId, action);
     if (action.dataset.accountAction === "delete") {
       const account = state.accounts.find((item) => item.id === accountId);
-      if (!account || !window.confirm(`Remove ${account.email} and its local messages from Elyra?`)) return;
+      if (!account) return;
+      const confirmed = await confirmAction({
+        title: "Remove account?",
+        message: `Remove ${account.email} and its local messages from Elyra?`,
+        confirmLabel: "Remove account",
+        destructive: true,
+      });
+      if (!confirmed) return;
       invoke("delete_email_account", { id: accountId })
         .then(async () => {
           await loadAccounts();
@@ -2097,6 +2470,55 @@ function bindEvents() {
   });
   $("#reduce-motion")?.addEventListener("change", (event) => {
     persistSettings({ reduce_motion: event.target.checked });
+  });
+  $("#offline-mode")?.addEventListener("change", async (event) => {
+    try {
+      renderSyncStatus(await invoke("set_offline_mode", { enabled: event.target.checked }));
+      showToast(event.target.checked ? "Work offline enabled" : "Back online — send queued mail when ready", "success");
+    } catch (error) {
+      event.target.checked = !event.target.checked;
+      showToast(error.message || "Could not change offline mode", "error");
+    }
+  });
+  $("#diagnostic-logging")?.addEventListener("change", async (event) => {
+    try {
+      await invoke("set_diagnostic_logging_enabled", { enabled: event.target.checked });
+      showToast(event.target.checked ? "Diagnostic logging enabled" : "Diagnostic logging paused", "success");
+    } catch (error) {
+      event.target.checked = !event.target.checked;
+      showToast(error.message || "Could not change diagnostic logging", "error");
+    }
+  });
+  $("#crash-reporting")?.addEventListener("change", async (event) => {
+    try {
+      await invoke("set_crash_reporting_enabled", { enabled: event.target.checked });
+      showToast("Preference saved. No data is uploaded automatically.", "success");
+    } catch (error) {
+      event.target.checked = !event.target.checked;
+      showToast(error.message || "Could not save the preference", "error");
+    }
+  });
+  $("#outbox-list")?.addEventListener("click", async (event) => {
+    const retry = event.target.closest("[data-outbox-retry]");
+    const discard = event.target.closest("[data-outbox-discard]");
+    if (!retry && !discard) return;
+    const id = Number((retry || discard).dataset.outboxRetry || (retry || discard).dataset.outboxDiscard);
+    try {
+      if (retry) await invoke("retry_outgoing_message", { id });
+      if (discard) await invoke("discard_outgoing_message", { id });
+      await refreshSyncState();
+      showToast(retry ? "Message moved back to the queue" : "Queued message discarded", "success");
+    } catch (error) {
+      showToast(error.message || "Outbox action failed", "error");
+    }
+  });
+  window.addEventListener("online", () => {
+    showToast("Connection restored", "success");
+    refreshSyncState();
+  });
+  window.addEventListener("offline", () => {
+    showToast("You are offline. Mail remains available locally.", "default");
+    refreshSyncState();
   });
   $("#updates-auto-check")?.addEventListener("change", (event) => {
     setUpdatePreference("autoCheck", event.target.checked);
@@ -2301,7 +2723,13 @@ async function saveApiUrl() {
 }
 
 async function resetDemo() {
-  if (!window.confirm("Reset the local demo mailbox? Your current local test messages will be replaced.")) return;
+  const confirmed = await confirmAction({
+    title: "Reset the demo mailbox?",
+    message: "Your current local test messages will be replaced.",
+    confirmLabel: "Reset mailbox",
+    destructive: true,
+  });
+  if (!confirmed) return;
   try {
     const stats = await invoke("reset_demo_mailbox");
     updateStats(stats);
@@ -2356,6 +2784,8 @@ async function boot() {
   renderProfile();
   renderSettings();
   renderDiagnostics();
+  await refreshSyncState();
+  await refreshDiagnosticEvents();
   window.setTimeout(() => loadUpdateState().catch(() => {}), 2000);
   if (!state.session && !localStorage.getItem("elyra-onboarding-skipped")) {
     showAuthModal("register", { onboarding: true });
@@ -2363,5 +2793,23 @@ async function boot() {
   refreshNotifications().catch(() => {});
   window.setInterval(() => refreshNotifications().catch(() => {}), 30000);
 }
+
+let lastBoundaryNotice = 0;
+
+function reportBoundaryError(message, source) {
+  logDiagnosticEvent(message, { category: "app", code: source });
+  const now = Date.now();
+  if (now - lastBoundaryNotice < 5000) return;
+  lastBoundaryNotice = now;
+  showToast("Something went wrong. Details were saved to the local diagnostic log.", "error");
+}
+
+window.addEventListener("error", (event) => {
+  reportBoundaryError(event.message || "Unexpected error", "window.error");
+});
+window.addEventListener("unhandledrejection", (event) => {
+  const reason = event.reason instanceof Error ? event.reason.message : String(event.reason || "Unhandled rejection");
+  reportBoundaryError(reason, "window.unhandledrejection");
+});
 
 document.addEventListener("DOMContentLoaded", boot);

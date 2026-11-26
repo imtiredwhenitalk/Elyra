@@ -8,6 +8,8 @@ const CRYPTO_CONTACTS_STORE = "crypto-contacts-v1";
 const INTEGRATION_STATE_STORE = "integrations-v1";
 const SENDER_RULES_STORE = "sender-rules-v1";
 const REPUTATION_STORE = "reputation-v1";
+const DIAGNOSTICS_STORE = "diagnostics-v1";
+const OUTBOX_STORE = "outbox-v1";
 
 const INTEGRATION_PRESETS = [
   {
@@ -544,6 +546,7 @@ async function fallbackFingerprint(value) {
 
 function changelog() {
   return [
+    { version: "0.4.0", date: "2026-11-26", title: "Reliability & UX", detail: "Local diagnostics with redacted exports, advanced search filters, an offline outbox with sync status, and accessible confirmations.", status: "ready" },
     { version: "0.3.0", date: "2026-11-15", title: "Keychain + IMAP sync", detail: "Provider presets, account CRUD, connection tests and INBOX sync with passwords stored in the OS keychain.", status: "ready" },
     { version: "0.3.0", date: "2026-11-15", title: "First-run registration", detail: "Register once, choose your Elyra server URL, and send mail to any external address through the server relay.", status: "ready" },
     { version: "0.3.0", date: "2026-11-15", title: "Server deployment", detail: "Production Compose stack, optional Caddy HTTPS, health-checked deploy.sh and an opt-in GitHub Actions deploy workflow.", status: "ready" },
@@ -1203,7 +1206,7 @@ function fallbackCheckForUpdates() {
   const status = {
     status: "upToDate",
     available: false,
-    currentVersion: "0.3.0",
+    currentVersion: "0.4.0",
     latestVersion: null,
     publishedAt: null,
     notes: null,
@@ -1213,6 +1216,126 @@ function fallbackCheckForUpdates() {
   };
   saveSettings({ updatesLastCheckedAt: checkedAt, updatesLastResult: status });
   return Promise.resolve(status);
+}
+
+function fallbackRedact(value) {
+  return String(value ?? "")
+    .replace(/(api[_-]?key|password|secret|token|authorization|private[_-]?key)\s*[:=]\s*\S+/gi, "$1=[redacted]")
+    .replace(/\bbearer\s+[A-Za-z0-9._~+/=-]{16,}/gi, "Bearer [redacted]")
+    .replace(/\b(?:sk|pk|rk|ghp|gho|glpat|xox[baprs]|ya29)[-_][A-Za-z0-9_-]{12,}/gi, "[redacted]")
+    .replace(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g, "[email]")
+    .replace(/(https?:\/\/[^\s?#]+)[?#][^\s]*/g, "$1")
+    .slice(0, 600);
+}
+
+function loadDiagnostics() {
+  const stored = readStore(DIAGNOSTICS_STORE, []);
+  return Array.isArray(stored) ? stored : [];
+}
+
+function fallbackDiagnosticLogging(enabled) {
+  const settings = loadSettings();
+  if (enabled !== undefined) {
+    saveSettings({ diagnosticLoggingEnabled: Boolean(enabled) });
+  }
+  return { enabled: fallbackPreference(loadSettings().diagnosticLoggingEnabled, true) };
+}
+
+function fallbackLogEvent(input) {
+  if (!fallbackDiagnosticLogging().enabled) return;
+  const events = loadDiagnostics();
+  events.unshift({
+    id: events.length ? Math.max(...events.map((event) => Number(event.id) || 0)) + 1 : 1,
+    created_at: sqlTime(),
+    level: input.level || "error",
+    category: input.category || "app",
+    code: input.code || "ui.exception",
+    message: fallbackRedact(input.message),
+  });
+  writeStore(DIAGNOSTICS_STORE, events.slice(0, 500));
+}
+
+function fallbackCrashReporting(enabled) {
+  const settings = loadSettings();
+  if (enabled !== undefined) {
+    saveSettings({ crashReportingEnabled: Boolean(enabled) });
+  }
+  const current = loadSettings();
+  return {
+    enabled: fallbackPreference(current.crashReportingEnabled, false),
+    automatic_upload: false,
+    note: "Optional preference for future crash reporting. No diagnostic data leaves the browser preview automatically.",
+  };
+}
+
+function fallbackAdvancedSearch(args) {
+  const messages = loadMailbox();
+  const match = (value, needle) => String(value || "").toLowerCase().includes(String(needle).toLowerCase());
+  const priorities = args.priorities || [];
+  const security = args.security || [];
+  const reputation = args.reputation || [];
+  const securityState = fallbackSecurityState();
+  const reputationState = readStore(REPUTATION_STORE, {});
+  const filtered = messages.filter((message) => {
+    if (args.query && !["sender", "recipient", "subject", "preview", "body_text"].some((key) => match(message[key], args.query))) return false;
+    if (args.from && !match(message.sender, args.from)) return false;
+    if (args.to && !match(message.recipient, args.to)) return false;
+    if (args.subject && !match(message.subject, args.subject)) return false;
+    if (args.dateFrom && String(message.received_at || "") < `${args.dateFrom} 00:00:00`) return false;
+    if (args.dateTo && String(message.received_at || "") > `${args.dateTo} 23:59:59`) return false;
+    if (args.hasAttachments === true && !message.has_attachments) return false;
+    if (args.hasAttachments === false && message.has_attachments) return false;
+    if (args.important === true && !message.is_important) return false;
+    if (args.important === false && message.is_important) return false;
+    if (args.folder && String(message.folder || "").toLowerCase() !== String(args.folder).toLowerCase()) return false;
+    if (priorities.length && !priorities.includes(String(message.priority || "normal").toLowerCase())) return false;
+    if (security.length) {
+      const risk = String(securityState[String(message.id)]?.risk || "unscanned").toLowerCase();
+      if (!security.includes(risk)) return false;
+    }
+    if (reputation.length) {
+      const address = String(message.sender_address || "").toLowerCase() || senderAddress(message.sender);
+      const domain = senderDomain(address);
+      const classification = String(reputationState[domain]?.classification || "neutral").toLowerCase();
+      if (!reputation.includes(classification)) return false;
+    }
+    return true;
+  });
+  const page = filtered.slice(args.offset || 0, (args.offset || 0) + (args.limit || 100)).map(summaryOf);
+  const stats = statsOf(messages);
+  return {
+    messages: page,
+    total: filtered.length,
+    unread: stats.unread,
+    starred: stats.starred,
+    has_more: (args.offset || 0) + page.length < filtered.length,
+    filter: "search",
+    quick_filter: "advanced",
+  };
+}
+
+function loadOutbox() {
+  const stored = readStore(OUTBOX_STORE, []);
+  return Array.isArray(stored) ? stored : [];
+}
+
+function saveOutbox(entries) {
+  writeStore(OUTBOX_STORE, entries);
+}
+
+function fallbackSyncStatus() {
+  const settings = loadSettings();
+  const entries = loadOutbox();
+  return {
+    offline_mode: fallbackPreference(settings.syncOfflineMode, false),
+    last_sync_at: settings.lastSyncAt || null,
+    last_error: settings.syncLastError || null,
+    queued: entries.filter((entry) => entry.status === "queued").length,
+    failed: entries.filter((entry) => entry.status === "failed").length,
+    blocked: entries.filter((entry) => entry.status === "blocked").length,
+    accounts: loadAccounts().length,
+    updated_at: sqlTime(),
+  };
 }
 
 function fallbackInvoke(command, args = {}) {
@@ -1229,6 +1352,35 @@ function fallbackInvoke(command, args = {}) {
     case "set_local_settings":
       saveSettings(args.values || {});
       return Promise.resolve();
+    case "log_diagnostic_event":
+      fallbackLogEvent(args.input || {});
+      return Promise.resolve();
+    case "list_diagnostic_events":
+      return Promise.resolve(loadDiagnostics().slice(0, args.limit || 50));
+    case "export_diagnostic_report":
+      return Promise.resolve({
+        format: "elyra-diagnostic-report",
+        app_version: "0.4.0",
+        generated_at: sqlTime(),
+        note: "Browser preview diagnostics are stored in localStorage and are never uploaded.",
+        crash_reporting_enabled: fallbackCrashReporting().enabled,
+        diagnostic_logging_enabled: fallbackDiagnosticLogging().enabled,
+        diagnostics: { app_version: "0.4.0", engine: "Browser preview fallback", database_path: "localStorage" },
+        events: loadDiagnostics(),
+      });
+    case "get_crash_reporting_status":
+      return Promise.resolve(fallbackCrashReporting());
+    case "set_crash_reporting_enabled":
+      return Promise.resolve(fallbackCrashReporting(args.enabled));
+    case "get_diagnostic_logging_status":
+      return Promise.resolve(fallbackDiagnosticLogging());
+    case "set_diagnostic_logging_enabled":
+      return Promise.resolve(fallbackDiagnosticLogging(args.enabled));
+    case "clear_diagnostic_log": {
+      const removed = loadDiagnostics().length;
+      writeStore(DIAGNOSTICS_STORE, []);
+      return Promise.resolve(removed);
+    }
     case "mailbox_stats":
       return Promise.resolve(statsOf(loadMailbox()));
     case "seed_demo_mailbox":
@@ -1264,6 +1416,8 @@ function fallbackInvoke(command, args = {}) {
         quick_filter: args.quickFilter || "all",
       });
     }
+    case "advanced_search":
+      return Promise.resolve(fallbackAdvancedSearch(args));
     case "get_message": {
       const messages = loadMailbox();
       const message = messages.find((item) => Number(item.id) === Number(args.id));
@@ -1477,11 +1631,54 @@ function fallbackInvoke(command, args = {}) {
     case "export_mailbox":
       return Promise.resolve({
         format: "elyra-mailbox",
-        version: "0.3.0",
+        version: "0.4.0",
         exported_at: sqlTime(),
         messages: loadMailbox(),
         settings: loadSettings(),
       });
+    case "queue_outgoing_message": {
+      const entries = loadOutbox();
+      const entry = {
+        id: entries.length ? Math.max(...entries.map((item) => Number(item.id) || 0)) + 1 : 1,
+        recipient: String(args.to || "").trim(),
+        subject: String(args.subject || ""),
+        body: String(args.body || ""),
+        account_id: args.accountId ?? null,
+        created_at: sqlTime(),
+        attempts: 0,
+        status: "queued",
+        last_error: null,
+      };
+      saveOutbox([...entries, entry]);
+      return Promise.resolve(entry.id);
+    }
+    case "list_outgoing_queue":
+      return Promise.resolve(loadOutbox().slice(0, 100));
+    case "flush_outgoing_queue": {
+      const entries = loadOutbox();
+      const settings = loadSettings();
+      if (fallbackPreference(settings.syncOfflineMode, false)) {
+        return Promise.resolve({ sent: 0, failed: 0, blocked: 0, skipped: entries.length, errors: ["Offline mode is enabled; nothing was sent"] });
+      }
+      saveSettings({ syncLastError: "Desktop SMTP or cloud relay is required to flush the outbox." });
+      return Promise.resolve({ sent: 0, failed: entries.length, blocked: 0, skipped: 0, errors: ["Desktop build required to send queued mail"] });
+    }
+    case "retry_outgoing_message": {
+      const entries = loadOutbox().map((entry) => Number(entry.id) === Number(args.id)
+        ? { ...entry, status: "queued", attempts: 0, last_error: null }
+        : entry);
+      saveOutbox(entries);
+      return Promise.resolve();
+    }
+    case "discard_outgoing_message":
+      saveOutbox(loadOutbox().filter((entry) => Number(entry.id) !== Number(args.id)));
+      return Promise.resolve();
+    case "get_sync_status":
+      return Promise.resolve(fallbackSyncStatus());
+    case "set_offline_mode": {
+      saveSettings({ syncOfflineMode: Boolean(args.enabled) });
+      return Promise.resolve(fallbackSyncStatus());
+    }
     case "send_email": {
       const messages = loadMailbox();
       const account = loadAccounts().find((item) => Number(item.id) === Number(args.accountId));
@@ -1579,7 +1776,7 @@ function fallbackInvoke(command, args = {}) {
     case "get_app_diagnostics": {
       const stats = statsOf(loadMailbox());
       return Promise.resolve({
-        app_version: "0.3.0",
+        app_version: "0.4.0",
         engine: "Browser preview fallback",
         os: navigator.platform,
         arch: "web",

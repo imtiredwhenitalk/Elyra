@@ -1,6 +1,6 @@
 # Configuration reference
 
-Every runtime, build-time, and deployment variable used by Elyra 0.3.0, in one
+Every runtime, build-time, and deployment variable used by Elyra 0.4.0, in one
 place.
 
 Legend: **Required** means the component fails or the feature does not work
@@ -68,6 +68,10 @@ UI, not environment variables.
 | `attachment_scan_max_mb` | `25` | Maximum attachment size sent to ClamAV or VirusTotal, clamped to 1–200 |
 | `api_url` | unset | Saved Elyra server base URL |
 | `last_sync_at` | unset | Last successful account sync timestamp |
+| `diagnostic_logging_enabled` | `true` | Store redacted local diagnostic events when `true` |
+| `crash_reporting_enabled` | `false` | Preference only; Elyra 0.4.0 has no upload endpoint |
+| `sync_offline_mode` | `false` | Keep queued mail on this device and skip outbox sends |
+| `sync_last_error` | unset | Redacted error from the most recent failed send |
 | `external_scanning` | `true` | Set to `false` to disable VirusTotal and Google Safe Browsing calls |
 | `cloud_session` | legacy | Migrated to the keychain on first read, then deleted |
 
@@ -84,6 +88,8 @@ Browser preview also uses `localStorage` keys:
   keys are kept in memory only and are not written to `localStorage`.
 - `elyra-fallback:sender-rules-v1` — preview block and allow rules.
 - `elyra-fallback:reputation-v1` — preview sender-domain reputation.
+- `elyra-fallback:diagnostics-v1` — preview diagnostic events (redacted).
+- `elyra-fallback:outbox-v1` — preview queued outgoing messages.
 
 ## Keychain entries
 

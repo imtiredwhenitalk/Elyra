@@ -4,9 +4,9 @@
 # The `latest` asset is replaced by every release, so its hash cannot be pinned
 # in sha256sums. Instead, prepare() verifies the published .sha256 file before
 # packaging. For a pinned AUR submission, set ELYRA_APPIMAGE_URL to a versioned
-# asset (for example Elyra-0.3.0-x64.AppImage) and put its hash in sha256sums[0].
+# asset (for example Elyra-0.4.0-x64.AppImage) and put its hash in sha256sums[0].
 pkgname=elyra
-pkgver=0.3.0
+pkgver=0.4.0
 pkgrel=1
 pkgdesc="Private, local-first email workspace with a local Rust mail engine"
 arch=('x86_64')

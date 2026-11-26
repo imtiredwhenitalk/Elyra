@@ -40,7 +40,7 @@
       <section class="hero">
         <div class="hero-glow" aria-hidden="true"></div>
         <div class="hero-copy reveal">
-          <p class="eyebrow"><span class="eyebrow-dot"></span> Windows + Linux · v0.3.0</p>
+          <p class="eyebrow"><span class="eyebrow-dot"></span> Windows + Linux · v0.4.0</p>
           <h1>Your inbox,<br /><em>back on your side.</em></h1>
           <p class="lede">
             Elyra is a quiet, local-first email workspace for Windows and Linux.
@@ -278,7 +278,7 @@
             <span class="platform-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3V5.5ZM12 4.1 21 2.8v8.7h-9V4.1ZM3 12.5h7.5v7.1L3 18.5v-6ZM12 12.5h9v8.7l-9-1.3v-7.4Z"/></svg>
             </span>
-            <div><b>Elyra for Windows</b><small>Version 0.3.0 · 64-bit</small></div>
+            <div><b>Elyra for Windows</b><small>Version 0.4.0 · 64-bit</small></div>
             <span class="download-badge">Latest</span>
           </div>
 
@@ -326,7 +326,7 @@
             <span class="platform-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5c-4.5 0-6.3 2.2-6.3 4.7v4.2c0 2.3-1.5 3.7-1.5 4.9 0 1 .9 1.8 2.2 1.8 1.2 0 2.2-.7 3.4-.7 1 0 1.7.7 2.2.7.6 0 1.4-.7 2.5-.7 1.2 0 2.4.7 3.5.7 1.3 0 2.1-.8 2.1-1.8 0-1.2-1.5-2.6-1.5-4.9V8.2c0-2.5-1.8-4.7-6.3-4.7Z"/></svg>
             </span>
-            <div><b>Elyra for Linux</b><small>Version 0.3.0 · x86_64</small></div>
+            <div><b>Elyra for Linux</b><small>Version 0.4.0 · x86_64</small></div>
             <span class="download-badge">New</span>
           </div>
 
@@ -353,8 +353,8 @@
           </div>
 
           <p class="download-caveat">
-            Linux assets are published when the repository enables
-            ELYRA_LINUX_PUBLISH_RELEASE. In-app updates currently cover Windows;
+            Linux assets are published with every tagged release, with stable
+            names and SHA-256 sidecars. In-app updates currently cover Windows;
             Linux uses the checksummed assets below.
           </p>
           <a class="release-link" href="https://github.com/imtiredwhenitalk/Elyra/releases" target="_blank" rel="noreferrer">
@@ -372,13 +372,37 @@
       <section class="section changes" id="changes">
         <div class="section-heading reveal">
           <p class="eyebrow">What shipped</p>
-          <h2>Release 0.3.0 is ready to run, host and update.</h2>
+          <h2>Release 0.4.0 is ready to run, host and update.</h2>
           <p>
-            Connect real IMAP accounts, host the API yourself, receive signed desktop
-            updates, and install Elyra on Windows or Linux — all from the same Rust core.
+            Diagnose problems without giving away your mail, search every local field,
+            keep sends safe while offline, and use the whole interface from a keyboard.
           </p>
         </div>
         <div class="change-grid">
+          <article class="change-card reveal">
+            <span class="change-version">0.4.0</span>
+            <h3>Private diagnostics</h3>
+            <p>Errors are redacted before they reach a local log, rotated automatically, and exported only when you choose. Crash reporting never sends data by itself.</p>
+            <span class="change-tag">shipped</span>
+          </article>
+          <article class="change-card reveal">
+            <span class="change-version">0.4.0</span>
+            <h3>Advanced search</h3>
+            <p>Combine sender, recipient, subject, folder, dates, priority, security verdict, reputation and attachment filters across the local SQLite mailbox.</p>
+            <span class="change-tag">shipped</span>
+          </article>
+          <article class="change-card reveal">
+            <span class="change-version">0.4.0</span>
+            <h3>Offline outbox</h3>
+            <p>When sending fails, the message stays in a local outbox. Retry, discard, or turn on Work offline and flush the queue when you are ready.</p>
+            <span class="change-tag">shipped</span>
+          </article>
+          <article class="change-card reveal">
+            <span class="change-version">0.4.0</span>
+            <h3>Accessible by default</h3>
+            <p>A skip link, visible focus rings, labelled filters, keyboard-safe confirmations and a global error boundary make the workspace easier to use.</p>
+            <span class="change-tag">shipped</span>
+          </article>
           <article class="change-card reveal">
             <span class="change-version">0.3.0</span>
             <h3>Keychain + IMAP sync</h3>

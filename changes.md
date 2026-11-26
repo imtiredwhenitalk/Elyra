@@ -1,3 +1,23 @@
+[200 OK] Published Linux release assets and aligned the public copy with 0.4.0:
+
+Enabled `ELYRA_LINUX_PUBLISH_RELEASE`, re-ran the Linux release workflow, and attached stable plus versioned AppImage/.deb assets with SHA-256 sidecars to v0.4.0. Updated the website, README, Linux guide and packaging README so they describe Linux downloads as published with each tagged release instead of merely opt-in.
+
+[200 OK] Implemented Phase 4 — Reliability & User Experience (GitHub issue #5) for 0.4.0:
+
+Diagnostics now write redacted events to SQLite (`reporting.rs`) with a 500-event/30-day cap, toggles for local logging and the optional crash-reporting preference, and a JSON export that includes app/database diagnostics. No telemetry endpoint is configured, so nothing is uploaded automatically. The frontend records global `error`/`unhandledrejection` events and exposes the log under Settings → Diagnostics & privacy.
+
+Advanced search (`search.rs`) adds parameterized SQLite filters for from/to/subject, folder, date range, priority, security verdict, reputation, attachments and importance. The desktop UI exposes it through an Advanced panel with labelled controls, and the browser preview implements the same command shape with `localStorage`.
+
+Offline support (`sync.rs`) adds a durable SQLite outbox, recipient validation, retry/discard, a blocked state after five failures, work-offline mode and a header sync-status badge. `flush_outgoing_queue` reuses the existing `send_email` path on a background thread, redacts stored errors and skips sends while offline.
+
+Accessibility improvements add a skip link, focus-visible rings, higher-contrast handling, `aria-live` status regions, labelled filter controls and a reusable `confirmAction()` dialog with focus trapping and restore. All ten `window.confirm` call sites were replaced. A global error boundary saves unexpected failures to the local log and shows a single warning.
+
+Bumped all authoritative version files, lockfile entries and UI fallback strings to 0.4.0; added Rust changelog entries, refreshed `README.md`, `task.md`, `web/index.html`, `docs/user-guide.md`, `docs/troubleshooting.md`, `docs/reference/tauri-commands.md`, `docs/reference/configuration.md` and `docs/README.md` for the new behavior.
+
+Files changed: `Cargo.toml`, `Cargo.lock`, `package.json`, `apps/desktop/package.json`, `apps/desktop/package-lock.json`, `apps/launcher/Cargo.toml`, `apps/desktop/src-tauri/{Cargo.toml,Cargo.lock,tauri.conf.json}`, new `reporting.rs`/`search.rs`/`sync.rs`, `lib.rs`, `mailbox.rs`, `diagnostics.rs`, desktop `index.html`, `main.js`, `tauri.js`, `styles.css`, `web/index.html`, and the documentation/README/task/changes files listed above.
+
+Validation: [OK] `node --check` for `main.js`, `services/tauri.js` and `web/app.js`; [OK] `rustfmt --check` for the three new Rust modules; [OK] JSON parse for version-bearing config files; [OK] `git diff --check`. Local Rust compilation is blocked by the missing MSVC `link.exe`; GitHub Actions validates the desktop build.
+
 [200 OK] Refreshed the public website and README for the shipped 0.3.0 feature set:
 
 The marketing page now presents Windows and Linux as first-class targets: the heading, description and three steps sit above two equal side-by-side download cards with current MSI/NSIS/AppImage/.deb assets and checksums. It includes signed-update and launcher/uninstall FAQ answers, and a release grid that reflects Phase 3 instead of repeating the server deploy card. The Windows update copy is explicit that a signed `latest.json` is published only when the maintainer configures the signing secret. Small CSS polish adds card hover states and a text link treatment.

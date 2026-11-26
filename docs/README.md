@@ -1,6 +1,6 @@
 # Elyra documentation
 
-This is the central documentation set for Elyra **0.3.0**. It describes what the
+This is the central documentation set for Elyra **0.4.0**. It describes what the
 project actually ships today: a Windows desktop client built with Tauri 2 and
 Rust, a local SQLite mailbox, a Rust/PostgreSQL API server, an optional SMTP
 relay, a portable launcher, and a static public website.
@@ -69,7 +69,7 @@ Start with the page that matches what you want to do.
 
 - It is not a promise of features that do not exist. Provider OAuth with PKCE,
   WebSocket live updates, scheduled background sync, and mailbox encryption at
-  rest are **not** implemented in 0.3.0. They are listed as next milestones in
+  rest are **not** implemented in 0.4.0. They are listed as next milestones in
   [task.md](../task.md).
 - It does not replace the per-directory `ARCHITECTURE.md` markers. Those files
   are short scope notes for contributors working inside a directory. This

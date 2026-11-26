@@ -1,7 +1,7 @@
 # Tauri command reference
 
 This page lists every command registered in
-`apps/desktop/src-tauri/src/lib.rs` for the current Elyra desktop build (0.3.0
+`apps/desktop/src-tauri/src/lib.rs` for the current Elyra desktop build (0.4.0
 plus the unreleased security milestone). The webview can invoke only these
 commands. Anything else is rejected by Tauri.
 
@@ -57,6 +57,9 @@ with `localStorage`. Desktop builds always call the Rust implementations.
 | [Identity keys](#identity-keys) | `list_crypto_keys`, `generate_crypto_key`, `rotate_crypto_key`, `revoke_crypto_key`, `export_public_key`, `import_public_key`, `list_crypto_contacts`, `delete_crypto_contact` |
 | [Crypto](#crypto) | `generate_encryption_key`, `encrypt_text`, `decrypt_text`, `fingerprint` |
 | [Diagnostics](#diagnostics) | `get_changelog`, `get_app_diagnostics` |
+| [Reporting](#reporting) | `log_diagnostic_event`, `list_diagnostic_events`, `export_diagnostic_report`, `get_crash_reporting_status`, `set_crash_reporting_enabled`, `get_diagnostic_logging_status`, `set_diagnostic_logging_enabled`, `clear_diagnostic_log` |
+| [Advanced search](#advanced-search) | `advanced_search` |
+| [Sync and offline](#sync-and-offline) | `queue_outgoing_message`, `list_outgoing_queue`, `flush_outgoing_queue`, `retry_outgoing_message`, `discard_outgoing_message`, `get_sync_status`, `set_offline_mode` |
 | [Updates](#updates) | `get_update_preferences`, `set_update_preferences`, `check_for_updates`, `download_and_install_update` |
 | [Cloud](#cloud) | `cloud_register`, `cloud_login`, `cloud_session`, `cloud_logout`, `cloud_list_notifications`, `cloud_send_notification`, `cloud_mark_notification_read`, `cloud_sync_cursor`, `cloud_update_cursor`, `cloud_health`, `cloud_api_url`, `cloud_set_api_url`, `cloud_mail_status` |
 
@@ -787,7 +790,7 @@ Runs the same sync for every account. Returns:
 }
 ```
 
-Only INBOX is synced. There is no scheduled background sync in 0.3.0.
+Only INBOX is synced. There is no scheduled background sync in 0.4.0.
 
 ## Sending
 
@@ -1215,10 +1218,10 @@ Returns the static release notes rendered in the **Changes** tab:
 ```json
 [
   {
-    "version": "0.3.0",
-    "date": "2026-11-14",
-    "title": "OS keychain secrets",
-    "detail": "Elyra Cloud sessions and IMAP passwords are now stored in the Windows Credential Manager...",
+    "version": "0.4.0",
+    "date": "2026-11-26",
+    "title": "Local diagnostics",
+    "detail": "Redacted error events are stored in SQLite and exported only when you choose...",
     "status": "ready"
   }
 ]
@@ -1237,7 +1240,7 @@ Returns `snake_case` diagnostics:
 
 ```json
 {
-  "app_version": "0.3.0",
+  "app_version": "0.4.0",
   "engine": "Rust + Tauri + SQLite",
   "os": "windows",
   "arch": "x86_64",
@@ -1252,6 +1255,160 @@ Returns `snake_case` diagnostics:
 
 `cloud_configured` is true when the resolved API base is not the local default.
 `keychain_available` reports whether the OS credential store is reachable.
+
+## Reporting
+
+Source: `apps/desktop/src-tauri/src/reporting.rs`. Events are redacted before
+they are written to SQLite, capped at 500 rows, and pruned after 30 days. There
+is no telemetry endpoint: `crash_reporting_enabled` stores a preference only and
+`automatic_upload` is always `false`.
+
+### `log_diagnostic_event`
+
+```ts
+(input: {
+  message: string;
+  level?: "info" | "warning" | "error";
+  category?: string;
+  code?: string;
+}) => Promise<void>
+```
+
+The frontend calls this from its global `error`/`unhandledrejection` handlers.
+Email addresses, secrets, URL query strings and long opaque tokens are redacted.
+
+### `list_diagnostic_events`
+
+```ts
+(options?: { limit?: number }) => Promise<DiagnosticEvent[]>
+```
+
+`limit` defaults to 50 and is clamped to 500. Events are returned newest first
+with `id`, `created_at`, `level`, `category`, `code`, and `message`.
+
+### `export_diagnostic_report`
+
+```ts
+() => Promise<DiagnosticReport>
+```
+
+Returns a `snake_case` report with `format`, `app_version`, `generated_at`,
+`crash_reporting_enabled`, `diagnostic_logging_enabled`, `diagnostics`, and
+`events`. The frontend downloads it as JSON; Elyra never sends it anywhere.
+
+### `get_crash_reporting_status` / `set_crash_reporting_enabled`
+
+```ts
+() => Promise<CrashReportingStatus>
+(options: { enabled: boolean }) => Promise<CrashReportingStatus>
+```
+
+The status contains `enabled`, `automatic_upload: false`, and `note`.
+
+### `get_diagnostic_logging_status` / `set_diagnostic_logging_enabled`
+
+```ts
+() => Promise<DiagnosticLoggingStatus>
+(options: { enabled: boolean }) => Promise<DiagnosticLoggingStatus>
+```
+
+When logging is disabled, new events are ignored; existing events are kept until
+cleared or pruned.
+
+### `clear_diagnostic_log`
+
+```ts
+() => Promise<number>
+```
+
+Deletes all local events and returns the number removed.
+
+## Advanced search
+
+Source: `apps/desktop/src-tauri/src/search.rs`.
+
+### `advanced_search`
+
+```ts
+(options: {
+  query?: string;
+  from?: string;
+  to?: string;
+  subject?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  hasAttachments?: boolean;
+  important?: boolean;
+  priorities?: string[];
+  security?: string[];
+  reputation?: string[];
+  folder?: string;
+  limit?: number;
+  offset?: number;
+}) => Promise<MailboxPage>
+```
+
+All filters are optional and are applied with parameterized SQL against the
+local database. `dateFrom`/`dateTo` must use `YYYY-MM-DD`. Allowed values are
+`low|normal|high|urgent` for priorities, `safe|suspicious|malicious|unscanned`
+for security, and `trusted|neutral|suspicious|malicious` for reputation; unknown
+values are ignored. `limit` defaults to 100 (max 500) and `offset` defaults to 0.
+
+## Sync and offline
+
+Source: `apps/desktop/src-tauri/src/sync.rs`. The queue is durable SQLite state;
+nothing is sent automatically.
+
+### `queue_outgoing_message`
+
+```ts
+(options: {
+  to: string;
+  subject: string;
+  body: string;
+  accountId?: number | null;
+}) => Promise<number>
+```
+
+Validates the recipient and stores the message with `status: "queued"`.
+
+### `list_outgoing_queue`
+
+```ts
+() => Promise<OutgoingMessage[]>
+```
+
+Returns up to 100 entries newest first, including `attempts`, `status`, and a
+redacted `last_error`.
+
+### `flush_outgoing_queue`
+
+```ts
+() => Promise<QueueFlushResult>
+```
+
+Runs on a background thread. Returns `sent`, `failed`, `blocked`, `skipped`, and
+`errors`. Successful entries are deleted. Failures increment `attempts`; after
+five failures the status becomes `blocked`. In offline mode everything is
+skipped.
+
+### `retry_outgoing_message` / `discard_outgoing_message`
+
+```ts
+(options: { id: number }) => Promise<void>
+```
+
+Retry resets `status`, `attempts`, and `last_error`; discard deletes the row.
+
+### `get_sync_status` / `set_offline_mode`
+
+```ts
+() => Promise<SyncStatus>
+(options: { enabled: boolean }) => Promise<SyncStatus>
+```
+
+`SyncStatus` contains `offline_mode`, `last_sync_at`, `last_error`, `queued`,
+`failed`, `blocked`, `accounts`, and `updated_at`.
 
 ## Updates
 
@@ -1395,7 +1552,7 @@ notification read; other ids return `404`.
 ```
 
 Calls `GET {api}/v1/sync/cursor` and returns `{ cursor, synced_at }`. The cursor
-is opaque; 0.3.0 does not run a scheduled sync loop.
+is opaque; 0.4.0 does not run a scheduled sync loop.
 
 ### `cloud_update_cursor`
 
