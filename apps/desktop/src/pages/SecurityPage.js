@@ -15,8 +15,10 @@ import {
   removeIntegrationKey,
   rotateCryptoKey,
   revokeCryptoKey,
+  revokeCryptoContact,
   setIntegrationEnabled,
   testIntegration,
+  verifyCryptoContact,
 } from "../services/security.js";
 
 function escapeHtml(value) {
@@ -160,6 +162,13 @@ function keyStatusLabel(status) {
   return ["Revoked", "error"];
 }
 
+function contactTrustLabel(trustState) {
+  if (trustState === "verified") return ["Verified", "success"];
+  if (trustState === "changed") return ["Key changed", "error"];
+  if (trustState === "revoked") return ["Revoked", "error"];
+  return ["Unverified", "muted"];
+}
+
 function renderKeys(section, keys, contacts) {
   const list = section.querySelector("[data-crypto-keys]");
   if (!keys.length) {
@@ -194,12 +203,24 @@ function renderKeys(section, keys, contacts) {
 
   const contactsNode = section.querySelector("[data-crypto-contacts]");
   contactsNode.innerHTML = contacts.length
-    ? contacts.map((contact) => `
-        <li>
-          <div><b>${escapeHtml(contact.label)}</b><small>${escapeHtml(contact.email)} · ${escapeHtml(contact.fingerprint)}</small></div>
-          <button class="icon-button tiny" type="button" data-contact-delete="${contact.id}" title="Remove contact key">${icon("x")}</button>
-        </li>
-      `).join("")
+    ? contacts.map((contact) => {
+        const trustState = contact.trustState || "unverified";
+        const [trustLabel, trustTone] = contactTrustLabel(trustState);
+        return `
+          <li>
+            <div>
+              <b>${escapeHtml(contact.label)}</b>
+              <small>${escapeHtml(contact.email)} · ${escapeHtml(contact.fingerprint)}</small>
+              <span class="integration-status ${trustTone}">${trustLabel}</span>
+            </div>
+            <div class="crypto-key-actions">
+              ${trustState !== "verified" && trustState !== "revoked" ? `<button class="text-button" type="button" data-contact-verify="${contact.id}">Verify fingerprint</button>` : ""}
+              ${trustState !== "revoked" ? `<button class="text-button danger-text" type="button" data-contact-revoke="${contact.id}">Mark revoked</button>` : ""}
+              <button class="icon-button tiny" type="button" data-contact-delete="${contact.id}" title="Remove contact key">${icon("x")}</button>
+            </div>
+          </li>
+        `;
+      }).join("")
     : "<li>No contact public keys imported yet.</li>";
 }
 
@@ -377,6 +398,29 @@ function bindIntegrationActions(section) {
     }
 
     const removeContact = event.target.closest("[data-contact-delete]");
+    const verifyContact = event.target.closest("[data-contact-verify]");
+    const revokeContact = event.target.closest("[data-contact-revoke]");
+    if (verifyContact) {
+      try {
+        await verifyCryptoContact(Number(verifyContact.dataset.contactVerify));
+        notify("Contact fingerprint verified", "success");
+        await refreshKeys(section);
+      } catch (error) {
+        notify(error.message || "Could not verify the contact key", "error");
+      }
+      return;
+    }
+    if (revokeContact) {
+      if (!window.confirm("Mark this contact key as revoked? It will not be trusted for new encryption.")) return;
+      try {
+        await revokeCryptoContact(Number(revokeContact.dataset.contactRevoke));
+        notify("Contact key marked revoked", "success");
+        await refreshKeys(section);
+      } catch (error) {
+        notify(error.message || "Could not revoke the contact key", "error");
+      }
+      return;
+    }
     if (removeContact) {
       if (!window.confirm("Remove this contact public key?")) return;
       try {
