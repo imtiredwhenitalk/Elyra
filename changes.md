@@ -1,3 +1,7 @@
+[200 OK] Published Linux release assets and aligned the public copy with 0.4.0:
+
+Enabled `ELYRA_LINUX_PUBLISH_RELEASE`, re-ran the Linux release workflow, and attached stable plus versioned AppImage/.deb assets with SHA-256 sidecars to v0.4.0. Updated the website, README, Linux guide and packaging README so they describe Linux downloads as published with each tagged release instead of merely opt-in.
+
 [200 OK] Implemented Phase 4 — Reliability & User Experience (GitHub issue #5) for 0.4.0:
 
 Diagnostics now write redacted events to SQLite (`reporting.rs`) with a 500-event/30-day cap, toggles for local logging and the optional crash-reporting preference, and a JSON export that includes app/database diagnostics. No telemetry endpoint is configured, so nothing is uploaded automatically. The frontend records global `error`/`unhandledrejection` events and exposes the log under Settings → Diagnostics & privacy.

@@ -58,5 +58,6 @@ If the window does not group with its launcher, check the real class with
 
 The workflow must publish `Elyra-latest-x64.AppImage` and
 `Elyra-latest-x64.AppImage.sha256` to the GitHub Release before this PKGBUILD
-works out of the box. See `docs/linux.md` for the publishing switch
-(`ELYRA_LINUX_PUBLISH_RELEASE`) and for the alternative installation methods.
+works out of the box; this is enabled as of 0.4.0. See `docs/linux.md` for the
+publishing switch (`ELYRA_LINUX_PUBLISH_RELEASE`) and for the alternative
+installation methods.

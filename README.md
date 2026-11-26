@@ -83,7 +83,7 @@ The newest published assets are on the [releases page](https://github.com/imtire
 | `Elyra-latest-x64.AppImage.sha256` | SHA-256 checksum used by the PKGBUILD and manual verification |
 | `Elyra-latest-x64.deb.sha256` | SHA-256 checksum for the Debian package |
 
-The portable launcher supports resumable downloads, HTTP Range retries, atomic `.part` files, checksum sidecars, a verified MSI cache, and install/launch/update modes. Linux packages are published when the `ELYRA_LINUX_PUBLISH_RELEASE` repository variable is enabled; see [Linux](docs/linux.md).
+The portable launcher supports resumable downloads, HTTP Range retries, atomic `.part` files, checksum sidecars, a verified MSI cache, and install/launch/update modes. Linux packages are published to each tagged GitHub Release; see [Linux](docs/linux.md).
 
 ## Updates and uninstall
 
