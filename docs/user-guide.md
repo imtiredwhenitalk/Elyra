@@ -538,6 +538,26 @@ provider call. Local Shield checks still run.
 - **Import public key** stores a contact's public key for future signing and
   encryption work.
 
+### Encrypted envelopes (native desktop preview)
+
+The native desktop build also contains versioned message-envelope primitives:
+
+- A random per-message key is sealed to each verified recipient X25519 key with
+  RFC 9180 HPKE (`DHKEM(X25519, HKDF-SHA256)`, `HKDF-SHA256`, `AES-256-GCM`).
+- The complete envelope is signed with Ed25519, and the payload is authenticated
+  with the envelope metadata as additional data.
+- Private signing and encryption keys stay in the Windows Credential Manager;
+  SQLite stores only public keys, fingerprints, and trust state.
+- Recipients must be verified before encryption. Changed, revoked, and unverified
+  keys block sending; opening an envelope requires a verified sender key.
+- Unsupported versions, invalid signatures, wrong recipient keys, and tampered
+  ciphertext fail without showing plaintext.
+
+This is a protocol preview, not automatic E2EE for mailbox mail in 0.4.0. The
+compose/send path, server relay, and attachments do not yet use envelopes, so do
+not assume a message is end-to-end encrypted. The full design, guarantees, and
+limitations are in [E2EE architecture](security/e2ee.md).
+
 ## Security Lab
 
 The **Security** mailbox is a Space. The crypto panel runs real Rust commands:

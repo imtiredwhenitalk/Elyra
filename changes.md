@@ -1,3 +1,13 @@
+[200 OK] Landed the desktop E2EE envelope integration (issues #6/#19, PR #21):
+
+PR #7 was superseded by an upstream branch on `main`. Native builds now expose RFC 9180 HPKE with X25519/HKDF-SHA256/AES-256-GCM, Ed25519-signed versioned envelopes, separate X25519 key lifecycle, recipient trust states, and fail-closed open/seal paths. Private signing and encryption keys live in the OS keychain; SQLite holds only public material. The architecture, threat model, and explicit non-claims are documented in `docs/security/e2ee.md`.
+
+The user guide now explains that envelope primitives are a protocol preview: compose/send, server relay, and attachments do not yet use them, so 0.4.0 mail must not be treated as end-to-end encrypted.
+
+Files changed: `packages/crypto/{Cargo.toml,src/lib.rs}`, `apps/desktop/src-tauri/{Cargo.toml,src/crypto.rs,src/keys.rs,src/lib.rs,src/secrets.rs}`, desktop crypto/security services and Security UI, `.github/workflows/rust.yml`, `docs/crypto/README.md`, `docs/security.md`, `docs/security/e2ee.md`, `docs/user-guide.md`, and `changes.md`.
+
+Validation: [OK] `Core crates (Linux)` and `Desktop shell (Windows)` passed on PR head and after merge; [OK] cryptographic unit, negative, and proptest coverage for envelope and malformed-input paths; [OK] `git diff --check`. The trust-state regression that re-verified revoked contacts was fixed before merge.
+
 [200 OK] Published Linux release assets and aligned the public copy with 0.4.0:
 
 Enabled `ELYRA_LINUX_PUBLISH_RELEASE`, re-ran the Linux release workflow, and attached stable plus versioned AppImage/.deb assets with SHA-256 sidecars to v0.4.0. Updated the website, README, Linux guide and packaging README so they describe Linux downloads as published with each tagged release instead of merely opt-in.
