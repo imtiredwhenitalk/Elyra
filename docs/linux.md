@@ -1,6 +1,6 @@
 # Linux
 
-Elyra 0.3.0 ships a 64-bit Linux desktop build from the same Tauri 2 source as
+Elyra 0.4.0 ships a 64-bit Linux desktop build from the same Tauri 2 source as
 the Windows app. The `Release Linux` workflow (`.github/workflows/linux-release.yml`)
 builds an **AppImage** and a **Debian package** for `x86_64` on every `v*` tag and
 on manual dispatch, with stable asset names and SHA-256 checksums. An AUR-style
@@ -95,7 +95,7 @@ not a pinned trust anchor. For an immutable build or an AUR submission, point
 at a versioned asset instead:
 
 ```sh
-ELYRA_APPIMAGE_URL=https://github.com/imtiredwhenitalk/Elyra/releases/download/v0.3.0/Elyra-0.3.0-x64.AppImage \
+ELYRA_APPIMAGE_URL=https://github.com/imtiredwhenitalk/Elyra/releases/download/v0.4.0/Elyra-0.4.0-x64.AppImage \
   makepkg -si
 ```
 
@@ -219,7 +219,7 @@ the workflow run.
 
 ## Flatpak investigation
 
-**Decision: not shipped in 0.3.0.** AppImage and `.deb` cover the current Linux
+**Decision: not shipped in 0.4.0.** AppImage and `.deb` cover the current Linux
 requests with the existing Tauri bundler and release workflow; adding Flatpak
 would require a separate sandbox build, a runtime dependency decision, and a
 Flathub submission owner. This is a packaging gap, not a runtime limitation.

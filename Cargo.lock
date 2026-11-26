@@ -1188,7 +1188,7 @@ dependencies = [
 
 [[package]]
 name = "elyra-crypto"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",
@@ -1200,7 +1200,7 @@ dependencies = [
 
 [[package]]
 name = "elyra-launcher"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "reqwest 0.12.28",
  "sha2",
@@ -1209,7 +1209,7 @@ dependencies = [
 
 [[package]]
 name = "elyra-server"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "argon2",
  "axum",
@@ -5190,7 +5190,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-app"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",

@@ -289,7 +289,7 @@ If no cursor exists:
 { "cursor": null, "synced_at": null }
 ```
 
-The cursor is an opaque string. The 0.3.0 desktop exposes get/update commands but
+The cursor is an opaque string. The 0.4.0 desktop exposes get/update commands but
 does not run a scheduled sync loop.
 
 ### `PUT /v1/sync/cursor`
@@ -477,7 +477,7 @@ Behavior:
 - The relay uses `lettre` with rustls and certificate validation.
 - The body is not persisted.
 - Any registered user can use the relay. There is no rate limit, quota, or
-  per-user abuse control in 0.3.0.
+  per-user abuse control in 0.4.0.
 
 Before exposing the relay publicly, publish SPF, DKIM, and DMARC records for the
 sending domain and add rate limiting. Use a dedicated sending mailbox or a

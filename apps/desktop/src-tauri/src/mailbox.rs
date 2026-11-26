@@ -730,7 +730,7 @@ fn seed_if_empty(database: &Connection) -> Result<(), String> {
     Ok(())
 }
 
-fn row_to_summary(row: &rusqlite::Row<'_>) -> rusqlite::Result<MessageSummary> {
+pub(crate) fn row_to_summary(row: &rusqlite::Row<'_>) -> rusqlite::Result<MessageSummary> {
     let sender: String = row.get(1)?;
     let received_at: String = row.get(8)?;
     Ok(MessageSummary {
@@ -804,7 +804,7 @@ fn build_filters(filter: &str, quick_filter: &str, query: &str) -> (String, Vec<
     (conditions.join(" AND "), values)
 }
 
-fn summary_sql() -> &'static str {
+pub(crate) fn summary_sql() -> &'static str {
     "SELECT e.id, e.sender, e.subject, e.preview, f.name, e.tag, e.is_read,
             e.is_starred, e.received_at, e.has_attachments, e.snoozed_until,
             e.is_important, e.priority, e.priority_source, e.priority_reason,

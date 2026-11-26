@@ -4,7 +4,7 @@ Elyra is designed around a local-first trust boundary: mail stays on the user's
 device, privileged operations run in Rust, and the optional cloud service holds
 only account metadata, sync cursors, notifications, and relay configuration.
 
-This page describes the security model as implemented in 0.3.0, including what
+This page describes the security model as implemented in 0.4.0, including what
 is **not** protected yet. It is a technical document, not a certification.
 
 ## Security goals
@@ -43,7 +43,7 @@ files, access the keychain, or perform raw network requests. Rust validates
 arguments and returns errors.
 
 `tauri.conf.json` currently sets `csp: null` and `withGlobalTauri: true`. This is
-a deliberate 0.3.0 trade-off for the static frontend and Tauri API access. A
+a deliberate 0.4.0 trade-off for the static frontend and Tauri API access. A
 strict Content Security Policy and reduced global surface are recommended before
 treating the webview as a hardened boundary.
 
@@ -67,7 +67,7 @@ add a second application-level encryption layer to keychain values.
 - IMAP: `imap` 2.4 over `native-tls`, TLS or STARTTLS only.
 - SMTP: `lettre` with rustls, TLS or STARTTLS only.
 - Plaintext mail protocols are not supported.
-- App passwords are the supported authentication method in 0.3.0. OAuth with
+- App passwords are the supported authentication method in 0.4.0. OAuth with
   PKCE is planned.
 
 ### Desktop ↔ Elyra server
@@ -245,7 +245,7 @@ future milestone.
 - JWT HS256 access tokens signed with `ELYRA_JWT_SECRET`.
 - Secret must be at least 32 characters; the server refuses to start otherwise.
 - Tokens expire after 24 hours by default.
-- No refresh tokens, revocation list, or password reset in 0.3.0.
+- No refresh tokens, revocation list, or password reset in 0.4.0.
 
 ### Authorization
 

@@ -23,7 +23,7 @@ makepkg -si
 Use a specific, immutable release instead of the rolling `latest` asset:
 
 ```sh
-ELYRA_APPIMAGE_URL=https://github.com/imtiredwhenitalk/Elyra/releases/download/v0.3.0/Elyra-0.3.0-x64.AppImage \
+ELYRA_APPIMAGE_URL=https://github.com/imtiredwhenitalk/Elyra/releases/download/v0.4.0/Elyra-0.4.0-x64.AppImage \
   makepkg -si
 ```
 
