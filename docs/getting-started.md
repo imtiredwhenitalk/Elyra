@@ -2,7 +2,7 @@
 
 This page takes you from a clean Windows machine to a working Elyra inbox.
 
-Elyra 0.3.0 is a Windows desktop application. It runs entirely on your computer
+Elyra 0.4.0 is a Windows desktop application. It runs entirely on your computer
 unless you explicitly connect Elyra Cloud. No account is required to try the
 local mailbox.
 
@@ -160,7 +160,7 @@ To verify a self-hosted server after deployment, use the
 
 ## 6. Connect a mailbox
 
-Elyra 0.3.0 supports IMAP/SMTP accounts with TLS or STARTTLS. OAuth provider
+Elyra 0.4.0 supports IMAP/SMTP accounts with TLS or STARTTLS. OAuth provider
 login is the next milestone.
 
 | Provider | Preset | Notes |

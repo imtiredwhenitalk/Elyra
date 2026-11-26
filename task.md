@@ -67,4 +67,14 @@
 * **Linux Package Distribution** - AppImage and .deb release workflow, Arch PKGBUILD, desktop entry/icon, stable asset names with SHA-256 checksums, and Linux install docs [200 OK]
 * **Automated server testing & production verification** - pure unit tests plus database-backed API/schema integration tests for auth, sync, notifications, SMTP fail-closed behavior and PostgreSQL constraints; `docs/deploy/VERIFY.md` production checklist and safe restore procedure [200 OK]
 * **Automatic Application Updates for Windows** - signed update manifest, cryptographic verification, in-app check/download/install with progress, user notification preferences, safe failure behavior, and documented key/release procedure [200 OK]
-* **Flatpak Packaging** - investigated and documented; not shipped in 0.3.0 [NEXT]
+* **Flatpak Packaging** - investigated and documented; not shipped in 0.4.0 [NEXT]
+
+### Phase 4 (GitHub issue #5)
+
+* **Diagnostics and error reporting** - redacted local event log with retention, JSON export, logging toggle and optional crash-reporting preference that never uploads automatically [200 OK]
+* **Advanced search and filtering** - SQLite filters for sender, recipient, subject, folder, date range, priority, security verdict, reputation and flags [200 OK]
+* **Sync and offline support** - durable outgoing queue, retry/discard, blocked state after five failures, work-offline mode and a visible sync status badge [200 OK]
+* **Accessibility and interface improvements** - skip link, focus-visible rings, labelled advanced filters, keyboard-trapped confirmation dialogs, notification/status live regions and a global JavaScript error boundary [200 OK]
+* **Provider OAuth with PKCE** - Authorization Code + PKCE, token rotation and reconnect/revocation UX [NEXT]
+* **Scheduled background sync and WebSocket live updates** - per-account intervals, backoff, authenticated event stream with polling fallback [NEXT]
+* **Crash-reporting backend** - consent-gated endpoint for exported reports; no automatic upload in 0.4.0 [NEXT]

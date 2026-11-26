@@ -10,6 +10,7 @@
   </head>
 
   <body data-theme="light" data-accent="moss" data-density="comfortable">
+    <a class="skip-link" href="#search-input">Skip to search</a>
     <svg class="icon-sprite" aria-hidden="true" focusable="false">
       <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 5.5h16l1.2 7.5v5.5H2.8V13L4 5.5Z"/><path d="M2.8 13h5l1.7 2.6h5L16.2 13h5"/></symbol>
       <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2.8" y="5" width="18.4" height="14" rx="2.4"/><path d="m3.5 6.5 8.5 6 8.5-6"/></symbol>
@@ -177,10 +178,52 @@
             <input id="search-input" type="search" placeholder="Search people, subjects and messages" autocomplete="off" />
             <kbd>/</kbd>
           </label>
-          <button class="filter-button" id="filter-button" type="button">
+          <button class="filter-button" id="filter-button" type="button" aria-label="Quick filter: all mail. Click to change.">
             All mail <svg class="icon" aria-hidden="true"><use href="#i-chevron-down"></use></svg>
           </button>
+          <button class="filter-button" id="advanced-toggle" type="button" aria-expanded="false" aria-controls="advanced-search-panel" aria-label="Open advanced search">
+            <svg class="icon" aria-hidden="true"><use href="#i-search"></use></svg> Advanced
+          </button>
         </div>
+
+        <section class="advanced-search" id="advanced-search-panel" hidden aria-label="Advanced search filters">
+          <div class="advanced-grid">
+            <label>From<input id="advanced-from" type="text" placeholder="name or address" autocomplete="off" /></label>
+            <label>To<input id="advanced-to" type="text" placeholder="recipient" autocomplete="off" /></label>
+            <label>Subject<input id="advanced-subject" type="text" placeholder="words in subject" autocomplete="off" /></label>
+            <label>Folder<select id="advanced-folder">
+              <option value="">Any folder</option>
+              <option value="inbox">Inbox</option>
+              <option value="sent">Sent</option>
+              <option value="drafts">Drafts</option>
+              <option value="archive">Archive</option>
+              <option value="spam">Spam</option>
+              <option value="trash">Trash</option>
+            </select></label>
+            <label>From date<input id="advanced-date-from" type="date" /></label>
+            <label>To date<input id="advanced-date-to" type="date" /></label>
+            <label>Priority<select id="advanced-priorities" multiple size="4" aria-label="Priorities">
+              <option value="low">Low</option><option value="normal">Normal</option>
+              <option value="high">High</option><option value="urgent">Urgent</option>
+            </select></label>
+            <label>Security<select id="advanced-security" multiple size="4" aria-label="Security status">
+              <option value="safe">Safe</option><option value="suspicious">Suspicious</option>
+              <option value="malicious">Malicious</option><option value="unscanned">Unscanned</option>
+            </select></label>
+            <label>Reputation<select id="advanced-reputation" multiple size="4" aria-label="Sender reputation">
+              <option value="trusted">Trusted</option><option value="neutral">Neutral</option>
+              <option value="suspicious">Suspicious</option><option value="malicious">Malicious</option>
+            </select></label>
+          </div>
+          <div class="advanced-flags">
+            <label><input id="advanced-attachments" type="checkbox" /> Has attachments</label>
+            <label><input id="advanced-important" type="checkbox" /> Important only</label>
+          </div>
+          <div class="advanced-actions">
+            <button class="primary-button" id="advanced-apply" type="button">Apply filters</button>
+            <button class="ghost-button" id="advanced-clear" type="button">Clear filters</button>
+          </div>
+        </section>
 
         <div class="inbox-content">
           <div class="content-header">
@@ -330,7 +373,7 @@
                     <span class="update-icon"><svg class="icon"><use href="#i-updates"></use></svg></span>
                     <div class="update-card-title">
                       <b>Desktop updater</b>
-                      <small>Current version <span id="update-current-version">0.3.0</span></small>
+                      <small>Current version <span id="update-current-version">0.4.0</span></small>
                     </div>
                     <span class="update-badge" id="update-state-badge">Ready</span>
                   </div>
@@ -539,6 +582,60 @@
               </fieldset>
 
               <fieldset class="settings-section">
+                <legend>Sync &amp; offline</legend>
+                <p class="settings-note">Messages stay readable from the local cache. If sending fails, Elyra keeps the message in an outbox and retries when you ask it to.</p>
+                <div class="outbox-summary" id="outbox-summary" role="status">Checking sync status…</div>
+                <label class="setting-toggle">
+                  <span><b>Work offline</b><small>Keeps queued messages on this device and prevents the outbox from sending. Incoming mail is not fetched while offline.</small></span>
+                  <input id="offline-mode" type="checkbox" />
+                </label>
+                <div class="settings-field">
+                  <label for="settings-compose-to">Queue a test message</label>
+                  <div class="api-url-row">
+                    <input id="settings-compose-to" type="email" placeholder="recipient@example.com" spellcheck="false" />
+                    <button class="ghost-button" type="button" id="queue-test-message">Queue</button>
+                  </div>
+                  <p class="settings-note">Queued messages are stored locally; nothing leaves the device until the outbox is flushed.</p>
+                </div>
+                <div class="outbox-list" id="outbox-list"></div>
+                <div class="panel-actions-row wrap">
+                  <button class="ghost-button" type="button" id="flush-outbox">
+                    <svg class="icon"><use href="#i-refresh"></use></svg>
+                    Send queued mail
+                  </button>
+                  <button class="ghost-button" type="button" id="refresh-sync-status">
+                    <svg class="icon"><use href="#i-database"></use></svg>
+                    Refresh status
+                  </button>
+                </div>
+              </fieldset>
+
+              <fieldset class="settings-section">
+                <legend>Diagnostics &amp; privacy</legend>
+                <p class="settings-note">Logs are stored on this device, redacted before they are saved, and rotated automatically. Nothing is uploaded automatically.</p>
+                <label class="setting-toggle">
+                  <span><b>Allow diagnostic logging</b><small>Records redacted errors and status events for troubleshooting. API keys, passwords, email addresses and message bodies are removed.</small></span>
+                  <input id="diagnostic-logging" type="checkbox" checked />
+                </label>
+                <label class="setting-toggle">
+                  <span><b>Enable optional crash reporting</b><small>Records your preference for a future reporting endpoint. No data is sent anywhere in 0.4.0.</small></span>
+                  <input id="crash-reporting" type="checkbox" />
+                </label>
+                <div class="diagnostic-events" id="diagnostic-events"></div>
+                <div class="panel-actions-row wrap">
+                  <button class="ghost-button" type="button" id="export-diagnostics">
+                    <svg class="icon"><use href="#i-download"></use></svg>
+                    Export diagnostic report
+                  </button>
+                  <button class="ghost-button" type="button" id="refresh-diagnostic-events">
+                    <svg class="icon"><use href="#i-refresh"></use></svg>
+                    Refresh events
+                  </button>
+                  <button class="text-button" type="button" id="clear-diagnostics">Clear log</button>
+                </div>
+              </fieldset>
+
+              <fieldset class="settings-section">
                 <legend>Local data</legend>
                 <div class="panel-actions-row wrap">
                   <button class="ghost-button" type="button" id="reset-demo">
@@ -591,7 +688,7 @@
         <section class="detail-section">
           <div class="detail-section-heading">
             <h3>At a glance</h3>
-            <span class="sync-status" id="sync-status">Synced just now</span>
+            <span class="sync-status" id="sync-status" role="status" aria-live="polite">Synced just now</span>
           </div>
           <div class="mini-stats">
             <div><b id="stat-total">0</b><small>Messages</small></div>

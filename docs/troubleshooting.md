@@ -8,7 +8,7 @@ source-of-truth files are listed in [docs/README.md](README.md).
 
 ### Windows SmartScreen or Defender warns about the installer
 
-Elyra 0.3.0 is not code-signed with an EV certificate, so Windows may show
+Elyra 0.4.0 is not code-signed with an EV certificate, so Windows may show
 "Unknown publisher" or a SmartScreen prompt.
 
 1. Confirm the file came from the official
@@ -118,7 +118,7 @@ different address. The server does not normalize letter case, so
 ### I am signed out after a while
 
 Access tokens expire after `ELYRA_ACCESS_TOKEN_TTL_HOURS` (24 hours by default).
-There is no refresh token in 0.3.0, so sign in again. Changing
+There is no refresh token in 0.4.0, so sign in again. Changing
 `ELYRA_JWT_SECRET` invalidates every token immediately.
 
 ## Mail accounts and IMAP
@@ -158,7 +158,7 @@ the Bridge IMAP/SMTP credentials, not your Proton account password.
 
 - Click **Sync** on the specific account. The header refresh button does not
   contact IMAP.
-- Only the provider's **INBOX** is synced in 0.3.0. Sent, Drafts, Archive, Spam,
+- Only the provider's **INBOX** is synced in 0.4.0. Sent, Drafts, Archive, Spam,
   and Trash are not pulled.
 - Check the account row for a sync error. Diagnostics does not show per-account
   errors.
@@ -206,11 +206,25 @@ server and receiving provider honor `Reply-To`.
 
 ### A failed send is missing from Sent
 
-Failed sends are not recorded. Only successful sends create a **Sent** row.
+Failed sends are not recorded in **Sent**. In 0.4.0 they are kept in the local
+outbox instead, so you can retry or discard them from **Settings → Sync &
+offline**. Flush the outbox after fixing the account or relay configuration.
+
+### The outbox shows blocked messages
+
+A message is marked blocked after five failed attempts. Check the stored error,
+fix the underlying SMTP or relay problem, then select **Retry** to reset the
+attempt counter. **Discard** permanently removes the queued message from this
+device.
+
+### Work offline is on but messages were sent
+
+Turn off **Work offline** and flush the outbox only when you intend to send.
+While the switch is on, `flush_outgoing_queue` skips every queued message.
 
 ### Drafts are not on the provider
 
-Drafts are local SQLite rows in 0.3.0. They are not synced to IMAP.
+Drafts are local SQLite rows in 0.4.0. They are not synced to IMAP.
 
 ## Notifications and cloud features
 
@@ -227,7 +241,7 @@ Notifications are in-app records, not email.
 
 ### Desktop notifications do not appear when the app is closed
 
-The **Desktop notifications** setting stores a preference only. In 0.3.0, cloud
+The **Desktop notifications** setting stores a preference only. In 0.4.0, cloud
 notifications appear in the in-app popover. There is no background push channel.
 
 ### Signing out did not delete my mail
@@ -397,13 +411,13 @@ that SPF/DKIM/DMARC are configured. Inspect API logs for the underlying error.
 
 ### Registration is open to anyone
 
-That is a known 0.3.0 limitation. Add a reverse-proxy allowlist, an invite code,
+That is a known 0.4.0 limitation. Add a reverse-proxy allowlist, an invite code,
 or admin approval before exposing the server publicly. See
 [Security → Known gaps](security.md#known-gaps-and-follow-ups).
 
 ### The relay can be abused
 
-There is no per-user rate limit or quota in 0.3.0. Disable `ELYRA_SMTP_HOST`
+There is no per-user rate limit or quota in 0.4.0. Disable `ELYRA_SMTP_HOST`
 until you add rate limiting, or restrict who can register.
 
 ### Backups fail
@@ -434,12 +448,15 @@ be configured. It also only triggers on matching paths or manual dispatch.
 When reporting a problem, include:
 
 1. Elyra version from **Settings → Diagnostics**.
-2. Windows version and architecture.
+2. Windows or Linux version and architecture.
 3. The exact error message or toast text.
-4. Whether the problem happens in the desktop app, browser preview, or both.
-5. For server issues: `docker compose ps`, recent API logs, and the output of
+4. **Settings → Diagnostics & privacy → Export diagnostic report**. Events are
+   redacted before they are saved, but review the file before sharing it: it
+   still contains local counts, paths and message metadata.
+5. Whether the problem happens in the desktop app, browser preview, or both.
+6. For server issues: `docker compose ps`, recent API logs, and the output of
    `curl -fsS https://<domain>/api/health`.
-6. For IMAP issues: provider, host, port, and security mode. Never include your
+7. For IMAP issues: provider, host, port, and security mode. Never include your
    password.
 
 ## Related pages

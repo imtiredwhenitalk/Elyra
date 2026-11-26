@@ -1,6 +1,6 @@
 # User guide
 
-This guide describes the Elyra 0.3.0 desktop interface and the behavior behind
+This guide describes the Elyra 0.4.0 desktop interface and the behavior behind
 each control. Menu labels are shown in **bold**.
 
 ## Interface overview
@@ -65,6 +65,24 @@ typing. Search suggestions are also available through the
 
 Search is local. It does not query the mail provider and does not send the query
 to Elyra Cloud.
+
+### Advanced search
+
+Select **Advanced** next to the quick filter to open the local filter panel. You
+can combine:
+
+- **From**, **To**, and **Subject** text matching.
+- **Folder**, **From date**, and **To date** (`YYYY-MM-DD`).
+- Multiple **Priority**, **Security**, and **Reputation** values.
+- **Has attachments** and **Important only** flags.
+
+Select **Apply filters** to run the search through the Rust `advanced_search`
+command, or **Clear filters** to return to the normal mailbox view. Advanced
+filters reset when you change mailboxes. Everything is evaluated against SQLite
+on this device; no filter value is sent to a server.
+
+The **Sync status** badge in the header shows the current outbox count, a sync
+error, or the last successful sync time.
 
 ### Unread counts
 
@@ -167,7 +185,7 @@ The server relay sends from the operator's `ELYRA_SMTP_FROM` address and sets
 Drafts are stored locally in SQLite. Saving a draft with no recipient or subject
 uses safe placeholders. Opening a draft from **Drafts** restores the recipient,
 subject, and body. Sending a draft deletes the draft row. Drafts are not synced
-to the provider in 0.3.0.
+to the provider in 0.4.0.
 
 ## Mail accounts
 
@@ -226,7 +244,7 @@ accepts 1–200. Sync behavior:
 - Preserves local read and starred state across syncs.
 - Records `last_sync_at` or `sync_error` per account.
 - Only INBOX is synced. Sent, Drafts, Archive, Spam, and Trash are not pulled
-  from the provider in 0.3.0.
+  from the provider in 0.4.0.
 
 **Sync all** runs the same operation for every configured account and reports
 how many messages were imported.
@@ -306,7 +324,7 @@ It does not delete your server account, local mail, or mail-account passwords.
 - **Display name** — shown in the sidebar, profile, and outgoing mail from the
   server relay.
 - **Elyra domain handle** — a display-only prototype handle such as
-  `alex@elyra.com`. It is not a real mailbox and cannot receive mail in 0.3.0.
+  `alex@elyra.com`. It is not a real mailbox and cannot receive mail in 0.4.0.
 - **Signature** — prefilled into new compose windows.
 
 ### Appearance
@@ -326,7 +344,7 @@ OLED theme uses true black surfaces for OLED displays.
 - **Local-only preview** — indicates the local-first mode and keeps the UI
   messaging accurate when cloud features are unavailable.
 - **Desktop notifications** — stores the preference for future native
-  notification delivery. In 0.3.0, cloud notifications are shown in the in-app
+  notification delivery. In 0.4.0, cloud notifications are shown in the in-app
   popover; no scheduled background notification is delivered while the app is
   closed.
 - **Reduce motion** — same as the appearance toggle.
@@ -429,6 +447,23 @@ See [Mail accounts](#mail-accounts).
   metadata. Treat it as sensitive: it contains message bodies.
 - **Refresh diagnostics** — reloads the diagnostics panel.
 
+### Sync and offline
+
+The **Sync & offline** section keeps local mail readable when the network is
+unavailable:
+
+- **Work offline** stops the outbox from sending and prevents new IMAP fetches.
+- **Queue a test message** stores a message in the local outbox without sending
+  it. Useful for confirming that the queue works.
+- **Send queued mail** flushes the outbox. Successful messages are removed;
+  failures increment an attempt counter and are kept for retry.
+- **Refresh status** reloads queued/failed/blocked counts and the last error.
+- Each outbox row offers **Retry** and **Discard**. A message is marked blocked
+  after five failed attempts; retry resets the counter.
+
+The browser preview can queue messages but cannot flush them through SMTP; the
+desktop build with a configured account or server relay is required to send.
+
 ### Diagnostics
 
 The panel reports:
@@ -443,6 +478,21 @@ The panel reports:
 
 If the Rust command is unavailable, the panel shows an error instead of inventing
 a healthy result.
+
+The **Diagnostics & privacy** section adds:
+
+- **Allow diagnostic logging** — controls whether new events are stored locally.
+- **Enable optional crash reporting** — records a preference for a future
+  reporting endpoint. Elyra 0.4.0 has no upload endpoint and sends nothing
+  automatically.
+- **Export diagnostic report** — downloads a JSON report containing app and
+  database diagnostics plus redacted events. Secrets, email addresses, URL
+  query strings and long opaque tokens are removed before an event is saved.
+- **Refresh events** and **Clear log** — inspect or remove local diagnostic
+  history. Logs are capped at 500 events and 30 days.
+
+Unexpected JavaScript errors are written to the same local log, and the UI shows
+a single non-blocking warning so you know where to look.
 
 ## Shield and integrations
 
@@ -501,7 +551,7 @@ The **Security** mailbox is a Space. The crypto panel runs real Rust commands:
 - **Fingerprint** — SHA-256 fingerprint for display and comparison.
 
 The lab is a demonstration of the crypto boundary, not a full key-management
-system. Production mailbox encryption at rest is not enabled in 0.3.0. See
+system. Production mailbox encryption at rest is not enabled in 0.4.0. See
 [Security](security.md) for the exact guarantees and gaps.
 
 ## Changes

@@ -7,12 +7,15 @@ mod keys;
 mod mailbox;
 mod priority;
 mod providers;
+mod reporting;
 mod reputation;
+mod search;
 mod secrets;
 mod security;
 mod senders;
 mod shield;
 mod storage;
+mod sync;
 mod threats;
 mod updates;
 #[path = "../../services/sendemail.rs"]
@@ -29,18 +32,27 @@ pub fn run() {
         )
         .setup(|app| {
             storage::initialize(app.handle()).expect("failed to initialize Elyra local storage");
+            reporting::initialize(app.handle()).expect("failed to initialize Elyra diagnostics");
             updates::initialize(app.handle());
             senders::initialize(app.handle()).expect("failed to initialize Elyra sender rules");
             mailbox::initialize(app.handle()).expect("failed to initialize Elyra mailbox engine");
             attachments::initialize(app.handle()).expect("failed to initialize Elyra attachment scanning");
             priority::initialize(app.handle()).expect("failed to initialize Elyra priority engine");
             providers::initialize(app.handle()).expect("failed to initialize Elyra provider accounts");
+            sync::initialize(app.handle()).expect("failed to initialize Elyra sync state");
             security::initialize(app.handle()).expect("failed to initialize Elyra security controls");
             threats::initialize(app.handle()).expect("failed to initialize Elyra threat intelligence");
             integrations::initialize(app.handle()).expect("failed to initialize Elyra integrations");
             shield::initialize(app.handle()).expect("failed to initialize Elyra Shield");
             reputation::initialize(app.handle()).expect("failed to initialize Elyra sender reputation");
             keys::initialize(app.handle()).expect("failed to initialize Elyra key management");
+            let _ = reporting::record(
+                app.handle(),
+                "info",
+                "app",
+                "app.start",
+                "Elyra desktop started",
+            );
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -51,6 +63,14 @@ pub fn run() {
             storage::get_local_settings,
             storage::set_local_settings,
             storage::delete_local_setting,
+            reporting::log_diagnostic_event,
+            reporting::list_diagnostic_events,
+            reporting::export_diagnostic_report,
+            reporting::get_crash_reporting_status,
+            reporting::set_crash_reporting_enabled,
+            reporting::get_diagnostic_logging_status,
+            reporting::set_diagnostic_logging_enabled,
+            reporting::clear_diagnostic_log,
             mailbox::mailbox_stats,
             mailbox::seed_demo_mailbox,
             mailbox::reset_demo_mailbox,
@@ -66,6 +86,14 @@ pub fn run() {
             mailbox::delete_draft,
             mailbox::search_suggestions,
             mailbox::export_mailbox,
+            search::advanced_search,
+            sync::queue_outgoing_message,
+            sync::list_outgoing_queue,
+            sync::flush_outgoing_queue,
+            sync::retry_outgoing_message,
+            sync::discard_outgoing_message,
+            sync::get_sync_status,
+            sync::set_offline_mode,
             attachments::scan_attachment,
             attachments::scan_all_attachments,
             attachments::scan_attachment_external,
