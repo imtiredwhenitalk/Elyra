@@ -7,7 +7,7 @@ description = "Elyra authenticated sync API."
 
 [dependencies]
 argon2 = "0.5"
-axum = "0.7"
+axum = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 dotenvy = "0.15"
 jsonwebtoken = { version = "10.3", features = ["rust_crypto"] }
