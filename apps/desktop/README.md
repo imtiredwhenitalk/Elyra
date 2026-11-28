@@ -53,7 +53,7 @@ desktop process.
 
 If neither an account nor the environment is configured and the user is signed
 in, mail is sent through the Elyra server relay. The server operator enables it
-with `ELYRA_SMTP_*`; see [`docs/deploy/SERVER.md`](../../docs/deploy/SERVER.md).
+with `ELYRA_SMTP_*`; see [`docs/en/deploy/SERVER.md`](../../docs/en/deploy/SERVER.md).
 
 ## Accounts and server URL
 

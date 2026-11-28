@@ -1,7 +1,7 @@
 ### Features & Roadmap
 
 * **UI/UX design** - create a UI/UX design and create some test emails to check [200 OK]
-* **OAuth/Auth** - desktop registration/login plus Rust cloud session bridge [200 OK: desktop]; provider OAuth with PKCE [NEXT]
+* **OAuth/Auth** - desktop registration/login plus Rust cloud session bridge [200 OK: desktop]; provider OAuth with PKCE for Gmail/Outlook IMAP [200 OK]
 * **Add More UI/UX features** - spam, trash, settings, profile, command palette, bulk actions [200 OK]
 * **Message Viewer Core** - full message rendering, attachments, reply/forward, starring [200 OK]
 * **Email Management Actions** - move, delete, snooze, mark read/unread, bulk actions [200 OK]
@@ -10,9 +10,9 @@
 * **Custom Elyra Domain Support** - display and manage `username@elyra.com` handles [200 OK: UI prototype]
 * **Local Database Storage (SQLite)** - Rust schema migration, WAL, foreign keys, secure deletion, settings [200 OK]
 * **Rust Mailbox Engine** - search, filters, stats, drafts, bulk actions, snooze, attachments, sent mail, export [200 OK]
-* **Email Provider Engine (IMAP/SMTP & API)** - SMTP outbound send [200 OK]; IMAP inbox sync for Gmail, Outlook, iCloud, Yahoo, Fastmail, Proton Bridge and custom servers [200 OK]; provider OAuth APIs [NEXT]
+* **Email Provider Engine (IMAP/SMTP & API)** - SMTP outbound send [200 OK]; IMAP inbox sync for Gmail, Outlook, iCloud, Yahoo, Fastmail, Proton Bridge and custom servers [200 OK]; provider OAuth APIs with PKCE [200 OK: IMAP], SMTP XOAUTH2 [NEXT]
 * **Crypto Engine & Key Management** - AES-256-GCM, fingerprints, tamper detection, Rust security lab [200 OK]
-* **OS Keychain Token Storage** - cloud sessions and IMAP passwords stored with `keyring-rs` in the Windows Credential Manager [200 OK]
+* **OS Keychain Token Storage** - cloud sessions, IMAP passwords and provider OAuth token sets stored with `keyring-rs` in the Windows Credential Manager [200 OK]
 * **URL Threat Intelligence** - VirusTotal and Google Safe Browsing with user API keys, URL extraction, SQLite caching, throttling, and provider-failure handling [200 OK]
 * **Elyra Shield** - local phishing, social-engineering, sender and domain-spoof detection with Safe/Suspicious/Malicious results, alerts, and false-positive reporting [200 OK]
 * **Cryptographic Key Management** - Ed25519 identity keys, keychain-backed private material, public-key export/import, contact keys, rotation, and revocation [200 OK]
@@ -30,7 +30,7 @@
 * **Windows Delivery** - MSI/NSIS release workflow, stable asset names, SHA-256 checksums [200 OK]
 * **Portable Launcher** - download, verify, install, update, launch, uninstall [200 OK]
 * **Public Website** - responsive marketing/download page deployed to GitHub Pages [200 OK]
-* **Project Documentation** - structured `docs/` set covering install, user guide, architecture, server/API, security, development, deployment, configuration, Tauri commands, and troubleshooting [200 OK]
+* **Project Documentation** - structured bilingual `docs/` set covering install, user guide, provider OAuth, architecture, server/API, security, development, deployment, configuration, Tauri commands, and troubleshooting [200 OK]
 
 ### Changes (Tracking Log)
 
@@ -60,6 +60,8 @@
 * Added address and domain block/allow rules with allowlist precedence, automatic Spam/Trash filtering, blocked-sender indicators, and Settings management.
 * Added sender-domain reputation with SPF/DKIM/DMARC parsing, Trusted/Neutral/Suspicious/Malicious classifications, reader explanations, domain refresh, and incorrect-assessment reporting.
 * Added attachment security scanning with real-content type detection, risky-file and double-extension warnings, optional ClamAV, consent-based VirusTotal uploads, reader risk cards, and configurable scanning settings.
+* Added provider OAuth with PKCE: native loopback flow, state validation, keychain token sets, IMAP XOAUTH2, automatic refresh, reconnect/revoke UI, and EN/UA documentation (`issues/closed/001-provider-oauth-pkce.md`).
+* Fixed case-insensitive email identity, SMTP connection-test false positives, duplicate outbox flushes, expired cloud sessions, rejected integration keys, and RFC Bearer scheme parsing (`issues/closed/002-rust-and-api-bug-fixes.md`).
 
 ### Phase 3 (GitHub issue #4)
 
@@ -75,6 +77,6 @@
 * **Advanced search and filtering** - SQLite filters for sender, recipient, subject, folder, date range, priority, security verdict, reputation and flags [200 OK]
 * **Sync and offline support** - durable outgoing queue, retry/discard, blocked state after five failures, work-offline mode and a visible sync status badge [200 OK]
 * **Accessibility and interface improvements** - skip link, focus-visible rings, labelled advanced filters, keyboard-trapped confirmation dialogs, notification/status live regions and a global JavaScript error boundary [200 OK]
-* **Provider OAuth with PKCE** - Authorization Code + PKCE, token rotation and reconnect/revocation UX [NEXT]
+* **Provider OAuth with PKCE** - Authorization Code + PKCE, token rotation and reconnect/revocation UX [200 OK: IMAP]; SMTP XOAUTH2 [NEXT] → `issues/open/003-oauth-smtp-xoauth2.md`
 * **Scheduled background sync and WebSocket live updates** - per-account intervals, backoff, authenticated event stream with polling fallback [NEXT]
 * **Crash-reporting backend** - consent-gated endpoint for exported reports; no automatic upload in 0.4.0 [NEXT]

@@ -34,8 +34,9 @@ Elyra connects multiple email providers such as Gmail, Proton Mail, Outlook, and
 
 ### Project Layout & Directory Structure
 
-This is the actual 0.4.0 layout. See [`docs/architecture.md`](docs/architecture.md)
-for the full explanation.
+This is the actual 0.4.0 layout. See [`docs/en/architecture.md`](docs/en/architecture.md)
+for the full explanation. Documentation is available in English (`docs/en/`) and
+Ukrainian (`docs/ua/`); choose a language at [`docs/README.md`](docs/README.md).
 
 Elyra (Repository Root)
 ├── ai.md                         # Project rules, intended stack, and context
@@ -68,21 +69,24 @@ Elyra (Repository Root)
 │   ├── src/users.rs              # User accounts
 │   └── src/mailer.rs             # Optional SMTP relay
 ├── web/                          # Static marketing/download website
-├── docs/                         # Documentation
-│   ├── README.md                 # Documentation index
-│   ├── getting-started.md        # Install and first run
-│   ├── user-guide.md             # Interface and features
-│   ├── architecture.md           # System architecture
-│   ├── server.md                 # Server and API reference
-│   ├── security.md               # Security model and threat model
-│   ├── development.md            # Build, test, release
-│   ├── deployment.md             # Production deployment overview
-│   ├── troubleshooting.md        # Symptom → fix guide
-│   ├── reference/                # configuration.md, tauri-commands.md
-│   ├── deploy/SERVER.md          # Full VPS runbook
-│   ├── architecture/             # short directory scope note
-│   ├── crypto/                   # crypto layer notes
-│   └── security/                 # security architecture note
+├── docs/                         # Documentation (two languages)
+│   ├── README.md                 # Language selector
+│   ├── en/                       # English documentation (canonical)
+│   │   ├── README.md             # Documentation index
+│   │   ├── getting-started.md    # Install and first run
+│   │   ├── user-guide.md         # Interface and features
+│   │   ├── architecture.md       # System architecture
+│   │   ├── server.md             # Server and API reference
+│   │   ├── security.md           # Security model and threat model
+│   │   ├── development.md        # Build, test, release
+│   │   ├── deployment.md         # Production deployment overview
+│   │   ├── troubleshooting.md    # Symptom → fix guide
+│   │   ├── reference/            # configuration.md, tauri-commands.md
+│   │   ├── deploy/               # SERVER.md, VERIFY.md
+│   │   ├── architecture/         # short directory scope note
+│   │   ├── crypto/               # crypto layer notes
+│   │   └── security/             # security architecture note
+│   └── ua/                       # Ukrainian documentation (same structure)
 ├── infrastructure/               # DevOps & Deployment
 │   ├── build/                    # development helper scripts
 │   ├── docker/                   # development Compose stack

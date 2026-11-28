@@ -31,6 +31,7 @@ imap = "2.4"
 mail-parser = "1.0"
 native-tls = "0.2"
 regex = "1"
+url = "2"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 elyra-crypto = { path = "../../../packages/crypto" }
 

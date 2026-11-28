@@ -2779,6 +2779,21 @@ body[data-theme="oled"] .sender-avatar {
 .test-result.success { color: var(--success); }
 .test-result.error { color: var(--danger); }
 
+.oauth-panel { border-color: var(--accent); }
+
+.oauth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+
+.oauth-status {
+  margin: 6px 0;
+  color: var(--text-faint);
+  font-size: 10px;
+}
+
 .connected-account:last-of-type {
   border-bottom: 0;
 }

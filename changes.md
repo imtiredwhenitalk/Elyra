@@ -1,3 +1,54 @@
+[200 OK] Added provider OAuth with PKCE for Gmail/Outlook IMAP and fixed concrete Rust/API bugs:
+
+The desktop client now implements OAuth 2.0 Authorization Code + PKCE as a
+public native client. `apps/desktop/src-tauri/src/oauth.rs` binds an ephemeral
+loopback listener, opens the browser, validates `state`, exchanges the code with
+`code_verifier`, and stores token JSON in the OS keychain under
+`oauth-account-<id>`. Client IDs are supplied through
+`ELYRA_GOOGLE_CLIENT_ID` / `ELYRA_MICROSOFT_CLIENT_ID` at build or runtime;
+no client secret is embedded. `oauth_providers`, `oauth_start`, `oauth_status`
+and `oauth_revoke` are registered in `lib.rs`, and the webview receives only
+`OAuthSessionView` metadata. IMAP sync uses `AUTHENTICATE XOAUTH2` and refreshes
+tokens before expiry. SMTP XOAUTH2 is explicitly not implemented and remains an
+open issue.
+
+Account metadata carries `auth_method`, and the account modal offers OAuth
+sign-in/disconnect for Gmail and Outlook. OAuth-only accounts are hidden from
+direct SMTP sending. Saving a password account clears a stale OAuth token;
+deleting an account clears both keychain entries.
+
+Bug fixes: normalized email identity on the server (trim + lowercase) with a
+`lower(email)` unique index and case-insensitive lookup; SMTP tests now exercise
+the real `lettre` transport instead of only opening a socket; outbox flushes are
+serialized to prevent duplicate delivery; expired or malformed cloud sessions
+are discarded instead of being shown as signed in; integration API keys are
+stored only after validation; and HTTP Bearer scheme parsing is
+case-insensitive per RFC 7235.
+
+Files changed: new `apps/desktop/src-tauri/src/oauth.rs`; `Cargo.toml`,
+`Cargo.lock`, `lib.rs`, `providers.rs`, `secrets.rs`, `cloud.rs`,
+`integrations.rs`, `sync.rs`, desktop `main.js` and `styles.css`; `server/src/api.rs`,
+`server/src/users.rs`, `server/src/database.rs`; `task.md` and this changelog.
+New EN/UA pages `docs/en/oauth.md` and `docs/ua/oauth.md` plus reciprocal
+indexes, user guides, command/configuration/security references; new issue
+templates and local issue files under `.github/ISSUE_TEMPLATE/` and `issues/`.
+
+Validation: [OK] RFC 7636 PKCE vector, state/URL, email normalization, Bearer
+scheme, and expired-session tests added; [OK] `cargo fmt` applied to touched
+Rust files; [OK] `node --check` for desktop JavaScript; [OK] `cargo metadata`;
+[OK] `git diff --check`; [OK] bilingual Markdown link/switcher check over 49 files. Full Rust compilation could not run locally because
+MSVC `link.exe` is unavailable; CI remains the build source of truth.
+
+[200 OK] Made the documentation and repository README available in English and Ukrainian:
+
+Moved the canonical documentation set to `docs/en/` and added a full Ukrainian translation under `docs/ua/` (20 files per language: guides, architecture, security, server/API, deployment runbooks, configuration and Tauri command references). Added a language selector at `docs/README.md` and a reciprocal language switcher at the top of every documentation page. The repository landing page now exists as `README.md` (English) and `README.ua.md` (Ukrainian).
+
+English pages keep their original relative links and anchors. Ukrainian pages mirror the same directory structure and link targets, with explicit English-compatible anchors so cross-page `#` links keep working. Updated the repository links that pointed into `docs/` in `ai.md`, `README.md`, `web/index.html`, `packaging/linux/README.md`, `infrastructure/README.md`, and `apps/desktop/README.md`. Historical entries in `changes.md` and `task.md` are intentionally left in their original form.
+
+Files changed: `README.md`, new `README.ua.md`, new `docs/README.md`, `docs/en/**` (moved from `docs/`), `docs/ua/**` (new), `ai.md`, `web/index.html`, `packaging/linux/README.md`, `infrastructure/README.md`, `apps/desktop/README.md`, `changes.md`.
+
+Validation: [OK] 58 Markdown files checked for relative links; [OK] every `#` fragment link resolves in both languages (Ukrainian pages carry explicit English-compatible anchors); [OK] language switchers present on all 20 English and all 20 Ukrainian documentation pages; [OK] `git diff --check`.
+
 [200 OK] Landed the desktop E2EE envelope integration (issues #6/#19, PR #21):
 
 PR #7 was superseded by an upstream branch on `main`. Native builds now expose RFC 9180 HPKE with X25519/HKDF-SHA256/AES-256-GCM, Ed25519-signed versioned envelopes, separate X25519 key lifecycle, recipient trust states, and fail-closed open/seal paths. Private signing and encryption keys live in the OS keychain; SQLite holds only public material. The architecture, threat model, and explicit non-claims are documented in `docs/security/e2ee.md`.

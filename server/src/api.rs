@@ -45,6 +45,14 @@ struct Credentials {
     display_name: String,
 }
 
+impl Credentials {
+    /// Email addresses are identities, so casing and surrounding whitespace
+    /// must not create a second account or change how a user signs in.
+    fn normalized_email(&self) -> String {
+        self.email.trim().to_ascii_lowercase()
+    }
+}
+
 fn default_display_name() -> String {
     "Elyra user".into()
 }
@@ -61,9 +69,10 @@ async fn register(
     Json(input): Json<Credentials>,
 ) -> Result<Json<SessionResponse>, ApiError> {
     validate_credentials(&input)?;
+    let email = input.normalized_email();
     if state
         .users
-        .find_by_email(&input.email)
+        .find_by_email(&email)
         .await
         .map_err(ApiError::Database)?
         .is_some()
@@ -76,7 +85,7 @@ async fn register(
         .map_err(ApiError::Auth)?;
     let user = state
         .users
-        .create(&input.email, &input.display_name, &hash)
+        .create(&email, &input.display_name, &hash)
         .await
         .map_err(ApiError::Database)?;
     session_response(&state, user)
@@ -87,9 +96,10 @@ async fn login(
     Json(input): Json<Credentials>,
 ) -> Result<Json<SessionResponse>, ApiError> {
     validate_credentials(&input)?;
+    let email = input.normalized_email();
     let Some((user, hash)) = state
         .users
-        .find_by_email(&input.email)
+        .find_by_email(&email)
         .await
         .map_err(ApiError::Database)?
     else {
@@ -303,7 +313,8 @@ async fn send_mail(
 }
 
 fn validate_credentials(input: &Credentials) -> Result<(), ApiError> {
-    if !input.email.contains('@') || input.email.len() > 320 {
+    let email = input.normalized_email();
+    if !email.contains('@') || email.len() > 320 {
         return Err(ApiError::BadRequest("a valid email is required".into()));
     }
     if input.password.len() < 12 {
@@ -354,9 +365,18 @@ fn bearer_token(headers: &HeaderMap) -> Result<&str, ApiError> {
         .get(AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
         .ok_or(ApiError::Unauthorized)?;
-    value
-        .strip_prefix("Bearer ")
-        .ok_or(ApiError::Unauthorized)
+    // RFC 7235 authentication schemes are case-insensitive. `to_ascii_uppercase`
+    // on the scheme keeps `bearer`, `BEARER`, and `Bearer` equivalent without
+    // changing the token, which may legitimately contain mixed case.
+    let (scheme, token) = value.split_once(' ').ok_or(ApiError::Unauthorized)?;
+    if !scheme.eq_ignore_ascii_case("bearer") {
+        return Err(ApiError::Unauthorized);
+    }
+    let token = token.trim();
+    if token.is_empty() {
+        return Err(ApiError::Unauthorized);
+    }
+    Ok(token)
 }
 
 fn authenticated_user(state: &AppState, headers: &HeaderMap) -> Result<Uuid, ApiError> {
@@ -399,12 +419,8 @@ impl IntoResponse for ApiError {
                     MailError::NotConfigured => {
                         (StatusCode::SERVICE_UNAVAILABLE, "mail_not_configured")
                     }
-                    MailError::InvalidRecipient => {
-                        (StatusCode::BAD_REQUEST, "invalid_recipient")
-                    }
-                    MailError::InvalidReplyTo => {
-                        (StatusCode::BAD_REQUEST, "invalid_reply_to")
-                    }
+                    MailError::InvalidRecipient => (StatusCode::BAD_REQUEST, "invalid_recipient"),
+                    MailError::InvalidReplyTo => (StatusCode::BAD_REQUEST, "invalid_reply_to"),
                     _ => (StatusCode::BAD_GATEWAY, "mail_delivery_failed"),
                 };
                 (status, code, message)
@@ -493,7 +509,9 @@ mod tests {
 
     async fn test_state() -> Option<Arc<AppState>> {
         let Some((url, explicit)) = test_database_url() else {
-            eprintln!("skipping database-backed API test: set ELYRA_TEST_DATABASE_URL to enable it");
+            eprintln!(
+                "skipping database-backed API test: set ELYRA_TEST_DATABASE_URL to enable it"
+            );
             return None;
         };
         let pool = match PgPoolOptions::new()
@@ -535,6 +553,14 @@ mod tests {
     }
 
     #[test]
+    fn email_identity_is_trimmed_and_lowercased() {
+        assert_eq!(
+            credentials("  User@Example.COM ", "correct horse battery", "User").normalized_email(),
+            "user@example.com"
+        );
+    }
+
+    #[test]
     fn credential_validation_covers_registration_and_login_input() {
         assert!(validate_credentials(&credentials(
             "user@example.test",
@@ -551,7 +577,11 @@ mod tests {
             Err(ApiError::BadRequest(_))
         ));
         assert!(matches!(
-            validate_credentials(&credentials("user@example.test", "correct horse battery", "  ")),
+            validate_credentials(&credentials(
+                "user@example.test",
+                "correct horse battery",
+                "  "
+            )),
             Err(ApiError::BadRequest(_))
         ));
     }
@@ -574,12 +604,10 @@ mod tests {
 
     #[test]
     fn notification_and_mail_input_validation_is_strict() {
-        assert!(validate_notification_input(&notification(
-            "friend@example.test",
-            "Hello",
-            "Body"
-        ))
-        .is_ok());
+        assert!(
+            validate_notification_input(&notification("friend@example.test", "Hello", "Body"))
+                .is_ok()
+        );
         assert!(matches!(
             validate_notification_input(&notification("not-an-email", "Hello", "Body")),
             Err(ApiError::BadRequest(_))
@@ -627,6 +655,15 @@ mod tests {
         assert_eq!(
             bearer_token(&auth_header("token-value")).expect("bearer token"),
             "token-value"
+        );
+        let mut lowercase = HeaderMap::new();
+        lowercase.insert(
+            AUTHORIZATION,
+            HeaderValue::from_static("bearer Mixed.Case.Token"),
+        );
+        assert_eq!(
+            bearer_token(&lowercase).expect("lowercase bearer scheme"),
+            "Mixed.Case.Token"
         );
     }
 
@@ -677,7 +714,11 @@ mod tests {
 
         let signed_in = login(
             State(state.clone()),
-            Json(credentials(&email, password, "Ignored")),
+            Json(credentials(
+                &email.to_ascii_uppercase(),
+                password,
+                "Ignored",
+            )),
         )
         .await
         .expect("login")
@@ -755,7 +796,11 @@ mod tests {
         assert!(matches!(
             register(
                 State(state.clone()),
-                Json(credentials(&email, "another long password", "Other"))
+                Json(credentials(
+                    &email.to_ascii_uppercase(),
+                    "another long password",
+                    "Other"
+                ))
             )
             .await,
             Err(ApiError::Conflict(_))
@@ -796,14 +841,22 @@ mod tests {
         let recipient_email = format!("{}@example.test", Uuid::new_v4());
         let sender = register(
             State(state.clone()),
-            Json(credentials(&sender_email, "correct horse battery", "Sender")),
+            Json(credentials(
+                &sender_email,
+                "correct horse battery",
+                "Sender",
+            )),
         )
         .await
         .expect("register sender")
         .0;
         let recipient = register(
             State(state.clone()),
-            Json(credentials(&recipient_email, "correct horse battery", "Recipient")),
+            Json(credentials(
+                &recipient_email,
+                "correct horse battery",
+                "Recipient",
+            )),
         )
         .await
         .expect("register recipient")
@@ -826,10 +879,11 @@ mod tests {
         assert_eq!(created.recipient_id, recipient.user.id);
         assert!(!created.is_read);
 
-        let sender_list = list_notifications(State(state.clone()), auth_header(&sender.access_token))
-            .await
-            .expect("sender notifications")
-            .0;
+        let sender_list =
+            list_notifications(State(state.clone()), auth_header(&sender.access_token))
+                .await
+                .expect("sender notifications")
+                .0;
         assert!(sender_list.is_empty());
         let recipient_list =
             list_notifications(State(state.clone()), auth_header(&recipient.access_token))
@@ -857,10 +911,11 @@ mod tests {
             .expect("mark notification read"),
             StatusCode::NO_CONTENT
         );
-        let updated = list_notifications(State(state.clone()), auth_header(&recipient.access_token))
-            .await
-            .expect("updated notifications")
-            .0;
+        let updated =
+            list_notifications(State(state.clone()), auth_header(&recipient.access_token))
+                .await
+                .expect("updated notifications")
+                .0;
         assert!(updated[0].is_read);
 
         cleanup_user(&state, sender.user.id).await;

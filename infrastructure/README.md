@@ -30,7 +30,7 @@ run:
 
 Add `--tls` to enable the optional Caddy profile with automatic HTTPS. The full
 walkthrough — DNS, secrets, SMTP relay, desktop server URL, backups, and GitHub
-Actions deployment — is in [`docs/deploy/SERVER.md`](../docs/deploy/SERVER.md).
+Actions deployment — is in [`docs/en/deploy/SERVER.md`](../docs/en/deploy/SERVER.md).
 
 Only the website port is published by default. The API, PostgreSQL, and Redis
 stay on the private `elyra` network. With Caddy enabled, only ports 80/443 are

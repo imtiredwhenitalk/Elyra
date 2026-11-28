@@ -29,6 +29,7 @@ const state = {
   diagnostics: null,
   accounts: [],
   presets: [],
+  oauthProviders: [],
   editingAccountId: null,
   apiBase: "",
   cloudMailRelay: false,
@@ -605,6 +606,9 @@ function accountStatus(account) {
     return `<span class="account-status error" title="${escapeHtml(account.syncError)}">Sync error</span>`;
   }
   if (!account.imapHost) return `<span class="account-status muted">Local only</span>`;
+  if (account.authMethod === "oauth2" && account.oauthConnected) {
+    return `<span class="account-status">OAuth connected</span>`;
+  }
   if (!account.hasPassword) return `<span class="account-status warn">Password missing</span>`;
   return `<span class="account-status">${account.lastSyncAt ? `Synced ${formatSync(account.lastSyncAt)}` : "Ready to sync"}</span>`;
 }
@@ -631,7 +635,9 @@ function renderComposeAccounts() {
   const select = $("#compose-account");
   if (!select) return;
   const previous = select.value;
-  const sendable = (state.accounts || []).filter((account) => account.smtpHost);
+  const sendable = (state.accounts || []).filter(
+    (account) => account.smtpHost && account.authMethod !== "oauth2"
+  );
   select.innerHTML = `<option value="">Environment SMTP</option>${sendable
     .map((account) => `<option value="${account.id}">${escapeHtml(account.email)}</option>`)
     .join("")}`;
@@ -729,6 +735,7 @@ function accountInputFromForm(form) {
     imapHost: data.get("imapHost"),
     imapPort: Number(data.get("imapPort")) || 993,
     imapSecurity: data.get("imapSecurity"),
+    authMethod: data.get("authMethod") || null,
     smtpHost: data.get("smtpHost"),
     smtpPort: Number(data.get("smtpPort")) || 465,
     smtpSecurity: data.get("smtpSecurity"),
@@ -763,6 +770,22 @@ async function openAccountModal(accountId = null) {
   await loadProviderPresets();
   const account = state.accounts.find((item) => Number(item.id) === Number(accountId));
   state.editingAccountId = account?.id || null;
+  let oauthStatus = null;
+  if (isDesktopRuntime()) {
+    try {
+      state.oauthProviders = (await invoke("oauth_providers")).filter((item) => item.configured);
+    } catch {
+      state.oauthProviders = [];
+    }
+    if (account) {
+      try {
+        oauthStatus = await invoke("oauth_status", { accountId: account.id });
+      } catch {
+        oauthStatus = null;
+      }
+    }
+  }
+  const oauthConnected = Boolean(oauthStatus?.connected || account?.oauthConnected);
   const providers = [
     ...state.presets.filter((preset) => preset.id !== "custom"),
     { id: "elyra", label: "Elyra local", hint: "A local Elyra workspace account. Add IMAP settings to sync a real inbox." },
@@ -796,10 +819,22 @@ async function openAccountModal(accountId = null) {
           <input name="username" autocomplete="username" value="${escapeHtml(account?.username || "")}" placeholder="Usually the email address" />
         </label>
       </div>
+      <input type="hidden" name="authMethod" value="${oauthConnected ? "oauth2" : "password"}" />
       <label>Password
-        <input name="password" type="password" autocomplete="current-password" placeholder="${account?.hasPassword ? "Stored in the OS keychain — leave blank to keep" : "IMAP / app password"}" />
+        <input name="password" type="password" autocomplete="current-password" placeholder="${oauthConnected ? "OAuth connected — leave blank to keep IMAP OAuth" : account?.hasPassword ? "Stored in the OS keychain — leave blank to keep" : "IMAP / app password"}" />
       </label>
       <p class="account-hint" data-account-hint></p>
+      ${state.oauthProviders.length ? `
+        <fieldset class="account-server oauth-panel">
+          <legend>OAuth 2.0 sign-in (PKCE)</legend>
+          <p class="account-hint">Opens your browser, then stores refresh tokens in the OS keychain. OAuth secures IMAP sync; SMTP still needs an app password or the Elyra relay.</p>
+          <div class="oauth-actions">
+            ${state.oauthProviders.map((provider) => `<button class="ghost-button" type="button" data-oauth-provider="${escapeHtml(provider.id)}">${icon("shield")} Sign in with ${escapeHtml(provider.label)}</button>`).join("")}
+            ${oauthConnected ? `<button class="text-button danger-text" type="button" data-oauth-disconnect>Disconnect OAuth</button>` : ""}
+          </div>
+          <p class="oauth-status" data-oauth-status>${oauthConnected ? `Connected${oauthStatus?.expiresAt ? ` · expires ${escapeHtml(String(oauthStatus.expiresAt).slice(0, 16).replace("T", " "))}` : ""}` : "Not connected"}</p>
+        </fieldset>
+      ` : ""}
 
       <fieldset class="account-server">
         <legend>Incoming mail (IMAP)</legend>
@@ -847,6 +882,47 @@ async function openAccountModal(accountId = null) {
   modal.querySelector("#account-provider").addEventListener("change", (event) => applyPreset(modal, event.target.value));
   modal.querySelector("[data-close]").addEventListener("click", () => modal.remove());
   modal.addEventListener("click", (event) => { if (event.target === modal) modal.remove(); });
+
+  modal.querySelectorAll("[data-oauth-provider]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const email = String(form.elements.email.value || "").trim();
+      const error = modal.querySelector("[data-error]");
+      const status = modal.querySelector("[data-oauth-status]");
+      if (!email.includes("@")) {
+        error.textContent = "Enter your email address before starting OAuth sign-in";
+        return;
+      }
+      error.textContent = "";
+      button.disabled = true;
+      if (status) status.textContent = "Waiting for the browser sign-in…";
+      try {
+        await invoke("oauth_start", { provider: button.dataset.oauthProvider, email });
+        modal.remove();
+        await loadAccounts();
+        await refreshStats();
+        showToast("OAuth mailbox connected", "success");
+      } catch (oauthError) {
+        if (status) status.textContent = "Sign-in did not complete";
+        error.textContent = oauthError.message || "OAuth sign-in failed";
+        button.disabled = false;
+      }
+    });
+  });
+
+  modal.querySelector("[data-oauth-disconnect]")?.addEventListener("click", async (event) => {
+    if (!account) return;
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      await invoke("oauth_revoke", { accountId: account.id });
+      modal.remove();
+      await loadAccounts();
+      showToast("OAuth disconnected", "success");
+    } catch (revokeError) {
+      modal.querySelector("[data-error]").textContent = revokeError.message || "Could not disconnect OAuth";
+      button.disabled = false;
+    }
+  });
 
   modal.querySelector("[data-test-account]").addEventListener("click", async (event) => {
     const button = event.currentTarget;

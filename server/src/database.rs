@@ -33,6 +33,7 @@ impl Database {
                 password_hash TEXT NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower ON users (lower(email));
             CREATE TABLE IF NOT EXISTS sync_cursors (
                 user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
                 cursor TEXT,
