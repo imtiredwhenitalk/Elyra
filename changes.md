@@ -3,13 +3,14 @@
 GitHub reported 13 Dependabot alerts on `main`: four rustls advisories in both the
 workspace and stale desktop lockfiles, two glib soundness alerts, one
 lexical-core soundness alert through `imap`/`nom`, and two jsonwebtoken type
-confusion alerts. The workspace now uses `jsonwebtoken` 10.4.0 with `HS256`
-pinned explicitly, `rustls` 0.23.46, Tauri 2.13.0 with GTK 0.19/`glib` 0.22.11,
+confusion alerts. The workspace now uses `jsonwebtoken` 10.4.0 with the `rust_crypto` provider and
+`HS256` pinned explicitly, `rustls` 0.23.46, Tauri 2.13.0 with GTK 0.19/`glib` 0.22.11,
 and `imap` 3.0.0-alpha.15 whose `nom` 7 parser removes `lexical-core` 0.7 from
 the graph. `providers.rs` now connects through `imap::ClientBuilder` and
 `imap::Connection`; the unused `native-tls` connector and stale nested
-`Cargo.lock` are removed. A new `.github/dependabot.yml` opens weekly Cargo and
-npm update PRs. Migration off the IMAP pre-release is tracked in
+`Cargo.lock` are removed. `@tauri-apps/api` 2.13.0 and `@tauri-apps/cli` 2.12.6
+keep the Node side aligned with the Rust crate. A new `.github/dependabot.yml`
+opens weekly Cargo and npm update PRs. Migration off the IMAP pre-release is tracked in
 `issues/open/008-imap-stable-migration.md`.
 
 Files changed: `Cargo.lock`, `server/Cargo.toml`, `server/src/auth.rs`,
@@ -21,9 +22,11 @@ EN/UA security and development docs, `issues/README.md`, new
 
 Validation: [OK] `cargo metadata --locked --no-deps`; [OK] lockfile versions
 checked with `cargo tree --locked` and direct lockfile inspection; [OK]
-`rustfmt --check` on touched Rust files. Full local Rust compilation remains
-blocked by missing MSVC `link.exe`; the PR status checks are the build source
-of truth.
+`rustfmt --check` on touched Rust files; [OK] `npm install --package-lock-only`
+with 0 vulnerabilities. Full local Rust compilation remains blocked by missing
+MSVC `link.exe`; the PR status checks are the build source of truth. The first
+PR run exposed and fixed the missing jsonwebtoken crypto provider and the
+Tauri npm/Rust version mismatch.
 
 [200 OK] Hardened OAuth, keychain handling, and server migration after post-commit audit:
 
