@@ -1,6 +1,6 @@
 [package]
 name = "tauri-app"
-version = "0.4.0"
+version = "0.5.0"
 description = "Elyra — a private, local-first email workspace."
 authors = ["Elyra"]
 edition = "2021"

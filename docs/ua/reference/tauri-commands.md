@@ -3,7 +3,7 @@
 # Довідник команд Tauri
 
 Ця сторінка містить перелік усіх команд, зареєстрованих у
-`apps/desktop/src-tauri/src/lib.rs` для поточної збірки Elyra для десктопу (0.4.0
+`apps/desktop/src-tauri/src/lib.rs` для поточної збірки Elyra для десктопу (0.5.0
 та ще не випущеного етапу безпеки). Вебперегляд може викликати лише ці
 команди. Усе інше Tauri відхиляє.
 
@@ -814,7 +814,7 @@ Suspicious; 60 або більше — Malicious. Відправники зі с
 }
 ```
 
-Синхронізується лише INBOX. У 0.4.0 немає планової фонової синхронізації.
+Синхронізується лише INBOX. У 0.5.0 немає планової фонової синхронізації.
 
 <a id="oauth"></a>
 ## OAuth
@@ -1311,7 +1311,7 @@ UTF-8.
 ```json
 [
   {
-    "version": "0.4.0",
+    "version": "0.5.0",
     "date": "2026-11-26",
     "title": "Local diagnostics",
     "detail": "Redacted error events are stored in SQLite and exported only when you choose...",
@@ -1333,7 +1333,7 @@ UTF-8.
 
 ```json
 {
-  "app_version": "0.4.0",
+  "app_version": "0.5.0",
   "engine": "Rust + Tauri + SQLite",
   "os": "windows",
   "arch": "x86_64",
@@ -1650,7 +1650,7 @@ Elyra. Повертає JSON створеного сповіщення.
 ```
 
 Викликає `GET {api}/v1/sync/cursor` і повертає `{ cursor, synced_at }`. Курсор є
-непрозорим; у 0.4.0 немає планового циклу синхронізації.
+непрозорим; у 0.5.0 немає планового циклу синхронізації.
 
 ### `cloud_update_cursor`
 

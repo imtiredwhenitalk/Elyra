@@ -3,7 +3,7 @@
 
 # User guide
 
-This guide describes the Elyra 0.4.0 desktop interface and the behavior behind
+This guide describes the Elyra 0.5.0 desktop interface and the behavior behind
 each control. Menu labels are shown in **bold**.
 
 ## Interface overview
@@ -188,7 +188,7 @@ The server relay sends from the operator's `ELYRA_SMTP_FROM` address and sets
 Drafts are stored locally in SQLite. Saving a draft with no recipient or subject
 uses safe placeholders. Opening a draft from **Drafts** restores the recipient,
 subject, and body. Sending a draft deletes the draft row. Drafts are not synced
-to the provider in 0.4.0.
+to the provider in 0.5.0.
 
 ## Mail accounts
 
@@ -264,7 +264,7 @@ accepts 1–200. Sync behavior:
 - Preserves local read and starred state across syncs.
 - Records `last_sync_at` or `sync_error` per account.
 - Only INBOX is synced. Sent, Drafts, Archive, Spam, and Trash are not pulled
-  from the provider in 0.4.0.
+  from the provider in 0.5.0.
 
 **Sync all** runs the same operation for every configured account and reports
 how many messages were imported.
@@ -344,7 +344,7 @@ It does not delete your server account, local mail, or mail-account passwords.
 - **Display name** — shown in the sidebar, profile, and outgoing mail from the
   server relay.
 - **Elyra domain handle** — a display-only prototype handle such as
-  `alex@elyra.com`. It is not a real mailbox and cannot receive mail in 0.4.0.
+  `alex@elyra.com`. It is not a real mailbox and cannot receive mail in 0.5.0.
 - **Signature** — prefilled into new compose windows.
 
 ### Appearance
@@ -364,7 +364,7 @@ OLED theme uses true black surfaces for OLED displays.
 - **Local-only preview** — indicates the local-first mode and keeps the UI
   messaging accurate when cloud features are unavailable.
 - **Desktop notifications** — stores the preference for future native
-  notification delivery. In 0.4.0, cloud notifications are shown in the in-app
+  notification delivery. In 0.5.0, cloud notifications are shown in the in-app
   popover; no scheduled background notification is delivered while the app is
   closed.
 - **Reduce motion** — same as the appearance toggle.
@@ -503,7 +503,7 @@ The **Diagnostics & privacy** section adds:
 
 - **Allow diagnostic logging** — controls whether new events are stored locally.
 - **Enable optional crash reporting** — records a preference for a future
-  reporting endpoint. Elyra 0.4.0 has no upload endpoint and sends nothing
+  reporting endpoint. Elyra 0.5.0 has no upload endpoint and sends nothing
   automatically.
 - **Export diagnostic report** — downloads a JSON report containing app and
   database diagnostics plus redacted events. Secrets, email addresses, URL
@@ -573,7 +573,7 @@ The native desktop build also contains versioned message-envelope primitives:
 - Unsupported versions, invalid signatures, wrong recipient keys, and tampered
   ciphertext fail without showing plaintext.
 
-This is a protocol preview, not automatic E2EE for mailbox mail in 0.4.0. The
+This is a protocol preview, not automatic E2EE for mailbox mail in 0.5.0. The
 compose/send path, server relay, and attachments do not yet use envelopes, so do
 not assume a message is end-to-end encrypted. The full design, guarantees, and
 limitations are in [E2EE architecture](security/e2ee.md).
@@ -591,7 +591,7 @@ The **Security** mailbox is a Space. The crypto panel runs real Rust commands:
 - **Fingerprint** — SHA-256 fingerprint for display and comparison.
 
 The lab is a demonstration of the crypto boundary, not a full key-management
-system. Production mailbox encryption at rest is not enabled in 0.4.0. See
+system. Production mailbox encryption at rest is not enabled in 0.5.0. See
 [Security](security.md) for the exact guarantees and gaps.
 
 ## Changes

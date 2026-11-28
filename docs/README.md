@@ -8,8 +8,8 @@ The Elyra documentation is available in two languages. Choose the one you prefer
 | 🇬🇧 **English** | [Documentation index](en/README.md) |
 | 🇺🇦 **Українська** | [Індекс документації](ua/README.md) |
 
-Both versions describe the same shipped Elyra **0.4.0** release and are kept in sync. Code, commands, paths, and identifiers stay in their original form in both languages.
-Обидві версії описують одну й ту саму випущену версію Elyra **0.4.0** і синхронізуються між собою. Код, команди, шляхи та ідентифікатори в обох мовах залишаються у початковому вигляді.
+Both versions describe the same shipped Elyra **0.5.0** release and are kept in sync. Code, commands, paths, and identifiers stay in their original form in both languages.
+Обидві версії описують одну й ту саму випущену версію Elyra **0.5.0** і синхронізуються між собою. Код, команди, шляхи та ідентифікатори в обох мовах залишаються у початковому вигляді.
 
 ## Repository files / Файли репозиторію
 

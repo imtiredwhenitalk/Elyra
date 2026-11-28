@@ -10,7 +10,7 @@ source-of-truth files are listed in [docs/README.md](README.md).
 
 ### Windows SmartScreen or Defender warns about the installer
 
-Elyra 0.4.0 is not code-signed with an EV certificate, so Windows may show
+Elyra 0.5.0 is not code-signed with an EV certificate, so Windows may show
 "Unknown publisher" or a SmartScreen prompt.
 
 1. Confirm the file came from the official
@@ -122,7 +122,7 @@ index.
 ### I am signed out after a while
 
 Access tokens expire after `ELYRA_ACCESS_TOKEN_TTL_HOURS` (24 hours by default).
-There is no refresh token in 0.4.0, so sign in again. Changing
+There is no refresh token in 0.5.0, so sign in again. Changing
 `ELYRA_JWT_SECRET` invalidates every token immediately.
 
 ## Mail accounts and IMAP
@@ -165,7 +165,7 @@ the Bridge IMAP/SMTP credentials, not your Proton account password.
 
 - Click **Sync** on the specific account. The header refresh button does not
   contact IMAP.
-- Only the provider's **INBOX** is synced in 0.4.0. Sent, Drafts, Archive, Spam,
+- Only the provider's **INBOX** is synced in 0.5.0. Sent, Drafts, Archive, Spam,
   and Trash are not pulled.
 - Check the account row for a sync error. Diagnostics does not show per-account
   errors.
@@ -213,7 +213,7 @@ server and receiving provider honor `Reply-To`.
 
 ### A failed send is missing from Sent
 
-Failed sends are not recorded in **Sent**. In 0.4.0 they are kept in the local
+Failed sends are not recorded in **Sent**. In 0.5.0 they are kept in the local
 outbox instead, so you can retry or discard them from **Settings → Sync &
 offline**. Flush the outbox after fixing the account or relay configuration.
 
@@ -231,7 +231,7 @@ While the switch is on, `flush_outgoing_queue` skips every queued message.
 
 ### Drafts are not on the provider
 
-Drafts are local SQLite rows in 0.4.0. They are not synced to IMAP.
+Drafts are local SQLite rows in 0.5.0. They are not synced to IMAP.
 
 ## Notifications and cloud features
 
@@ -248,7 +248,7 @@ Notifications are in-app records, not email.
 
 ### Desktop notifications do not appear when the app is closed
 
-The **Desktop notifications** setting stores a preference only. In 0.4.0, cloud
+The **Desktop notifications** setting stores a preference only. In 0.5.0, cloud
 notifications appear in the in-app popover. There is no background push channel.
 
 ### Signing out did not delete my mail
@@ -418,13 +418,13 @@ that SPF/DKIM/DMARC are configured. Inspect API logs for the underlying error.
 
 ### Registration is open to anyone
 
-That is a known 0.4.0 limitation. Add a reverse-proxy allowlist, an invite code,
+That is a known 0.5.0 limitation. Add a reverse-proxy allowlist, an invite code,
 or admin approval before exposing the server publicly. See
 [Security → Known gaps](security.md#known-gaps-and-follow-ups).
 
 ### The relay can be abused
 
-There is no per-user rate limit or quota in 0.4.0. Disable `ELYRA_SMTP_HOST`
+There is no per-user rate limit or quota in 0.5.0. Disable `ELYRA_SMTP_HOST`
 until you add rate limiting, or restrict who can register.
 
 ### Backups fail

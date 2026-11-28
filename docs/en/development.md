@@ -185,7 +185,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 ```
 
 `cargo fmt` is expected before committing Rust changes. Clippy is not enforced
-by CI in 0.4.0, but it is recommended.
+by CI in 0.5.0, but it is recommended.
 
 ## Run the desktop app
 
@@ -365,7 +365,7 @@ sync, settings persistence, Security Lab, and diagnostics.
 ### 4. Tag and push
 
 ```powershell
-git tag v0.4.0
+git tag v0.5.0
 git push origin main --tags
 ```
 

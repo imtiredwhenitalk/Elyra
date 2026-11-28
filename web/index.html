@@ -40,7 +40,7 @@
       <section class="hero">
         <div class="hero-glow" aria-hidden="true"></div>
         <div class="hero-copy reveal">
-          <p class="eyebrow"><span class="eyebrow-dot"></span> Windows + Linux · v0.4.0</p>
+          <p class="eyebrow"><span class="eyebrow-dot"></span> Windows + Linux · v0.5.0</p>
           <h1>Your inbox,<br /><em>back on your side.</em></h1>
           <p class="lede">
             Elyra is a quiet, local-first email workspace for Windows and Linux.
@@ -278,7 +278,7 @@
             <span class="platform-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3V5.5ZM12 4.1 21 2.8v8.7h-9V4.1ZM3 12.5h7.5v7.1L3 18.5v-6ZM12 12.5h9v8.7l-9-1.3v-7.4Z"/></svg>
             </span>
-            <div><b>Elyra for Windows</b><small>Version 0.4.0 · 64-bit</small></div>
+            <div><b>Elyra for Windows</b><small>Version 0.5.0 · 64-bit</small></div>
             <span class="download-badge">Latest</span>
           </div>
 
@@ -326,7 +326,7 @@
             <span class="platform-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5c-4.5 0-6.3 2.2-6.3 4.7v4.2c0 2.3-1.5 3.7-1.5 4.9 0 1 .9 1.8 2.2 1.8 1.2 0 2.2-.7 3.4-.7 1 0 1.7.7 2.2.7.6 0 1.4-.7 2.5-.7 1.2 0 2.4.7 3.5.7 1.3 0 2.1-.8 2.1-1.8 0-1.2-1.5-2.6-1.5-4.9V8.2c0-2.5-1.8-4.7-6.3-4.7Z"/></svg>
             </span>
-            <div><b>Elyra for Linux</b><small>Version 0.4.0 · x86_64</small></div>
+            <div><b>Elyra for Linux</b><small>Version 0.5.0 · x86_64</small></div>
             <span class="download-badge">New</span>
           </div>
 
@@ -372,13 +372,25 @@
       <section class="section changes" id="changes">
         <div class="section-heading reveal">
           <p class="eyebrow">What shipped</p>
-          <h2>Release 0.4.0 is ready to run, host and update.</h2>
+          <h2>Release 0.5.0 is ready to run, host and update.</h2>
           <p>
-            Diagnose problems without giving away your mail, search every local field,
-            keep sends safe while offline, and use the whole interface from a keyboard.
+            Connect Gmail or Outlook with provider OAuth and PKCE, keep tokens in the
+            OS keychain, and run on a dependency stack cleared of 13 security alerts.
           </p>
         </div>
         <div class="change-grid">
+          <article class="change-card reveal">
+            <span class="change-version">0.5.0</span>
+            <h3>Provider OAuth with PKCE</h3>
+            <p>Gmail and Outlook accounts connect through a native loopback flow. Access and refresh tokens stay in the OS keychain, IMAP sync uses XOAUTH2, and reconnect or revoke stays under your control.</p>
+            <span class="change-tag">shipped</span>
+          </article>
+          <article class="change-card reveal">
+            <span class="change-version">0.5.0</span>
+            <h3>Security maintenance</h3>
+            <p>JWT, TLS, Tauri/GTK and IMAP dependencies were upgraded to clear every open Dependabot alert. Weekly update PRs keep the lockfile from drifting again.</p>
+            <span class="change-tag">shipped</span>
+          </article>
           <article class="change-card reveal">
             <span class="change-version">0.4.0</span>
             <h3>Private diagnostics</h3>

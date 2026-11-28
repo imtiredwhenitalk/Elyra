@@ -1449,7 +1449,7 @@ function renderUpdates() {
 
   if (check) check.disabled = state.updateBusy;
   if (install) install.disabled = state.updateBusy;
-  if (current) current.textContent = status?.currentVersion || "0.4.0";
+  if (current) current.textContent = status?.currentVersion || "0.5.0";
 
   if (!status) {
     if (badge) {

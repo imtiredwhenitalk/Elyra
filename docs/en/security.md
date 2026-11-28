@@ -6,7 +6,7 @@ Elyra is designed around a local-first trust boundary: mail stays on the user's
 device, privileged operations run in Rust, and the optional cloud service holds
 only account metadata, sync cursors, notifications, and relay configuration.
 
-This page describes the security model as implemented in 0.4.0, including what
+This page describes the security model as implemented in 0.5.0, including what
 is **not** protected yet. It is a technical document, not a certification.
 
 ## Security goals
@@ -45,7 +45,7 @@ files, access the keychain, or perform raw network requests. Rust validates
 arguments and returns errors.
 
 `tauri.conf.json` currently sets `csp: null` and `withGlobalTauri: true`. This is
-a deliberate 0.4.0 trade-off for the static frontend and Tauri API access. A
+a deliberate 0.5.0 trade-off for the static frontend and Tauri API access. A
 strict Content Security Policy and reduced global surface are recommended before
 treating the webview as a hardened boundary.
 
@@ -251,7 +251,8 @@ future milestone.
 - JWT HS256 access tokens signed with `ELYRA_JWT_SECRET`.
 - Secret must be at least 32 characters; the server refuses to start otherwise.
 - Tokens expire after 24 hours by default.
-- No refresh tokens, revocation list, or password reset in 0.4.0.
+- Server accounts still have no refresh tokens, revocation list, or password reset.
+  OAuth provider sessions use provider refresh tokens and revocation.
 
 ### Authorization
 
@@ -342,7 +343,7 @@ These are documented so operators can make informed decisions:
 2. **Unthrottled relay.** Add per-user rate limits, quotas, and monitoring before
    enabling the relay for untrusted users.
 3. **OAuth covers IMAP only.** SMTP XOAUTH2 remains an open follow-up.
-4. **No refresh tokens.** Users sign in again after token expiry.
+4. **No server refresh tokens.** Server sessions expire; OAuth provider sessions refresh in the desktop app.
 5. **No password reset or email verification.**
 6. **Permissive CORS.** Restrict origins if the API is exposed directly.
 7. **No CSP.** `tauri.conf.json` has `csp: null`; harden before treating the

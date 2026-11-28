@@ -240,7 +240,7 @@ fn crash_reporting_status(app: AppHandle) -> Result<CrashReportingStatus, String
     Ok(CrashReportingStatus {
         enabled: setting_enabled(&database, "crash_reporting_enabled", false),
         automatic_upload: false,
-        note: "Optional preference for future crash reporting. No diagnostic data leaves this device automatically in 0.4.0.",
+        note: "Optional preference for future crash reporting. No diagnostic data leaves this device automatically in 0.5.0.",
     })
 }
 

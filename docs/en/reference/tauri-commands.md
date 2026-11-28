@@ -4,7 +4,7 @@
 # Tauri command reference
 
 This page lists every command registered in
-`apps/desktop/src-tauri/src/lib.rs` for the current Elyra desktop build (0.4.0
+`apps/desktop/src-tauri/src/lib.rs` for the current Elyra desktop build (0.5.0
 plus the unreleased security milestone). The webview can invoke only these
 commands. Anything else is rejected by Tauri.
 
@@ -803,7 +803,7 @@ Runs the same sync for every account. Returns:
 }
 ```
 
-Only INBOX is synced. There is no scheduled background sync in 0.4.0.
+Only INBOX is synced. There is no scheduled background sync in 0.5.0.
 
 <a id="oauth"></a>
 ## OAuth
@@ -1290,7 +1290,7 @@ Returns the static release notes rendered in the **Changes** tab:
 ```json
 [
   {
-    "version": "0.4.0",
+    "version": "0.5.0",
     "date": "2026-11-26",
     "title": "Local diagnostics",
     "detail": "Redacted error events are stored in SQLite and exported only when you choose...",
@@ -1312,7 +1312,7 @@ Returns `snake_case` diagnostics:
 
 ```json
 {
-  "app_version": "0.4.0",
+  "app_version": "0.5.0",
   "engine": "Rust + Tauri + SQLite",
   "os": "windows",
   "arch": "x86_64",
@@ -1624,7 +1624,7 @@ notification read; other ids return `404`.
 ```
 
 Calls `GET {api}/v1/sync/cursor` and returns `{ cursor, synced_at }`. The cursor
-is opaque; 0.4.0 does not run a scheduled sync loop.
+is opaque; 0.5.0 does not run a scheduled sync loop.
 
 ### `cloud_update_cursor`
 

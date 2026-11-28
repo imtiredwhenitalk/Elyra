@@ -1,3 +1,17 @@
+[200 OK] Bumped the release line to 0.5.0 for the OAuth update:
+
+All authoritative version files, lockfiles, UI fallbacks and current-release
+EN/UA docs now describe 0.5.0. The desktop changelog and public website lead
+with provider OAuth/PKCE for IMAP and the dependency security cleanup, while
+historical 0.4.0 entries stay intact. Tagging `v0.5.0` after this lands triggers
+`Release Windows` and `Release Linux` to build the new installers, AppImage and
+.deb packages.
+
+Validation: [OK] version consistency across manifests, lockfiles, UI fallbacks,
+README, website and bilingual docs; [OK] JavaScript and JSON syntax checks;
+[OK] Markdown link audit. The PR's Linux core and Windows desktop checks are
+the build source of truth.
+
 [200 OK] Cleared all open dependency security alerts and enabled weekly dependency PRs:
 
 GitHub reported 13 Dependabot alerts on `main`: four rustls advisories in both the

@@ -23,7 +23,7 @@ Elyra connects multiple email providers such as Gmail, Proton Mail, Outlook, and
 ### Language u need to use in project 
 
 ## Desktop / app Rust + Tauri / fast, low RAM usage, good security baseline
-## UI / static HTML + CSS + JavaScript / the shipped 0.4.0 interface (React + TypeScript is the intended future direction, not implemented)
+## UI / static HTML + CSS + JavaScript / the shipped 0.5.0 interface (React + TypeScript is the intended future direction, not implemented)
 ## Backend / Rust / security , concurrency, productivity
 ## Crypto / Rust / memory safety + strange crypto-ecosystem
 ## Local DB / SQLite / local cache , index , settings 
@@ -34,7 +34,7 @@ Elyra connects multiple email providers such as Gmail, Proton Mail, Outlook, and
 
 ### Project Layout & Directory Structure
 
-This is the actual 0.4.0 layout. See [`docs/en/architecture.md`](docs/en/architecture.md)
+This is the actual 0.5.0 layout. See [`docs/en/architecture.md`](docs/en/architecture.md)
 for the full explanation. Documentation is available in English (`docs/en/`) and
 Ukrainian (`docs/ua/`); choose a language at [`docs/README.md`](docs/README.md).
 

@@ -4,7 +4,7 @@
 # Architecture
 
 This directory contains the Elyra documentation set. The canonical architecture
-page is [`architecture.md`](architecture.md); it describes the shipped 0.4.0
+page is [`architecture.md`](architecture.md); it describes the shipped 0.5.0
 system, data flows, trust boundaries, and known limitations.
 
 ## Documentation map

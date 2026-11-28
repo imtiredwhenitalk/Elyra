@@ -201,11 +201,11 @@ Cloud sessions, IMAP passwords, provider OAuth token sets, and integration API k
 
 ## Status & roadmap
 
-Version **0.4.0** is the current release line. Phase 1 (Shield, threat intelligence, identity keys, BYOK integrations), Phase 2 (priority, sender rules, reputation, attachment scanning), Phase 3 (launcher/uninstall, Linux packages, server testing and production verification, signed Windows updates), and Phase 4 (redacted local diagnostics, advanced search, offline outbox, accessibility polish) are implemented on `main`; the Rust CI checks both Windows and Linux.
+Version **0.5.0** is the current release line. Phase 1 (Shield, threat intelligence, identity keys, BYOK integrations), Phase 2 (priority, sender rules, reputation, attachment scanning), Phase 3 (launcher/uninstall, Linux packages, server testing and production verification, signed Windows updates), and Phase 4 (redacted local diagnostics, advanced search, offline outbox, accessibility polish) are implemented on `main`; the Rust CI checks both Windows and Linux.
 
-In 0.4.0, errors are logged locally after redaction, advanced filters run entirely in SQLite, failed sends wait in a durable outbox, and destructive actions use keyboard-accessible confirmations. No diagnostic data is uploaded automatically.
+In 0.5.0, errors are logged locally after redaction, advanced filters run entirely in SQLite, failed sends wait in a durable outbox, and destructive actions use keyboard-accessible confirmations. No diagnostic data is uploaded automatically.
 
-Gmail/Outlook OAuth with PKCE is available for desktop IMAP sync. Next up: SMTP XOAUTH2 for those accounts, scheduled background sync, WebSocket live updates, and mailbox encryption at rest. Flatpak packaging was investigated and documented, but is not shipped in 0.4.0.
+Gmail/Outlook OAuth with PKCE is available for desktop IMAP sync. Next up: SMTP XOAUTH2 for those accounts, scheduled background sync, WebSocket live updates, and mailbox encryption at rest. Flatpak packaging was investigated and documented, but is not shipped in 0.5.0.
 
 Track work in [`task.md`](task.md), [`changes.md`](changes.md), and the local [`issues/`](issues/README.md) files; GitHub issue templates are in [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/).
 

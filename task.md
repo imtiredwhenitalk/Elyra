@@ -69,7 +69,7 @@
 * **Linux Package Distribution** - AppImage and .deb release workflow, Arch PKGBUILD, desktop entry/icon, stable asset names with SHA-256 checksums, and Linux install docs [200 OK]
 * **Automated server testing & production verification** - pure unit tests plus database-backed API/schema integration tests for auth, sync, notifications, SMTP fail-closed behavior and PostgreSQL constraints; `docs/deploy/VERIFY.md` production checklist and safe restore procedure [200 OK]
 * **Automatic Application Updates for Windows** - signed update manifest, cryptographic verification, in-app check/download/install with progress, user notification preferences, safe failure behavior, and documented key/release procedure [200 OK]
-* **Flatpak Packaging** - investigated and documented; not shipped in 0.4.0 [NEXT]
+* **Flatpak Packaging** - investigated and documented; not shipped in 0.5.0 [NEXT]
 
 ### Phase 4 (GitHub issue #5)
 
@@ -79,4 +79,4 @@
 * **Accessibility and interface improvements** - skip link, focus-visible rings, labelled advanced filters, keyboard-trapped confirmation dialogs, notification/status live regions and a global JavaScript error boundary [200 OK]
 * **Provider OAuth with PKCE** - Authorization Code + PKCE, token rotation and reconnect/revocation UX [200 OK: IMAP]; SMTP XOAUTH2 [NEXT] → `issues/open/003-oauth-smtp-xoauth2.md`
 * **Scheduled background sync and WebSocket live updates** - per-account intervals, backoff, authenticated event stream with polling fallback [NEXT]
-* **Crash-reporting backend** - consent-gated endpoint for exported reports; no automatic upload in 0.4.0 [NEXT]
+* **Crash-reporting backend** - consent-gated endpoint for exported reports; no automatic upload in 0.5.0 [NEXT]

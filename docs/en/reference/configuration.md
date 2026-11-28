@@ -3,7 +3,7 @@
 
 # Configuration reference
 
-Every runtime, build-time, and deployment variable used by Elyra 0.4.0, in one
+Every runtime, build-time, and deployment variable used by Elyra 0.5.0, in one
 place.
 
 Legend: **Required** means the component fails or the feature does not work
@@ -87,7 +87,7 @@ UI, not environment variables.
 | `api_url` | unset | Saved Elyra server base URL |
 | `last_sync_at` | unset | Last successful account sync timestamp |
 | `diagnostic_logging_enabled` | `true` | Store redacted local diagnostic events when `true` |
-| `crash_reporting_enabled` | `false` | Preference only; Elyra 0.4.0 has no upload endpoint |
+| `crash_reporting_enabled` | `false` | Preference only; Elyra 0.5.0 has no upload endpoint |
 | `sync_offline_mode` | `false` | Keep queued mail on this device and skip outbox sends |
 | `sync_last_error` | unset | Redacted error from the most recent failed send |
 | `external_scanning` | `true` | Set to `false` to disable VirusTotal and Google Safe Browsing calls |
