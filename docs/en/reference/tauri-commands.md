@@ -818,7 +818,9 @@ for the flow, client ID variables and limitations.
 ```
 
 Returns providers with `id`, `label`, `configured`, `scopes` and `docsUrl`.
-`configured` is true only when a client ID is available at build or runtime.
+`configured` is true only when a client ID is available at build or runtime and
+the OS keychain is usable. It is false in browser preview and non-Windows
+builds.
 
 ### `oauth_start`
 

@@ -522,7 +522,14 @@ fn connect_imap(
             .authenticate(
                 "XOAUTH2",
                 &XOAuth2 {
-                    email: account.username.trim().to_string(),
+                    // RFC 7628 expects the authorized mailbox identity. The
+                    // editable username is for password logins; OAuth accounts
+                    // must keep using the address stored at connection time.
+                    email: if oauth {
+                        account.email.trim().to_string()
+                    } else {
+                        account.username.trim().to_string()
+                    },
                     token,
                 },
             )

@@ -20,10 +20,19 @@
    `signed_in: true`. Expiry is now parsed from RFC 3339 and stale keychain and
    legacy SQLite sessions are discarded.
 5. **Rejected integration keys persisted.** `connect_integration` stored the key
-   before validation. It now validates first and deletes any stored key on
-   failure.
+   before validation. It now validates first and leaves any previously valid
+   key untouched when validation fails.
 6. **Case-sensitive Bearer scheme.** `bearer_token` rejected RFC-compliant
    schemes such as `bearer` and `BEARER`; parsing is now case-insensitive.
+
+## Post-commit audit fixes
+
+- Server migration detects duplicate normalized emails before normalizing rows
+  and creating the `lower(email)` unique index, with an actionable conflict
+  message for legacy databases.
+- Failed integration validation no longer deletes a previously valid key.
+- Expired cloud sessions are discarded even when keychain deletion fails.
+- Poisoned outbox locks recover instead of permanently failing later flushes.
 
 ## Validation
 

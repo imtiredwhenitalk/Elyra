@@ -1,3 +1,30 @@
+[200 OK] Hardened OAuth, keychain handling, and server migration after post-commit audit:
+
+A follow-up audit found and fixed three upgrade/user-visible problems. Google
+revocation now resolves canonical provider ids (`google`/`microsoft`) from the
+token set rather than account preset ids, posts the refresh token when present,
+and checks the HTTP response. OAuth buttons are hidden unless both a client ID
+and a working OS keychain exist, and `oauth_start` fails before opening a
+browser when keychain storage is unavailable. The server now detects duplicate
+normalized emails before normalizing rows, reports the conflicting address, and
+only then creates the `lower(email)` unique index, so upgrades fail with an
+actionable message instead of an opaque schema error.
+
+Also fixed: failed integration validation no longer deletes a previously valid
+API key; expired cloud sessions are discarded even when keychain deletion
+fails; poisoned outbox locks recover instead of disabling future flushes;
+`connected` is false for unusable expired sessions; IMAP XOAUTH2 uses the stored
+account email rather than the editable password username; converting a password
+account to OAuth clears the stale IMAP password secret; and token endpoint 400/401
+errors include a reconnect hint.
+
+Files changed: `apps/desktop/src-tauri/src/{oauth.rs,providers.rs,cloud.rs,integrations.rs,sync.rs}`, `server/src/database.rs`, EN/UA OAuth, server, troubleshooting and Tauri command docs, `issues/closed/001-provider-oauth-pkce.md`, `issues/closed/002-rust-and-api-bug-fixes.md`, `issues/README.md`, new `issues/open/006-oauth-hardening.md`, and this changelog.
+
+Validation: [OK] `rustfmt --check` on touched Rust files; [OK] `node --check` on
+desktop JavaScript; [OK] bilingual Markdown link/switcher check over 55 files; [OK]
+`git diff --check`. Local Rust compilation is still blocked by missing MSVC
+`link.exe`.
+
 [200 OK] Added provider OAuth with PKCE for Gmail/Outlook IMAP and fixed concrete Rust/API bugs:
 
 The desktop client now implements OAuth 2.0 Authorization Code + PKCE as a

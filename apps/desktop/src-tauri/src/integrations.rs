@@ -204,8 +204,7 @@ pub fn connect_integration(
     match threats::validate_provider(preset.id, key) {
         Ok(detail) => {
             // Only persist a key that the provider actually accepted. A failed
-            // attempt also clears an older key so the UI cannot silently reuse
-            // credentials the user just replaced.
+            // attempt leaves any previously validated key untouched.
             secrets::set_secret(&secrets::integration_user(preset.id), key)?;
             update_state(&database, preset.id, true, "connected", None)?;
             security::record_event(
@@ -216,7 +215,9 @@ pub fn connect_integration(
             )?;
         }
         Err(error) => {
-            secrets::delete_secret(&secrets::integration_user(preset.id))?;
+            // A failed attempt must not destroy a previously validated key.
+            // Validation errors can be transient network failures, and the
+            // replacement key was never written in the first place.
             update_state(&database, preset.id, false, "error", Some(&error))?;
             security::record_event(
                 &database,

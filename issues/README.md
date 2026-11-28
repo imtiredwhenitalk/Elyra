@@ -15,6 +15,7 @@ in [`.github/ISSUE_TEMPLATE/`](../.github/ISSUE_TEMPLATE/).
 - [003 — SMTP XOAUTH2 for OAuth-connected accounts](open/003-oauth-smtp-xoauth2.md)
 - [004 — Authenticated WebSocket live updates](open/004-websocket-live-updates.md)
 - [005 — Full bilingual link and anchor audit](open/005-full-bilingual-link-audit.md)
+- [006 — OAuth hardening follow-ups](open/006-oauth-hardening.md)
 
 When an issue is finished, move the file to `issues/closed/`, set `Status: done`,
 and record validation in [`changes.md`](../changes.md).

@@ -573,9 +573,11 @@ origins.
 
 ### Known server limitations
 
-- Email uniqueness is enforced by the exact string; login lookup is also exact.
-  Registering the same address with different letter case is not normalized
-  away.
+- Email addresses are trimmed and lowercased at the API boundary and a
+  `lower(email)` unique index prevents case variants. Databases upgraded with
+  duplicate case variants must be merged before the index can be created; the
+  server reports the conflicting address instead of starting with a broken
+  schema.
 - No refresh tokens, token revocation, password reset, email verification, or
   multi-factor authentication.
 - No admin role, invite code, registration rate limit, or relay quota.

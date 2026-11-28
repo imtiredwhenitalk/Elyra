@@ -90,9 +90,11 @@ characters.
 
 ### Registration fails with `409 conflict`
 
-That exact email string is already registered. Sign in instead, or use a
-different address. The server does not normalize letter case, so
-`User@example.com` and `user@example.com` are different accounts.
+That normalized email is already registered. Sign in instead, or use a
+different address. Letter case and surrounding whitespace are ignored, so
+`User@example.com` and `user@example.com` are the same account. On upgrades,
+duplicate legacy rows must be merged before the server can create its unique
+index.
 
 ### Sign-in fails with `invalid credentials`
 

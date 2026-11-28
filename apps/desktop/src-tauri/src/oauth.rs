@@ -371,8 +371,13 @@ fn request_tokens(
         .map_err(|error| format!("Could not reach the OAuth token endpoint: {error}"))?;
     let status = response.status();
     if !status.is_success() {
+        let hint = if status.as_u16() == 400 || status.as_u16() == 401 {
+            ". Reconnect this account"
+        } else {
+            ""
+        };
         return Err(format!(
-            "The OAuth token endpoint returned HTTP {}",
+            "The OAuth token endpoint returned HTTP {}{hint}",
             status.as_u16()
         ));
     }
@@ -455,36 +460,39 @@ fn session_view(
     email: String,
     tokens: Option<&StoredTokens>,
 ) -> OAuthSessionView {
+    let needs_attention = tokens
+        .map(|value| {
+            value.expires_at <= timestamp()
+                && value
+                    .refresh_token
+                    .as_deref()
+                    .unwrap_or_default()
+                    .is_empty()
+        })
+        .unwrap_or(false);
     OAuthSessionView {
         account_id,
         provider: provider.to_string(),
         email,
-        connected: tokens.is_some(),
+        connected: tokens.is_some() && !needs_attention,
         expires_at: tokens.and_then(|value| rfc3339(value.expires_at)),
         has_refresh_token: tokens
             .map(|value| value.refresh_token.is_some())
             .unwrap_or(false),
-        needs_attention: tokens
-            .map(|value| {
-                value.expires_at <= timestamp()
-                    && value
-                        .refresh_token
-                        .as_deref()
-                        .unwrap_or_default()
-                        .is_empty()
-            })
-            .unwrap_or(false),
+        needs_attention,
     }
 }
 
 #[tauri::command]
 pub fn oauth_providers() -> Vec<OAuthProviderView> {
+    // Never offer a flow that cannot finish: tokens need a working OS keychain.
+    let keychain_ready = secrets::available();
     PROVIDERS
         .iter()
         .map(|provider| OAuthProviderView {
             id: provider.id.to_string(),
             label: provider.label.to_string(),
-            configured: build_client_id(provider.id).is_some(),
+            configured: keychain_ready && build_client_id(provider.id).is_some(),
             scopes: provider.scopes.to_string(),
             docs_url: provider.docs_url.to_string(),
         })
@@ -501,6 +509,12 @@ pub fn oauth_start(
     let email = email.trim().to_ascii_lowercase();
     if !email.contains('@') || email.len() > 320 {
         return Err("Enter a valid email address for this mailbox".to_string());
+    }
+    if !secrets::available() {
+        return Err(
+            "OAuth sign-in requires the OS keychain. Use a password account in this build."
+                .to_string(),
+        );
     }
     let client_id = require_client_id(provider_config)?;
 
@@ -529,13 +543,16 @@ pub fn oauth_start(
     let tokens = exchange_code(provider_config, &client_id, &code, &redirect_uri, &verifier)?;
     let account_id = upsert_account(&app, provider_config, &email)?;
     let stored = StoredTokens {
-        provider: provider.to_string(),
+        provider: provider_config.id.to_string(),
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
         expires_at: expires_at_from(tokens.expires_in),
         scope: tokens.scope,
     };
     write_tokens(account_id, &stored)?;
+    // The account may have had an IMAP password before it was converted to
+    // OAuth. Once the token set is safely stored, remove that stale secret.
+    let _ = secrets::delete_secret(&secrets::account_user(account_id));
     emit_event(
         &app,
         "oauth.connect",
@@ -586,19 +603,34 @@ pub fn oauth_revoke(app: AppHandle, account_id: i64) -> Result<OAuthSessionView,
     // Remote revocation is best-effort: losing the network must not prevent a
     // local disconnect. Microsoft does not expose a public revocation endpoint.
     let mut remote_error = None;
-    if let (Some(config), Some(tokens)) = (
-        PROVIDERS.iter().find(|item| item.id == provider),
-        tokens.as_ref(),
-    ) {
-        if let Some(endpoint) = config.revoke_url {
-            if let Err(error) = token_client().and_then(|client| {
-                client
-                    .post(endpoint)
-                    .form(&[("token", tokens.access_token.as_str())])
-                    .send()
-                    .map_err(|error| error.to_string())
-            }) {
-                remote_error = Some(error);
+    if let Some(tokens) = tokens.as_ref() {
+        // Stored tokens use canonical provider ids (`google`/`microsoft`),
+        // while the account row may use presets (`gmail`/`outlook`). `preset`
+        // accepts both aliases and keeps revocation working after an upgrade.
+        if let Ok(config) = preset(&tokens.provider) {
+            if let Some(endpoint) = config.revoke_url {
+                // Google accepts either token; prefer the refresh token so a
+                // revoked grant cannot be resurrected from a stored refresh.
+                let token = tokens
+                    .refresh_token
+                    .as_deref()
+                    .unwrap_or(tokens.access_token.as_str());
+                let result = token_client().and_then(|client| {
+                    let response = client
+                        .post(endpoint)
+                        .form(&[("token", token)])
+                        .send()
+                        .map_err(|error| error.to_string())?;
+                    let status = response.status();
+                    if status.is_success() {
+                        Ok(())
+                    } else {
+                        Err(format!("HTTP {}", status.as_u16()))
+                    }
+                });
+                if let Err(error) = result {
+                    remote_error = Some(error);
+                }
             }
         }
     }
@@ -662,6 +694,14 @@ mod tests {
             pkce_challenge(verifier),
             "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
         );
+    }
+
+    #[test]
+    fn preset_accepts_account_provider_aliases() {
+        assert_eq!(preset("gmail").map(|value| value.id), Ok(GOOGLE));
+        assert_eq!(preset("google").map(|value| value.id), Ok(GOOGLE));
+        assert_eq!(preset("outlook").map(|value| value.id), Ok(MICROSOFT));
+        assert_eq!(preset("microsoft").map(|value| value.id), Ok(MICROSOFT));
     }
 
     #[test]

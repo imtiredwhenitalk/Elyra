@@ -40,8 +40,9 @@ Set one or both before building or starting the desktop app:
 
 Build-time values are embedded with `option_env!`; a runtime value overrides
 them. The account modal reports a provider as available only when a client ID
-is present. In the browser preview the OAuth buttons are hidden — the flow
-requires the Rust core and the OS keychain.
+**and a working OS keychain** are present. In the browser preview and on
+non-Windows builds the OAuth buttons are hidden — the flow requires the Rust
+core and the Windows Credential Manager backend.
 
 Register a **Desktop app / Native** client with the provider and allow the
 loopback redirect URI `http://127.0.0.1:<port>/callback`. Google and Microsoft
@@ -67,8 +68,9 @@ scopes:
    preserved exactly as for password accounts.
 
 **Disconnect OAuth** deletes the keychain entry and switches the account back
-to password authentication. Google revocation is attempted remotely on a
-best-effort basis; a network failure does not block the local disconnect.
+to password authentication. Google revocation posts the stored refresh token
+(or the access token if no refresh token exists) to the revocation endpoint on
+a best-effort basis; a network failure does not block the local disconnect.
 Removing the account also removes its OAuth token.
 
 <a id="commands"></a>
@@ -76,14 +78,16 @@ Removing the account also removes its OAuth token.
 
 | Command | Arguments | Returns |
 | :--- | :--- | :--- |
-| `oauth_providers` | — | Providers with `configured`, `scopes`, `docsUrl` |
+| `oauth_providers` | — | Providers with `configured`, `scopes`, `docsUrl`; `configured` requires a client ID and keychain |
 | `oauth_start` | `provider` (`google`/`microsoft`, also `gmail`/`outlook`), `email` | `OAuthSessionView` without secrets |
 | `oauth_status` | `accountId` | Connection state, expiry, refresh-token flag |
 | `oauth_revoke` | `accountId` | Disconnected view; deletes local tokens |
 
 `OAuthSessionView` contains only `accountId`, `provider`, `email`, `connected`,
-`expiresAt`, `hasRefreshToken`, and `needsAttention`. Access and refresh tokens
-never cross the webview boundary.
+`expiresAt`, `hasRefreshToken`, and `needsAttention`. `connected` is false for
+an expired session without a refresh token, even if a stale token set remains
+until the next sync. Access and refresh tokens never cross the webview
+boundary.
 
 <a id="limitations"></a>
 ## Limitations
@@ -94,8 +98,9 @@ never cross the webview boundary.
 - **No Elyra Cloud OAuth provider.** Elyra Cloud still uses
   register/login with Argon2 passwords and JWT access tokens. OAuth here is
   only for third-party mail providers.
-- **Browser preview.** `oauth_*` commands are not implemented in
-  `services/tauri.js`, so the buttons do not appear outside the desktop build.
+- **Browser preview and non-Windows builds.** `oauth_*` commands are not
+  implemented in `services/tauri.js`, and the OS keychain backend is
+  Windows-only, so the buttons do not appear there. Use a password account.
 - **Consent portability.** Changing the registered client ID or revoking
   consent requires signing in again.
 
@@ -104,6 +109,7 @@ never cross the webview boundary.
 
 | Symptom | Cause / action |
 | :--- | :--- |
+| OAuth panel is missing | Browser preview or non-Windows build: the flow requires Windows Credential Manager. Use a password account. |
 | "… OAuth is not configured" | Set `ELYRA_GOOGLE_CLIENT_ID` or `ELYRA_MICROSOFT_CLIENT_ID` and restart/rebuild. |
 | "OAuth state did not match" | The callback came from another tab or an old request. Retry sign-in; do not reuse browser tabs. |
 | "OAuth sign-in timed out" | Nothing reached the loopback listener within 5 minutes. Check that the browser can reach `127.0.0.1`. |

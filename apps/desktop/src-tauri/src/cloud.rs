@@ -198,12 +198,14 @@ fn save_session(app: &AppHandle, session: &CloudSession) -> Result<(), String> {
 }
 
 fn discard_session(app: &AppHandle) -> Result<(), String> {
-    let keychain_result = secrets::delete_secret(secrets::cloud_session_user());
+    // Keychain deletion is best-effort: an expired session must always appear
+    // as signed out, even when the keychain backend is unavailable (Linux).
+    let _ = secrets::delete_secret(secrets::cloud_session_user());
     let database = storage::connection(app)?;
     database
         .execute("DELETE FROM settings WHERE key = ?1", params![SESSION_KEY])
-        .map_err(|error| error.to_string())?;
-    keychain_result
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }
 
 fn load_session(app: &AppHandle) -> Result<Option<CloudSession>, String> {
