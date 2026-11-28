@@ -6,7 +6,7 @@ license.workspace = true
 description = "Elyra authenticated sync API."
 
 [dependencies]
-argon2 = "0.5"
+argon2 = "0.6"
 axum = "0.7"
 chrono = { version = "0.4", features = ["serde"] }
 dotenvy = "0.15"
