@@ -39,9 +39,10 @@ workspace root lockfile is the one used by CI.
   `tauri 2.13.0`, `imap 3.0.0-alpha.15`, `lexical-core` absent.
 - `rustfmt --check` passes on touched Rust files; `npm install --package-lock-only`
   reports 0 vulnerabilities.
-- First PR run failed on two integration issues, both fixed here: jsonwebtoken
-  10.4 required an explicit `rust_crypto` provider, and Tauri rejected a Rust
-  2.13 crate paired with `@tauri-apps/api` 2.12.
+- PR runs exposed three integration issues, all fixed here: jsonwebtoken 10.4
+  required an explicit `rust_crypto` provider, Tauri rejected a Rust 2.13 crate
+  paired with `@tauri-apps/api` 2.12, and `imap` 3 requires `Fetches::iter()`
+  instead of iterating `&Fetches` directly.
 - Full local Rust compilation is still blocked by the missing MSVC `link.exe`;
   the required PR status checks are the build source of truth.
 

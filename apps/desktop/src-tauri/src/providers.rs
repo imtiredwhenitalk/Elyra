@@ -772,7 +772,7 @@ fn sync_inbox(
     let inbox_folder = mailbox::folder_id(&database, "Inbox")?;
     let mut imported = 0_i64;
 
-    for fetch in &fetches {
+    for fetch in fetches.iter() {
         let Some(raw) = fetch.body() else {
             continue;
         };

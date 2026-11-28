@@ -26,7 +26,7 @@ checked with `cargo tree --locked` and direct lockfile inspection; [OK]
 with 0 vulnerabilities. Full local Rust compilation remains blocked by missing
 MSVC `link.exe`; the PR status checks are the build source of truth. The first
 PR run exposed and fixed the missing jsonwebtoken crypto provider and the
-Tauri npm/Rust version mismatch.
+Tauri npm/Rust version mismatch and the `imap` 3 `Fetches::iter()` API change.
 
 [200 OK] Hardened OAuth, keychain handling, and server migration after post-commit audit:
 

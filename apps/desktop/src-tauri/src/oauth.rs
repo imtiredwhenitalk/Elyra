@@ -24,7 +24,7 @@ use reqwest::blocking::Client;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 use url::Url;
 
@@ -454,7 +454,7 @@ fn upsert_account(app: &AppHandle, provider: &OAuthProvider, email: &str) -> Res
 }
 
 fn session_view(
-    app: &AppHandle,
+    _app: &AppHandle,
     account_id: i64,
     provider: &str,
     email: String,
@@ -660,7 +660,7 @@ pub fn oauth_revoke(app: AppHandle, account_id: i64) -> Result<OAuthSessionView,
 }
 
 /// Resolve a usable access token for IMAP/SMTP, refreshing it when needed.
-pub(crate) fn access_token(app: &AppHandle, account_id: i64) -> Result<String, String> {
+pub(crate) fn access_token(_app: &AppHandle, account_id: i64) -> Result<String, String> {
     let Some(mut tokens) = read_tokens(account_id)? else {
         return Err("This account is not connected with OAuth. Reconnect it.".to_string());
     };
