@@ -37,7 +37,8 @@ impl UserService {
         email: &str,
     ) -> Result<Option<(UserRecord, String)>, sqlx::Error> {
         sqlx::query_as::<_, UserWithPassword>(
-            "SELECT id, email, display_name, password_hash, created_at FROM users WHERE email = $1",
+            "SELECT id, email, display_name, password_hash, created_at
+             FROM users WHERE lower(email) = lower($1)",
         )
         .bind(email)
         .fetch_optional(&self.database.0)

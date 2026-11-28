@@ -5,8 +5,6 @@
 //! INBOX and upserts them into the local mailbox without overwriting local
 //! read/starred state.
 
-use std::time::Duration;
-
 use chrono::{DateTime, Utc};
 use imap::types::Flag;
 use lettre::transport::smtp::authentication::Credentials;
@@ -18,7 +16,7 @@ use tauri::AppHandle;
 
 use crate::{mailbox, secrets, shield, storage};
 
-type ImapSession = imap::Session<native_tls::TlsStream<std::net::TcpStream>>;
+type ImapSession = imap::Session<imap::Connection>;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -35,6 +33,8 @@ pub struct EmailAccount {
     pub smtp_port: u16,
     pub smtp_security: String,
     pub has_password: bool,
+    pub auth_method: String,
+    pub oauth_connected: bool,
     pub last_sync_at: Option<String>,
     pub sync_error: Option<String>,
 }
@@ -54,6 +54,7 @@ pub struct EmailAccountInput {
     pub smtp_host: String,
     pub smtp_port: Option<u16>,
     pub smtp_security: String,
+    pub auth_method: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -185,7 +186,7 @@ const PROVIDERS: &[ProviderPreset] = &[
     },
 ];
 
-fn now_string() -> String {
+pub(crate) fn now_string() -> String {
     Utc::now().format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
@@ -217,13 +218,15 @@ fn row_to_account(row: &rusqlite::Row<'_>) -> rusqlite::Result<EmailAccount> {
         smtp_port: row.get::<_, i64>(9)? as u16,
         smtp_security: row.get(10)?,
         has_password: false,
+        auth_method: row.get(13)?,
+        oauth_connected: false,
         last_sync_at: row.get(11)?,
         sync_error: row.get(12)?,
     })
 }
 
 const ACCOUNT_COLUMNS: &str = "id, provider, email, display_name, username, imap_host, imap_port,
-     imap_security, smtp_host, smtp_port, smtp_security, last_sync_at, sync_error";
+     imap_security, smtp_host, smtp_port, smtp_security, last_sync_at, sync_error, auth_method";
 
 pub(crate) fn initialize(app: &AppHandle) -> Result<(), String> {
     let database = storage::connection(app)?;
@@ -237,6 +240,7 @@ pub(crate) fn initialize(app: &AppHandle) -> Result<(), String> {
         ("smtp_security", "TEXT NOT NULL DEFAULT 'tls'"),
         ("last_sync_at", "TEXT"),
         ("sync_error", "TEXT"),
+        ("auth_method", "TEXT NOT NULL DEFAULT 'password'"),
         ("updated_at", "TEXT NOT NULL DEFAULT ''"),
     ] {
         mailbox::ensure_column(&database, "accounts", column, definition)?;
@@ -276,6 +280,10 @@ pub fn list_email_accounts(app: AppHandle) -> Result<Vec<EmailAccount>, String> 
             .ok()
             .flatten()
             .is_some();
+        account.oauth_connected = secrets::get_secret(&secrets::oauth_user(account.id))
+            .ok()
+            .flatten()
+            .is_some();
     }
     Ok(accounts)
 }
@@ -292,6 +300,10 @@ fn account_by_id(app: &AppHandle, id: i64) -> Result<EmailAccount, String> {
         .map_err(|error| error.to_string())?
         .ok_or_else(|| "Email account not found".to_string())?;
     account.has_password = secrets::get_secret(&secrets::account_user(account.id))
+        .ok()
+        .flatten()
+        .is_some();
+    account.oauth_connected = secrets::get_secret(&secrets::oauth_user(account.id))
         .ok()
         .flatten()
         .is_some();
@@ -326,11 +338,19 @@ pub fn save_email_account(
     let smtp_security = normalize_security(&account.smtp_security);
     let imap_port = normalize_port(
         account.imap_port,
-        if imap_security == "starttls" { 143 } else { 993 },
+        if imap_security == "starttls" {
+            143
+        } else {
+            993
+        },
     );
     let smtp_port = normalize_port(
         account.smtp_port,
-        if smtp_security == "starttls" { 587 } else { 465 },
+        if smtp_security == "starttls" {
+            587
+        } else {
+            465
+        },
     );
     let imap_host = account.imap_host.trim().to_string();
     let smtp_host = account.smtp_host.trim().to_string();
@@ -341,9 +361,23 @@ pub fn save_email_account(
         .filter(|value| !value.is_empty());
     let existing_id = account.id;
     let has_stored_password = existing_id
-        .and_then(|id| secrets::get_secret(&secrets::account_user(id)).ok().flatten())
+        .and_then(|id| {
+            secrets::get_secret(&secrets::account_user(id))
+                .ok()
+                .flatten()
+        })
         .is_some();
-    if password.is_none() && !has_stored_password && !imap_host.is_empty() {
+    let has_oauth_session = existing_id
+        .and_then(|id| secrets::get_secret(&secrets::oauth_user(id)).ok().flatten())
+        .is_some();
+    let keep_oauth =
+        account.auth_method.as_deref() == Some("oauth2") && password.is_none() && has_oauth_session;
+    let auth_method = if keep_oauth { "oauth2" } else { "password" };
+    if auth_method == "password"
+        && password.is_none()
+        && !has_stored_password
+        && !imap_host.is_empty()
+    {
         return Err("Enter the IMAP password for this account".to_string());
     }
     let database = storage::connection(&app)?;
@@ -355,7 +389,8 @@ pub fn save_email_account(
                 .execute(
                     "UPDATE accounts SET provider = ?2, email = ?3, display_name = ?4,
                         username = ?5, imap_host = ?6, imap_port = ?7, imap_security = ?8,
-                        smtp_host = ?9, smtp_port = ?10, smtp_security = ?11, updated_at = ?12
+                        smtp_host = ?9, smtp_port = ?10, smtp_security = ?11,
+                        auth_method = ?12, updated_at = ?13
                      WHERE id = ?1",
                     params![
                         id,
@@ -369,6 +404,7 @@ pub fn save_email_account(
                         smtp_host,
                         smtp_port as i64,
                         smtp_security,
+                        auth_method,
                         updated_at
                     ],
                 )
@@ -382,8 +418,9 @@ pub fn save_email_account(
             database
                 .execute(
                     "INSERT INTO accounts (provider, email, display_name, username, imap_host,
-                        imap_port, imap_security, smtp_host, smtp_port, smtp_security, updated_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                        imap_port, imap_security, smtp_host, smtp_port, smtp_security,
+                        auth_method, updated_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                     params![
                         provider,
                         email,
@@ -395,6 +432,7 @@ pub fn save_email_account(
                         smtp_host,
                         smtp_port as i64,
                         smtp_security,
+                        auth_method,
                         updated_at
                     ],
                 )
@@ -411,6 +449,9 @@ pub fn save_email_account(
             return Err(error);
         }
     }
+    if auth_method == "password" && has_oauth_session {
+        secrets::delete_secret(&secrets::oauth_user(id))?;
+    }
 
     account_by_id(&app, id)
 }
@@ -418,6 +459,7 @@ pub fn save_email_account(
 #[tauri::command]
 pub fn delete_email_account(app: AppHandle, id: i64) -> Result<(), String> {
     secrets::delete_secret(&secrets::account_user(id))?;
+    secrets::delete_secret(&secrets::oauth_user(id))?;
     let database = storage::connection(&app)?;
     database
         .execute("DELETE FROM accounts WHERE id = ?1", params![id])
@@ -425,36 +467,85 @@ pub fn delete_email_account(app: AppHandle, id: i64) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
-fn tls_connector() -> Result<native_tls::TlsConnector, String> {
-    native_tls::TlsConnector::builder()
-        .build()
-        .map_err(|error| format!("Could not initialize TLS: {error}"))
+/// SASL XOAUTH2 initial client response (RFC 7628 §3.1). The IMAP crate
+/// base64-encodes the bytes returned by `process`.
+struct XOAuth2 {
+    email: String,
+    token: String,
 }
 
-fn connect_imap(account: &EmailAccount, password: &str) -> Result<ImapSession, String> {
+impl imap::Authenticator for XOAuth2 {
+    type Response = String;
+
+    fn process(&self, _challenge: &[u8]) -> Self::Response {
+        format!(
+            "user={}\u{1}auth=Bearer {}\u{1}\u{1}",
+            self.email, self.token
+        )
+    }
+}
+
+fn connect_imap(
+    app: &AppHandle,
+    account: &EmailAccount,
+    password: &str,
+) -> Result<ImapSession, String> {
     let host = account.imap_host.trim();
     if host.is_empty() {
         return Err("This account has no IMAP server configured".to_string());
     }
-    if password.is_empty() {
+    let oauth = account.auth_method == "oauth2";
+    if !oauth && password.is_empty() {
         return Err("No IMAP password is stored for this account".to_string());
     }
-    let tls = tls_connector()?;
-    let client = if account.imap_security == "starttls" {
-        imap::connect_starttls((host, account.imap_port), host, &tls)
-    } else {
-        imap::connect((host, account.imap_port), host, &tls)
+    // imap 3 builds TLS itself from the port and security mode. Keeping the
+    // connector here would duplicate certificate verification and pin the
+    // session type to a removed transport alias.
+    let mut builder = imap::ClientBuilder::new(host, account.imap_port);
+    if account.imap_security == "starttls" {
+        builder = builder.mode(imap::ConnectionMode::StartTls);
     }
-    .map_err(|error| format!("Could not reach {host}:{} over IMAP: {error}", account.imap_port))?;
-    client
-        .login(account.username.trim(), password)
-        .map_err(|(error, _)| format!("IMAP sign-in failed: {error}"))
+    let client = builder.connect().map_err(|error| {
+        format!(
+            "Could not reach {host}:{} over IMAP: {error}",
+            account.imap_port
+        )
+    })?;
+    if oauth {
+        let token = crate::oauth::access_token(app, account.id)?;
+        client
+            .authenticate(
+                "XOAUTH2",
+                &XOAuth2 {
+                    // RFC 7628 expects the authorized mailbox identity. The
+                    // editable username is for password logins; OAuth accounts
+                    // must keep using the address stored at connection time.
+                    email: if oauth {
+                        account.email.trim().to_string()
+                    } else {
+                        account.username.trim().to_string()
+                    },
+                    token,
+                },
+            )
+            .map_err(|(error, _)| format!("IMAP OAuth sign-in failed: {error}"))
+    } else {
+        client
+            .login(account.username.trim(), password)
+            .map_err(|(error, _)| format!("IMAP sign-in failed: {error}"))
+    }
 }
 
 pub(crate) fn smtp_config(app: &AppHandle, account_id: i64) -> Result<SmtpConfig, String> {
     let account = account_by_id(app, account_id)?;
     if account.smtp_host.trim().is_empty() {
         return Err("This account has no SMTP server configured".to_string());
+    }
+    if account.auth_method == "oauth2" {
+        return Err(
+            "OAuth is enabled for IMAP only. Add an app password for SMTP, or send through the Elyra relay."
+                .to_string(),
+        );
     }
     let password = secrets::get_secret(&secrets::account_user(account_id))?
         .ok_or_else(|| "No password is stored for this account".to_string())?;
@@ -480,31 +571,43 @@ pub(crate) fn smtp_transport(config: &SmtpConfig) -> Result<SmtpTransport, Strin
     Ok(builder.port(config.port).credentials(credentials).build())
 }
 
-fn smtp_reachable(account: &EmailAccount) -> Result<(), String> {
-    use std::net::ToSocketAddrs;
-
+/// Exercise the real SMTP transport (TLS/STARTTLS, EHLO and NOOP) instead of
+/// only opening a TCP socket, which produced false positives for any listening
+/// service on the configured port.
+fn smtp_ready(account: &EmailAccount, password: &str) -> Result<(), String> {
     let host = account.smtp_host.trim();
-    let address = (host, account.smtp_port)
-        .to_socket_addrs()
-        .map_err(|error| format!("Could not resolve SMTP host {host}: {error}"))?
-        .next()
-        .ok_or_else(|| format!("Could not resolve SMTP host {host}"))?;
-    let stream = std::net::TcpStream::connect_timeout(&address, Duration::from_secs(12))
-        .map_err(|error| format!("SMTP connection to {host}:{} failed: {error}", account.smtp_port))?;
-    if account.smtp_security == "tls" {
-        tls_connector()?
-            .connect(host, stream)
-            .map_err(|error| format!("SMTP TLS handshake with {host} failed: {error}"))?;
+    if host.is_empty() {
+        return Err("SMTP is not configured".to_string());
     }
-    Ok(())
+    if account.auth_method == "oauth2" {
+        return Err("OAuth SMTP needs an app password or the Elyra relay".to_string());
+    }
+    let config = SmtpConfig {
+        host: host.to_string(),
+        port: account.smtp_port,
+        security: account.smtp_security.clone(),
+        username: account.username.clone(),
+        password: password.to_string(),
+        from_email: account.email.clone(),
+        from_name: account.display_name.clone(),
+    };
+    let transport = smtp_transport(&config)?;
+    match transport.test_connection() {
+        Ok(true) => Ok(()),
+        Ok(false) => Err(format!("SMTP server {host} rejected the connection")),
+        Err(error) => Err(format!("SMTP connection to {host} failed: {error}")),
+    }
 }
 
-fn test_settings(account: &EmailAccount, password: &str) -> AccountTest {
+fn test_settings(app: &AppHandle, account: &EmailAccount, password: &str) -> AccountTest {
     let mut detail = Vec::new();
-    let imap_ok = match connect_imap(account, password) {
+    let imap_ok = match connect_imap(app, account, password) {
         Ok(mut session) => match session.select("INBOX") {
             Ok(mailbox) => {
-                detail.push(format!("IMAP inbox reachable ({} messages)", mailbox.exists));
+                detail.push(format!(
+                    "IMAP inbox reachable ({} messages)",
+                    mailbox.exists
+                ));
                 let _ = session.logout();
                 true
             }
@@ -520,19 +623,14 @@ fn test_settings(account: &EmailAccount, password: &str) -> AccountTest {
         }
     };
 
-    let smtp_ok = if account.smtp_host.trim().is_empty() {
-        detail.push("SMTP is not configured".to_string());
-        false
-    } else {
-        match smtp_reachable(account) {
-            Ok(()) => {
-                detail.push("SMTP server reachable".to_string());
-                true
-            }
-            Err(error) => {
-                detail.push(error);
-                false
-            }
+    let smtp_ok = match smtp_ready(account, password) {
+        Ok(()) => {
+            detail.push("SMTP server accepted the connection".to_string());
+            true
+        }
+        Err(error) => {
+            detail.push(error);
+            false
         }
     };
 
@@ -546,9 +644,13 @@ fn test_settings(account: &EmailAccount, password: &str) -> AccountTest {
 #[tauri::command(async)]
 pub fn test_email_account(app: AppHandle, account_id: i64) -> Result<AccountTest, String> {
     let account = account_by_id(&app, account_id)?;
-    let password = secrets::get_secret(&secrets::account_user(account_id))?
-        .ok_or_else(|| "No password is stored for this account".to_string())?;
-    Ok(test_settings(&account, &password))
+    let password = if account.auth_method == "oauth2" {
+        String::new()
+    } else {
+        secrets::get_secret(&secrets::account_user(account_id))?
+            .ok_or_else(|| "No password is stored for this account".to_string())?
+    };
+    Ok(test_settings(&app, &account, &password))
 }
 
 #[tauri::command(async)]
@@ -556,18 +658,28 @@ pub fn test_email_settings(
     app: AppHandle,
     account: EmailAccountInput,
 ) -> Result<AccountTest, String> {
-    let password = match account
-        .password
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        Some(password) => password.to_string(),
-        None => match account.id {
-            Some(id) => secrets::get_secret(&secrets::account_user(id))?
-                .ok_or_else(|| "Enter a password to test this account".to_string())?,
-            None => return Err("Enter a password to test this account".to_string()),
-        },
+    let oauth = account.auth_method.as_deref() == Some("oauth2")
+        || account
+            .id
+            .and_then(|id| account_by_id(&app, id).ok())
+            .map(|account| account.auth_method == "oauth2")
+            .unwrap_or(false);
+    let password = if oauth {
+        String::new()
+    } else {
+        match account
+            .password
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            Some(password) => password.to_string(),
+            None => match account.id {
+                Some(id) => secrets::get_secret(&secrets::account_user(id))?
+                    .ok_or_else(|| "Enter a password to test this account".to_string())?,
+                None => return Err("Enter a password to test this account".to_string()),
+            },
+        }
     };
     let imap_security = normalize_security(&account.imap_security);
     let smtp_security = normalize_security(&account.smtp_security);
@@ -584,20 +696,30 @@ pub fn test_email_settings(
         imap_host: account.imap_host.trim().to_string(),
         imap_port: normalize_port(
             account.imap_port,
-            if imap_security == "starttls" { 143 } else { 993 },
+            if imap_security == "starttls" {
+                143
+            } else {
+                993
+            },
         ),
         imap_security,
         smtp_host: account.smtp_host.trim().to_string(),
         smtp_port: normalize_port(
             account.smtp_port,
-            if smtp_security == "starttls" { 587 } else { 465 },
+            if smtp_security == "starttls" {
+                587
+            } else {
+                465
+            },
         ),
         smtp_security,
-        has_password: true,
+        has_password: !password.is_empty(),
+        auth_method: if oauth { "oauth2" } else { "password" }.to_string(),
+        oauth_connected: oauth,
         last_sync_at: None,
         sync_error: None,
     };
-    Ok(test_settings(&transient, &password))
+    Ok(test_settings(&app, &transient, &password))
 }
 
 fn strip_html(html: &str) -> String {
@@ -632,7 +754,7 @@ fn sync_inbox(
     password: &str,
     limit: u32,
 ) -> Result<i64, String> {
-    let mut session = connect_imap(account, password)?;
+    let mut session = connect_imap(app, account, password)?;
     let mailbox_info = session
         .select("INBOX")
         .map_err(|error| format!("Could not open the IMAP inbox: {error}"))?;
@@ -650,7 +772,7 @@ fn sync_inbox(
     let inbox_folder = mailbox::folder_id(&database, "Inbox")?;
     let mut imported = 0_i64;
 
-    for fetch in &fetches {
+    for fetch in fetches.iter() {
         let Some(raw) = fetch.body() else {
             continue;
         };
@@ -797,8 +919,12 @@ pub fn sync_email_account(
     limit: Option<u32>,
 ) -> Result<SyncAccountResult, String> {
     let account = account_by_id(&app, account_id)?;
-    let password = secrets::get_secret(&secrets::account_user(account_id))?
-        .ok_or_else(|| "No password is stored for this account".to_string())?;
+    let password = if account.auth_method == "oauth2" {
+        String::new()
+    } else {
+        secrets::get_secret(&secrets::account_user(account_id))?
+            .ok_or_else(|| "No password is stored for this account".to_string())?
+    };
     let limit = limit.unwrap_or(40).clamp(1, 200);
     let outcome = sync_inbox(&app, &account, &password, limit);
     let database = storage::connection(&app)?;
@@ -861,7 +987,10 @@ pub fn sync_all_accounts(app: AppHandle, limit: Option<u32>) -> Result<SyncSumma
             }),
         }
     }
-    Ok(SyncSummary { accounts: results, imported })
+    Ok(SyncSummary {
+        accounts: results,
+        imported,
+    })
 }
 
 #[cfg(test)]
@@ -878,15 +1007,24 @@ mod tests {
 
     #[test]
     fn html_fallback_is_readable() {
-        assert_eq!(
-            strip_html("<p>Hello&nbsp;<b>there</b></p>"),
-            "Hello there"
-        );
+        assert_eq!(strip_html("<p>Hello&nbsp;<b>there</b></p>"), "Hello there");
     }
 
     #[test]
     fn presets_include_gmail_and_outlook() {
         assert!(PROVIDERS.iter().any(|preset| preset.id == "gmail"));
         assert!(PROVIDERS.iter().any(|preset| preset.id == "outlook"));
+    }
+
+    #[test]
+    fn xoauth2_response_uses_rfc_7628_separators() {
+        let auth = XOAuth2 {
+            email: "user@example.test".to_string(),
+            token: "token-value".to_string(),
+        };
+        assert_eq!(
+            auth.process(&[]),
+            "user=user@example.test\u{1}auth=Bearer token-value\u{1}\u{1}"
+        );
     }
 }

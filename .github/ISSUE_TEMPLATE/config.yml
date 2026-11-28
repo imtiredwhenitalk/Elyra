@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://github.com/imtiredwhenitalk/Elyra/tree/main/docs
+    about: Read the English or Ukrainian documentation before opening an issue.

@@ -36,3 +36,6 @@ target/
 .DS_Store
 Thumbs.db
 
+# LibreOffice / office temp lock files
+.~lock.*#
+

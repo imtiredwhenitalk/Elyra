@@ -5,6 +5,7 @@ mod diagnostics;
 mod integrations;
 mod keys;
 mod mailbox;
+mod oauth;
 mod priority;
 mod providers;
 mod reporting;
@@ -156,6 +157,10 @@ pub fn run() {
             providers::delete_email_account,
             providers::test_email_account,
             providers::test_email_settings,
+            oauth::oauth_providers,
+            oauth::oauth_start,
+            oauth::oauth_status,
+            oauth::oauth_revoke,
             providers::sync_email_account,
             providers::sync_all_accounts,
             diagnostics::get_changelog,

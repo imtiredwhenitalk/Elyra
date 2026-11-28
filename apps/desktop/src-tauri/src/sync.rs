@@ -5,6 +5,8 @@
 //! flush it from Settings, and the desktop UI flushes it when the browser
 //! reports that the machine is back online.
 
+use std::sync::Mutex;
+
 use chrono::Utc;
 use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
@@ -13,6 +15,11 @@ use tauri::AppHandle;
 use crate::{reporting, sendemail, storage};
 
 const MAX_ATTEMPTS: i64 = 5;
+
+// A flush reads a row, sends it, and then deletes it. Two overlapping flushes
+// would otherwise deliver the same message twice. Tauri invokes async commands
+// on a shared pool, so serialize the whole read-send-delete sequence.
+static FLUSH_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Debug, Clone, Serialize)]
 pub struct OutgoingMessage {
@@ -159,6 +166,12 @@ pub fn list_outgoing_queue(app: AppHandle) -> Result<Vec<OutgoingMessage>, Strin
 
 #[tauri::command(async)]
 pub fn flush_outgoing_queue(app: AppHandle) -> Result<QueueFlushResult, String> {
+    // Recover from a poisoned lock instead of refusing every later flush. The
+    // mutex only serializes a short read-send-delete sequence; a panic in one
+    // flush must not permanently disable the outbox.
+    let _guard = FLUSH_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let database = storage::connection(&app)?;
     let offline = setting(&database, "sync_offline_mode")
         .map(|value| value.eq_ignore_ascii_case("true"))

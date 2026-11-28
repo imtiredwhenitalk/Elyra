@@ -6,6 +6,7 @@
 
 use std::time::Duration;
 
+use chrono::Utc;
 use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
@@ -47,9 +48,17 @@ impl From<&CloudSession> for CloudSessionView {
         Self {
             expires_at: session.expires_at.clone(),
             user: session.user.clone(),
-            signed_in: true,
+            signed_in: !session_expired(session),
         }
     }
+}
+
+/// A token that has expired must not be presented as a usable session: every
+/// protected cloud command would fail with 401 while the UI showed a sign-in.
+fn session_expired(session: &CloudSession) -> bool {
+    chrono::DateTime::parse_from_rfc3339(&session.expires_at)
+        .map(|expires| expires.with_timezone(&Utc) <= Utc::now())
+        .unwrap_or(true)
 }
 
 #[derive(Debug, Deserialize)]
@@ -86,9 +95,11 @@ pub(crate) fn api_base(app: &AppHandle) -> Result<String, String> {
     }
     let database = storage::connection(app)?;
     let value: Option<String> = database
-        .query_row("SELECT value FROM settings WHERE key = 'api_url'", [], |row| {
-            row.get(0)
-        })
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'api_url'",
+            [],
+            |row| row.get(0),
+        )
         .optional()
         .map_err(|error| error.to_string())?;
     if let Some(value) = value {
@@ -186,11 +197,26 @@ fn save_session(app: &AppHandle, session: &CloudSession) -> Result<(), String> {
     }
 }
 
+fn discard_session(app: &AppHandle) -> Result<(), String> {
+    // Keychain deletion is best-effort: an expired session must always appear
+    // as signed out, even when the keychain backend is unavailable (Linux).
+    let _ = secrets::delete_secret(secrets::cloud_session_user());
+    let database = storage::connection(app)?;
+    database
+        .execute("DELETE FROM settings WHERE key = ?1", params![SESSION_KEY])
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
 fn load_session(app: &AppHandle) -> Result<Option<CloudSession>, String> {
     if let Ok(Some(raw)) = secrets::get_secret(secrets::cloud_session_user()) {
-        return serde_json::from_str(&raw)
-            .map(Some)
-            .map_err(|error| error.to_string());
+        let session: CloudSession =
+            serde_json::from_str(&raw).map_err(|error| error.to_string())?;
+        if session_expired(&session) {
+            discard_session(app)?;
+            return Ok(None);
+        }
+        return Ok(Some(session));
     }
 
     let database = storage::connection(app)?;
@@ -206,6 +232,10 @@ fn load_session(app: &AppHandle) -> Result<Option<CloudSession>, String> {
         Some(raw) => {
             let session: CloudSession =
                 serde_json::from_str(&raw).map_err(|error| error.to_string())?;
+            if session_expired(&session) {
+                discard_session(app)?;
+                return Ok(None);
+            }
             // Migrate sessions written by 0.2.0 into the OS keychain.
             if secrets::set_secret(secrets::cloud_session_user(), &raw).is_ok() {
                 database
@@ -410,4 +440,33 @@ pub fn cloud_mail_status(app: AppHandle) -> Result<serde_json::Value, String> {
         .send()
         .map_err(|error| error.to_string())?;
     parse_response(response)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn session(expires_at: &str) -> CloudSession {
+        CloudSession {
+            access_token: "test-token".to_string(),
+            expires_at: expires_at.to_string(),
+            user: CloudUser {
+                id: "id".to_string(),
+                email: "user@example.test".to_string(),
+                display_name: "User".to_string(),
+                created_at: "2026-01-01T00:00:00Z".to_string(),
+            },
+        }
+    }
+
+    #[test]
+    fn expired_and_malformed_sessions_are_not_signed_in() {
+        assert!(session_expired(&session("2020-01-01T00:00:00Z")));
+        assert!(session_expired(&session("not-a-date")));
+        assert!(!CloudSessionView::from(&session("2020-01-01T00:00:00Z")).signed_in);
+
+        let future = (Utc::now() + chrono::Duration::hours(1)).to_rfc3339();
+        assert!(!session_expired(&session(&future)));
+        assert!(CloudSessionView::from(&session(&future)).signed_in);
+    }
 }

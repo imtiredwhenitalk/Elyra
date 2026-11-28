@@ -1,3 +1,5 @@
+> 🌐 **English** · [Українська](README.ua.md)
+
 <div align="center">
 
 <img src="web/favicon.svg" width="84" height="84" alt="Elyra" />
@@ -49,7 +51,7 @@
 | :--- | :--- | :--- |
 | 📥 **Calm inbox**<br />Inbox, Important, Starred, Snoozed, Spam, Trash, Archive, Spaces, bulk actions, and a command palette. | 🛡️ **Elyra Shield**<br />Local phishing, social-engineering, sender-spoofing, and link checks with Safe / Suspicious / Malicious results. | 🪟 **Windows delivery**<br />MSI, per-user NSIS setup, a signed-update path, and SHA-256 verified installers. |
 | ⭐ **Priority**<br />Important flags, Low → Urgent levels, automatic local suggestions, and priority filters. | 🚫 **Block & allow**<br />Address and domain rules, allowlist precedence, and automatic Spam or Trash routing. | 🐧 **Linux packages**<br />AppImage and `.deb` builds, an Arch PKGBUILD, desktop entry, icon, and checksums. |
-| ✍️ **Compose & sync**<br />IMAP inbox sync, SMTP sending, drafts, attachments, and a server relay fallback. | ✅ **Reputation**<br />SPF / DKIM / DMARC evaluation, domain classifications, reasons, and false-positive reports. | ⚙️ **Rust core**<br />Mailbox, providers, crypto, diagnostics, and scanning behind typed Tauri commands. |
+| ✍️ **Compose & sync**<br />IMAP inbox sync with app passwords or OAuth PKCE, SMTP sending, drafts, attachments, and a server relay fallback. | ✅ **Reputation**<br />SPF / DKIM / DMARC evaluation, domain classifications, reasons, and false-positive reports. | ⚙️ **Rust core**<br />Mailbox, providers, crypto, diagnostics, and scanning behind typed Tauri commands. |
 | 📎 **Attachments**<br />Real-byte type detection, risk cards, scan history, and guarded downloads. | 🔐 **Keys & crypto**<br />AES-256-GCM, Ed25519 identity keys, OS keychain secrets, and BYOK integrations. | 🎨 **Themes**<br />Light, Dark, Midnight, OLED, four accents, density options, and reduced motion. |
 | 🔄 **Verified updates**<br />Windows checks a signed manifest, verifies the installer, and reports progress. | 🚀 **Self-hosting**<br />Compose, optional Caddy HTTPS, health checks, and an opt-in deploy workflow. | 📚 **Open docs**<br />User, architecture, security, API, deployment, and troubleshooting guides in one place. |
 
@@ -83,11 +85,11 @@ The newest published assets are on the [releases page](https://github.com/imtire
 | `Elyra-latest-x64.AppImage.sha256` | SHA-256 checksum used by the PKGBUILD and manual verification |
 | `Elyra-latest-x64.deb.sha256` | SHA-256 checksum for the Debian package |
 
-The portable launcher supports resumable downloads, HTTP Range retries, atomic `.part` files, checksum sidecars, a verified MSI cache, and install/launch/update modes. Linux packages are published to each tagged GitHub Release; see [Linux](docs/linux.md).
+The portable launcher supports resumable downloads, HTTP Range retries, atomic `.part` files, checksum sidecars, a verified MSI cache, and install/launch/update modes. Linux packages are published to each tagged GitHub Release; see [Linux](docs/en/linux.md).
 
 ## Updates and uninstall
 
-Windows builds include **Settings → Updates**: an on-demand check, current and latest version details, release notes, download and verification progress, install, and preferences for automatic checks and notifications. The updater public key is compiled into the app; a failed check, bad signature, or failed download leaves the installed version untouched. Signing secrets and the release checklist are documented in [Desktop updates](docs/desktop-updates.md).
+Windows builds include **Settings → Updates**: an on-demand check, current and latest version details, release notes, download and verification progress, install, and preferences for automatic checks and notifications. The updater public key is compiled into the app; a failed check, bad signature, or failed download leaves the installed version untouched. Signing secrets and the release checklist are documented in [Desktop updates](docs/en/desktop-updates.md).
 
 Uninstalling is non-destructive by default. Use Windows **Settings → Apps → Elyra**, or preview the launcher cleanup first:
 
@@ -95,7 +97,7 @@ Uninstalling is non-destructive by default. Use Windows **Settings → Apps → 
 .\Elyra-Launcher-x64.exe uninstall --dry-run
 ```
 
-Add `--remove-data` (or `--purge`) to remove the local database and matching keychain entries, optionally with `--backup-data <folder>`. See [Getting started](docs/getting-started.md#9-uninstall) for every flag.
+Add `--remove-data` (or `--purge`) to remove the local database and matching keychain entries, optionally with `--backup-data <folder>`. See [Getting started](docs/en/getting-started.md#9-uninstall) for every flag.
 
 Linux installs are updated by replacing the checksummed AppImage or `.deb`; package removal does not delete local mail or settings.
 
@@ -146,7 +148,7 @@ Rust core               mailbox · providers · shield · priority
                         senders · reputation · attachments · crypto
         │
         ├── SQLite      local mailbox, settings, scan results
-        ├── Keychain    cloud session, IMAP/SMTP passwords, API keys
+        ├── Keychain    cloud session, IMAP passwords, OAuth token sets, API keys
         └── Updater     signed manifest + verified Windows installers
 
 apps/launcher           download → verify → install → launch / uninstall
@@ -168,47 +170,48 @@ Release automation lives in `.github/workflows`: `rust.yml` checks both platform
 | [`server`](server) | Axum API, PostgreSQL migrations, auth, mail relay, and sync cursors |
 | [`web`](web) | Static marketing and download site |
 | [`infrastructure`](infrastructure) | Docker and deployment assets |
-| [`docs`](docs/README.md) | User, developer, security, deployment, and release documentation |
+| [`docs`](docs/en/README.md) | User, developer, security, deployment, and release documentation |
 
 ## Documentation
 
 | Page | Covers |
 | :--- | :--- |
-| [Getting started](docs/getting-started.md) | Install, launcher flags, onboarding, local data, uninstall |
-| [Linux](docs/linux.md) | AppImage, .deb, Arch PKGBUILD, dependencies, Flatpak status |
-| [Desktop updates](docs/desktop-updates.md) | Signed Windows updates, Settings controls, signing keys, release checklist |
-| [User guide](docs/user-guide.md) | Mailboxes, reading, composing, mail accounts, settings |
+| [Getting started](docs/en/getting-started.md) | Install, launcher flags, onboarding, local data, uninstall |
+| [Linux](docs/en/linux.md) | AppImage, .deb, Arch PKGBUILD, dependencies, Flatpak status |
+| [Desktop updates](docs/en/desktop-updates.md) | Signed Windows updates, Settings controls, signing keys, release checklist |
+| [User guide](docs/en/user-guide.md) | Mailboxes, reading, composing, mail accounts, settings |
+| [Provider OAuth](docs/en/oauth.md) | Gmail/Outlook Authorization Code + PKCE, keychain tokens, IMAP XOAUTH2 limits |
 | [Architecture](ai.md) | System diagram, project rules, stack, and repository layout |
-| [Server and API](docs/server.md) | Local server, endpoints, PostgreSQL schema, SMTP relay |
-| [Security](docs/security.md) | Keychain, crypto, server trust boundary, threat model, gaps |
-| [Development](docs/development.md) | Prerequisites, commands, validation, release process |
-| [Deployment](docs/deployment.md) | Production stack, HTTPS, backups, auto-deploy |
-| [Production verification](docs/deploy/VERIFY.md) | Pre-deploy checks, HTTPS, restart persistence, backup/restore drill |
-| [Configuration](docs/reference/configuration.md) | Every desktop, server, and deploy variable |
-| [Tauri commands](docs/reference/tauri-commands.md) | Every command the webview can invoke |
-| [Troubleshooting](docs/troubleshooting.md) | Install, sign-in, IMAP, sending, server, build issues |
+| [Server and API](docs/en/server.md) | Local server, endpoints, PostgreSQL schema, SMTP relay |
+| [Security](docs/en/security.md) | Keychain, crypto, server trust boundary, threat model, gaps |
+| [Development](docs/en/development.md) | Prerequisites, commands, validation, release process |
+| [Deployment](docs/en/deployment.md) | Production stack, HTTPS, backups, auto-deploy |
+| [Production verification](docs/en/deploy/VERIFY.md) | Pre-deploy checks, HTTPS, restart persistence, backup/restore drill |
+| [Configuration](docs/en/reference/configuration.md) | Every desktop, server, and deploy variable |
+| [Tauri commands](docs/en/reference/tauri-commands.md) | Every command the webview can invoke |
+| [Troubleshooting](docs/en/troubleshooting.md) | Install, sign-in, IMAP, sending, server, build issues |
 
-The complete VPS walkthrough remains in [`docs/deploy/SERVER.md`](docs/deploy/SERVER.md).
+The complete VPS walkthrough remains in [`docs/en/deploy/SERVER.md`](docs/en/deploy/SERVER.md).
 
 ## Local data
 
 On Windows the desktop database lives at `%LOCALAPPDATA%\com.elyra.desktop\elyra.sqlite3`. On Linux it lives under the XDG data directory, typically `~/.local/share/com.elyra.desktop/elyra.sqlite3`. **Settings → Diagnostics** shows the exact path. SQLite uses WAL journaling, foreign keys, and secure deletion.
 
-Cloud sessions, IMAP/SMTP passwords, and integration API keys live in the OS keychain, not in the database. Uninstalling the app does not delete them or the mailbox unless you explicitly ask the launcher to do so.
+Cloud sessions, IMAP passwords, provider OAuth token sets, and integration API keys live in the OS keychain, not in the database. Uninstalling the app does not delete them or the mailbox unless you explicitly ask the launcher to do so.
 
 ## Status & roadmap
 
-Version **0.4.0** is the current release line. Phase 1 (Shield, threat intelligence, identity keys, BYOK integrations), Phase 2 (priority, sender rules, reputation, attachment scanning), Phase 3 (launcher/uninstall, Linux packages, server testing and production verification, signed Windows updates), and Phase 4 (redacted local diagnostics, advanced search, offline outbox, accessibility polish) are implemented on `main`; the Rust CI checks both Windows and Linux.
+Version **0.5.0** is the current release line. Phase 1 (Shield, threat intelligence, identity keys, BYOK integrations), Phase 2 (priority, sender rules, reputation, attachment scanning), Phase 3 (launcher/uninstall, Linux packages, server testing and production verification, signed Windows updates), and Phase 4 (redacted local diagnostics, advanced search, offline outbox, accessibility polish) are implemented on `main`; the Rust CI checks both Windows and Linux.
 
-In 0.4.0, errors are logged locally after redaction, advanced filters run entirely in SQLite, failed sends wait in a durable outbox, and destructive actions use keyboard-accessible confirmations. No diagnostic data is uploaded automatically.
+In 0.5.0, errors are logged locally after redaction, advanced filters run entirely in SQLite, failed sends wait in a durable outbox, and destructive actions use keyboard-accessible confirmations. No diagnostic data is uploaded automatically.
 
-Next up: Gmail/Outlook OAuth with PKCE, scheduled background sync, WebSocket live updates, and mailbox encryption at rest. Flatpak packaging was investigated and documented, but is not shipped in 0.4.0.
+Gmail/Outlook OAuth with PKCE is available for desktop IMAP sync. Next up: SMTP XOAUTH2 for those accounts, scheduled background sync, WebSocket live updates, and mailbox encryption at rest. Flatpak packaging was investigated and documented, but is not shipped in 0.5.0.
 
-Track work in [`task.md`](task.md) and [`changes.md`](changes.md).
+Track work in [`task.md`](task.md), [`changes.md`](changes.md), and the local [`issues/`](issues/README.md) files; GitHub issue templates are in [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/).
 
 ## Contributing
 
-Read [`docs/development.md`](docs/development.md) for prerequisites, commands, and repository conventions. When you change a command, route, environment variable, schema, or deployment step, update the relevant doc page, add an entry to [`changes.md`](changes.md), and update [`task.md`](task.md) when the roadmap changes.
+Read [`docs/en/development.md`](docs/en/development.md) for prerequisites, commands, and repository conventions. When you change a command, route, environment variable, schema, or deployment step, update the relevant doc page, add an entry to [`changes.md`](changes.md), and update [`task.md`](task.md) when the roadmap changes.
 
 ## License
 
@@ -226,7 +229,7 @@ Copyright © 2026 Elyra contributors. Third-party dependencies keep their own li
   <a href="https://github.com/imtiredwhenitalk/Elyra">GitHub</a> ·
   <a href="https://imtiredwhenitalk.github.io/Elyra/">Website</a> ·
   <a href="https://github.com/imtiredwhenitalk/Elyra/releases">Releases</a> ·
-  <a href="docs/README.md">Docs</a> ·
+  <a href="docs/en/README.md">Docs</a> ·
   <a href="LICENSE">License</a>
 </p>
 

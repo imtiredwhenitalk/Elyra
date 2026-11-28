@@ -3,7 +3,7 @@ use argon2::{
     Argon2,
 };
 use chrono::{Duration, Utc};
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::env;
 use thiserror::Error;
@@ -90,7 +90,9 @@ impl AuthService {
         decode::<Claims>(
             token,
             &DecodingKey::from_secret(self.secret.as_bytes()),
-            &Validation::default(),
+            // Pin the accepted algorithm instead of relying on crate defaults.
+            // jsonwebtoken 10 rejects alg confusion and type confusion in claims.
+            &Validation::new(Algorithm::HS256),
         )
         .map(|data| data.claims.sub)
         .map_err(|_| AuthError::InvalidToken)
@@ -110,11 +112,11 @@ mod tests {
     #[test]
     fn password_hashes_round_trip_and_reject_bad_input() {
         let auth = service();
-        let hash = auth.hash_password("correct horse battery").expect("hash password");
+        let hash = auth
+            .hash_password("correct horse battery")
+            .expect("hash password");
         assert_ne!(hash, "correct horse battery");
-        assert!(auth
-            .verify_password("correct horse battery", &hash)
-            .is_ok());
+        assert!(auth.verify_password("correct horse battery", &hash).is_ok());
         assert!(matches!(
             auth.verify_password("wrong passphrase", &hash),
             Err(AuthError::InvalidCredentials)
@@ -134,10 +136,7 @@ mod tests {
         assert!(expires_at > Utc::now());
 
         let other = AuthService::new("another-test-secret-at-least-32-chars", 24);
-        assert!(matches!(
-            other.verify(&token),
-            Err(AuthError::InvalidToken)
-        ));
+        assert!(matches!(other.verify(&token), Err(AuthError::InvalidToken)));
 
         let expired_claims = Claims {
             sub: user_id,

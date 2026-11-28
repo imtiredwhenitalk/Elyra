@@ -33,28 +33,28 @@ pub struct AppDiagnostics {
 pub fn get_changelog() -> Vec<ChangeEntry> {
     vec![
         ChangeEntry {
-            version: "0.4.0",
+            version: "0.5.0",
             date: "2026-11-26",
             title: "Local diagnostics",
             detail: "Redacted error events are stored in SQLite, rotated automatically, and can be exported as a JSON report. Nothing is uploaded automatically.",
             status: "ready",
         },
         ChangeEntry {
-            version: "0.4.0",
+            version: "0.5.0",
             date: "2026-11-26",
             title: "Advanced search",
             detail: "Filter the local mailbox by sender, recipient, subject, folder, date range, priority, security verdict, reputation and flags.",
             status: "ready",
         },
         ChangeEntry {
-            version: "0.4.0",
+            version: "0.5.0",
             date: "2026-11-26",
             title: "Offline outbox",
             detail: "Failed sends stay in a local outbox with retry, discard and an explicit sync status. Work-offline mode keeps everything on this device.",
             status: "ready",
         },
         ChangeEntry {
-            version: "0.4.0",
+            version: "0.5.0",
             date: "2026-11-26",
             title: "Accessibility polish",
             detail: "Added a skip link, visible focus rings, labelled advanced filters, a keyboard-trapped confirmation dialog and a global error boundary.",

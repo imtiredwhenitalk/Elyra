@@ -546,6 +546,8 @@ async function fallbackFingerprint(value) {
 
 function changelog() {
   return [
+    { version: "0.5.0", date: "2026-11-28", title: "Provider OAuth with PKCE", detail: "Connect Gmail or Outlook with Authorization Code + PKCE. Tokens stay in the OS keychain, IMAP sync uses XOAUTH2, and reconnect/revoke are available in Settings.", status: "ready" },
+    { version: "0.5.0", date: "2026-11-28", title: "Dependency security", detail: "Upgraded JWT, TLS, Tauri/GTK and IMAP dependencies to clear all 13 Dependabot alerts, with weekly update PRs enabled.", status: "ready" },
     { version: "0.4.0", date: "2026-11-26", title: "Reliability & UX", detail: "Local diagnostics with redacted exports, advanced search filters, an offline outbox with sync status, and accessible confirmations.", status: "ready" },
     { version: "0.3.0", date: "2026-11-15", title: "Keychain + IMAP sync", detail: "Provider presets, account CRUD, connection tests and INBOX sync with passwords stored in the OS keychain.", status: "ready" },
     { version: "0.3.0", date: "2026-11-15", title: "First-run registration", detail: "Register once, choose your Elyra server URL, and send mail to any external address through the server relay.", status: "ready" },
@@ -553,7 +555,7 @@ function changelog() {
     { version: "0.2.0", date: "2026-11-14", title: "Rust mailbox core", detail: "Filtering, search, folders, drafts, bulk actions, export and mailbox statistics now run in the Rust core.", status: "ready" },
     { version: "0.2.0", date: "2026-11-14", title: "Presentable interface refresh", detail: "Consistent SVG icons, richer themes, accent colours, density controls, command palette and a calmer reading pane.", status: "ready" },
     { version: "0.2.0", date: "2026-11-14", title: "Installer and release pipeline", detail: "MSI release workflow, stable download names, a Rust installer launcher and a refreshed website.", status: "ready" },
-    { version: "next", date: "planned", title: "Provider sync", detail: "Gmail and Outlook OAuth with PKCE, background sync and scheduled refresh are next.", status: "next" },
+    { version: "next", date: "planned", title: "Provider sync", detail: "SMTP XOAUTH2, scheduled background sync and WebSocket live updates are next. IMAP OAuth with PKCE is available now.", status: "next" },
   ];
 }
 
@@ -1206,7 +1208,7 @@ function fallbackCheckForUpdates() {
   const status = {
     status: "upToDate",
     available: false,
-    currentVersion: "0.4.0",
+    currentVersion: "0.5.0",
     latestVersion: null,
     publishedAt: null,
     notes: null,
@@ -1360,12 +1362,12 @@ function fallbackInvoke(command, args = {}) {
     case "export_diagnostic_report":
       return Promise.resolve({
         format: "elyra-diagnostic-report",
-        app_version: "0.4.0",
+        app_version: "0.5.0",
         generated_at: sqlTime(),
         note: "Browser preview diagnostics are stored in localStorage and are never uploaded.",
         crash_reporting_enabled: fallbackCrashReporting().enabled,
         diagnostic_logging_enabled: fallbackDiagnosticLogging().enabled,
-        diagnostics: { app_version: "0.4.0", engine: "Browser preview fallback", database_path: "localStorage" },
+        diagnostics: { app_version: "0.5.0", engine: "Browser preview fallback", database_path: "localStorage" },
         events: loadDiagnostics(),
       });
     case "get_crash_reporting_status":
@@ -1631,7 +1633,7 @@ function fallbackInvoke(command, args = {}) {
     case "export_mailbox":
       return Promise.resolve({
         format: "elyra-mailbox",
-        version: "0.4.0",
+        version: "0.5.0",
         exported_at: sqlTime(),
         messages: loadMailbox(),
         settings: loadSettings(),
@@ -1776,7 +1778,7 @@ function fallbackInvoke(command, args = {}) {
     case "get_app_diagnostics": {
       const stats = statsOf(loadMailbox());
       return Promise.resolve({
-        app_version: "0.4.0",
+        app_version: "0.5.0",
         engine: "Browser preview fallback",
         os: navigator.platform,
         arch: "web",

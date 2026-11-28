@@ -1,3 +1,125 @@
+[200 OK] Bumped the release line to 0.5.0 for the OAuth update:
+
+All authoritative version files, lockfiles, UI fallbacks and current-release
+EN/UA docs now describe 0.5.0. The desktop changelog and public website lead
+with provider OAuth/PKCE for IMAP and the dependency security cleanup, while
+historical 0.4.0 entries stay intact. Tagging `v0.5.0` after this lands triggers
+`Release Windows` and `Release Linux` to build the new installers, AppImage and
+.deb packages.
+
+Validation: [OK] version consistency across manifests, lockfiles, UI fallbacks,
+README, website and bilingual docs; [OK] JavaScript and JSON syntax checks;
+[OK] Markdown link audit. The PR's Linux core and Windows desktop checks are
+the build source of truth.
+
+[200 OK] Cleared all open dependency security alerts and enabled weekly dependency PRs:
+
+GitHub reported 13 Dependabot alerts on `main`: four rustls advisories in both the
+workspace and stale desktop lockfiles, two glib soundness alerts, one
+lexical-core soundness alert through `imap`/`nom`, and two jsonwebtoken type
+confusion alerts. The workspace now uses `jsonwebtoken` 10.4.0 with the `rust_crypto` provider and
+`HS256` pinned explicitly, `rustls` 0.23.46, Tauri 2.13.0 with GTK 0.19/`glib` 0.22.11,
+and `imap` 3.0.0-alpha.15 whose `nom` 7 parser removes `lexical-core` 0.7 from
+the graph. `providers.rs` now connects through `imap::ClientBuilder` and
+`imap::Connection`; the unused `native-tls` connector and stale nested
+`Cargo.lock` are removed. `@tauri-apps/api` 2.13.0 and `@tauri-apps/cli` 2.12.6
+keep the Node side aligned with the Rust crate. A new `.github/dependabot.yml`
+opens weekly Cargo and npm update PRs. Migration off the IMAP pre-release is tracked in
+`issues/open/008-imap-stable-migration.md`.
+
+Files changed: `Cargo.lock`, `server/Cargo.toml`, `server/src/auth.rs`,
+`apps/desktop/src-tauri/Cargo.toml`, `apps/desktop/src-tauri/src/providers.rs`,
+deleted `apps/desktop/src-tauri/Cargo.lock`, new `.github/dependabot.yml`,
+EN/UA security and development docs, `issues/README.md`, new
+`issues/closed/007-dependency-security-alerts.md`, new
+`issues/open/008-imap-stable-migration.md`, and this changelog.
+
+Validation: [OK] `cargo metadata --locked --no-deps`; [OK] lockfile versions
+checked with `cargo tree --locked` and direct lockfile inspection; [OK]
+`rustfmt --check` on touched Rust files; [OK] `npm install --package-lock-only`
+with 0 vulnerabilities. Full local Rust compilation remains blocked by missing
+MSVC `link.exe`; the PR status checks are the build source of truth. The first
+PR run exposed and fixed the missing jsonwebtoken crypto provider and the
+Tauri npm/Rust version mismatch and the `imap` 3 `Fetches::iter()` API change.
+
+[200 OK] Hardened OAuth, keychain handling, and server migration after post-commit audit:
+
+A follow-up audit found and fixed three upgrade/user-visible problems. Google
+revocation now resolves canonical provider ids (`google`/`microsoft`) from the
+token set rather than account preset ids, posts the refresh token when present,
+and checks the HTTP response. OAuth buttons are hidden unless both a client ID
+and a working OS keychain exist, and `oauth_start` fails before opening a
+browser when keychain storage is unavailable. The server now detects duplicate
+normalized emails before normalizing rows, reports the conflicting address, and
+only then creates the `lower(email)` unique index, so upgrades fail with an
+actionable message instead of an opaque schema error.
+
+Also fixed: failed integration validation no longer deletes a previously valid
+API key; expired cloud sessions are discarded even when keychain deletion
+fails; poisoned outbox locks recover instead of disabling future flushes;
+`connected` is false for unusable expired sessions; IMAP XOAUTH2 uses the stored
+account email rather than the editable password username; converting a password
+account to OAuth clears the stale IMAP password secret; and token endpoint 400/401
+errors include a reconnect hint.
+
+Files changed: `apps/desktop/src-tauri/src/{oauth.rs,providers.rs,cloud.rs,integrations.rs,sync.rs}`, `server/src/database.rs`, EN/UA OAuth, server, troubleshooting and Tauri command docs, `issues/closed/001-provider-oauth-pkce.md`, `issues/closed/002-rust-and-api-bug-fixes.md`, `issues/README.md`, new `issues/open/006-oauth-hardening.md`, and this changelog.
+
+Validation: [OK] `rustfmt --check` on touched Rust files; [OK] `node --check` on
+desktop JavaScript; [OK] bilingual Markdown link/switcher check over 55 files; [OK]
+`git diff --check`. Local Rust compilation is still blocked by missing MSVC
+`link.exe`.
+
+[200 OK] Added provider OAuth with PKCE for Gmail/Outlook IMAP and fixed concrete Rust/API bugs:
+
+The desktop client now implements OAuth 2.0 Authorization Code + PKCE as a
+public native client. `apps/desktop/src-tauri/src/oauth.rs` binds an ephemeral
+loopback listener, opens the browser, validates `state`, exchanges the code with
+`code_verifier`, and stores token JSON in the OS keychain under
+`oauth-account-<id>`. Client IDs are supplied through
+`ELYRA_GOOGLE_CLIENT_ID` / `ELYRA_MICROSOFT_CLIENT_ID` at build or runtime;
+no client secret is embedded. `oauth_providers`, `oauth_start`, `oauth_status`
+and `oauth_revoke` are registered in `lib.rs`, and the webview receives only
+`OAuthSessionView` metadata. IMAP sync uses `AUTHENTICATE XOAUTH2` and refreshes
+tokens before expiry. SMTP XOAUTH2 is explicitly not implemented and remains an
+open issue.
+
+Account metadata carries `auth_method`, and the account modal offers OAuth
+sign-in/disconnect for Gmail and Outlook. OAuth-only accounts are hidden from
+direct SMTP sending. Saving a password account clears a stale OAuth token;
+deleting an account clears both keychain entries.
+
+Bug fixes: normalized email identity on the server (trim + lowercase) with a
+`lower(email)` unique index and case-insensitive lookup; SMTP tests now exercise
+the real `lettre` transport instead of only opening a socket; outbox flushes are
+serialized to prevent duplicate delivery; expired or malformed cloud sessions
+are discarded instead of being shown as signed in; integration API keys are
+stored only after validation; and HTTP Bearer scheme parsing is
+case-insensitive per RFC 7235.
+
+Files changed: new `apps/desktop/src-tauri/src/oauth.rs`; `Cargo.toml`,
+`Cargo.lock`, `lib.rs`, `providers.rs`, `secrets.rs`, `cloud.rs`,
+`integrations.rs`, `sync.rs`, desktop `main.js` and `styles.css`; `server/src/api.rs`,
+`server/src/users.rs`, `server/src/database.rs`; `task.md` and this changelog.
+New EN/UA pages `docs/en/oauth.md` and `docs/ua/oauth.md` plus reciprocal
+indexes, user guides, command/configuration/security references; new issue
+templates and local issue files under `.github/ISSUE_TEMPLATE/` and `issues/`.
+
+Validation: [OK] RFC 7636 PKCE vector, state/URL, email normalization, Bearer
+scheme, and expired-session tests added; [OK] `cargo fmt` applied to touched
+Rust files; [OK] `node --check` for desktop JavaScript; [OK] `cargo metadata`;
+[OK] `git diff --check`; [OK] bilingual Markdown link/switcher check over 49 files. Full Rust compilation could not run locally because
+MSVC `link.exe` is unavailable; CI remains the build source of truth.
+
+[200 OK] Made the documentation and repository README available in English and Ukrainian:
+
+Moved the canonical documentation set to `docs/en/` and added a full Ukrainian translation under `docs/ua/` (20 files per language: guides, architecture, security, server/API, deployment runbooks, configuration and Tauri command references). Added a language selector at `docs/README.md` and a reciprocal language switcher at the top of every documentation page. The repository landing page now exists as `README.md` (English) and `README.ua.md` (Ukrainian).
+
+English pages keep their original relative links and anchors. Ukrainian pages mirror the same directory structure and link targets, with explicit English-compatible anchors so cross-page `#` links keep working. Updated the repository links that pointed into `docs/` in `ai.md`, `README.md`, `web/index.html`, `packaging/linux/README.md`, `infrastructure/README.md`, and `apps/desktop/README.md`. Historical entries in `changes.md` and `task.md` are intentionally left in their original form.
+
+Files changed: `README.md`, new `README.ua.md`, new `docs/README.md`, `docs/en/**` (moved from `docs/`), `docs/ua/**` (new), `ai.md`, `web/index.html`, `packaging/linux/README.md`, `infrastructure/README.md`, `apps/desktop/README.md`, `changes.md`.
+
+Validation: [OK] 58 Markdown files checked for relative links; [OK] every `#` fragment link resolves in both languages (Ukrainian pages carry explicit English-compatible anchors); [OK] language switchers present on all 20 English and all 20 Ukrainian documentation pages; [OK] `git diff --check`.
+
 [200 OK] Landed the desktop E2EE envelope integration (issues #6/#19, PR #21):
 
 PR #7 was superseded by an upstream branch on `main`. Native builds now expose RFC 9180 HPKE with X25519/HKDF-SHA256/AES-256-GCM, Ed25519-signed versioned envelopes, separate X25519 key lifecycle, recipient trust states, and fail-closed open/seal paths. Private signing and encryption keys live in the OS keychain; SQLite holds only public material. The architecture, threat model, and explicit non-claims are documented in `docs/security/e2ee.md`.

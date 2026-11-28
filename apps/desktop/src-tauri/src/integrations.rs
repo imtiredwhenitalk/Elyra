@@ -32,7 +32,8 @@ const INTEGRATIONS: [IntegrationPreset; 2] = [
     IntegrationPreset {
         id: GOOGLE_SAFE_BROWSING,
         label: "Google Safe Browsing",
-        description: "Checks links against Google's constantly updated list of unsafe web resources.",
+        description:
+            "Checks links against Google's constantly updated list of unsafe web resources.",
         docs_url: "https://developers.google.com/safe-browsing/v4/get-started",
         key_hint: "Paste a Google Cloud API key with the Safe Browsing API enabled.",
     },
@@ -61,9 +62,7 @@ fn preset_for(provider: &str) -> Result<&'static IntegrationPreset, String> {
 }
 
 fn now() -> String {
-    chrono::Utc::now()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string()
+    chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
 pub(crate) fn provider_label(provider: &str) -> &'static str {
@@ -201,10 +200,12 @@ pub fn connect_integration(
             preset.label
         ));
     }
-    secrets::set_secret(&secrets::integration_user(preset.id), key)?;
     let database = storage::connection(&app)?;
     match threats::validate_provider(preset.id, key) {
         Ok(detail) => {
+            // Only persist a key that the provider actually accepted. A failed
+            // attempt leaves any previously validated key untouched.
+            secrets::set_secret(&secrets::integration_user(preset.id), key)?;
             update_state(&database, preset.id, true, "connected", None)?;
             security::record_event(
                 &database,
@@ -214,6 +215,9 @@ pub fn connect_integration(
             )?;
         }
         Err(error) => {
+            // A failed attempt must not destroy a previously validated key.
+            // Validation errors can be transient network failures, and the
+            // replacement key was never written in the first place.
             update_state(&database, preset.id, false, "error", Some(&error))?;
             security::record_event(
                 &database,
