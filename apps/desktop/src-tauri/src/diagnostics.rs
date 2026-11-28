@@ -140,8 +140,8 @@ pub fn get_changelog() -> Vec<ChangeEntry> {
         ChangeEntry {
             version: "next",
             date: "planned",
-            title: "Provider OAuth and background sync",
-            detail: "Gmail and Outlook OAuth with PKCE plus scheduled background sync are the next provider milestones.",
+            title: "Smarter provider sync",
+            detail: "SMTP XOAUTH2, scheduled background sync and WebSocket live updates are the next provider milestones. IMAP OAuth with PKCE is available now.",
             status: "next",
         },
     ]

@@ -1,3 +1,9 @@
+[200 OK] Removed stale "OAuth is next" copy after the 0.5.0 release:
+
+The website's roadmap card and Gmail/Outlook FAQ now describe IMAP OAuth with
+PKCE as shipped, with SMTP XOAUTH2 and scheduled sync as the remaining work.
+The matching Rust changelog entry in `diagnostics.rs` was corrected too.
+
 [200 OK] Bumped the release line to 0.5.0 for the OAuth update:
 
 All authoritative version files, lockfiles, UI fallbacks and current-release
