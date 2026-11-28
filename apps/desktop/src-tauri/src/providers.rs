@@ -16,7 +16,7 @@ use tauri::AppHandle;
 
 use crate::{mailbox, secrets, shield, storage};
 
-type ImapSession = imap::Session<native_tls::TlsStream<std::net::TcpStream>>;
+type ImapSession = imap::Session<imap::Connection>;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -467,12 +467,6 @@ pub fn delete_email_account(app: AppHandle, id: i64) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
-fn tls_connector() -> Result<native_tls::TlsConnector, String> {
-    native_tls::TlsConnector::builder()
-        .build()
-        .map_err(|error| format!("Could not initialize TLS: {error}"))
-}
-
 /// SASL XOAUTH2 initial client response (RFC 7628 §3.1). The IMAP crate
 /// base64-encodes the bytes returned by `process`.
 struct XOAuth2 {
@@ -504,13 +498,14 @@ fn connect_imap(
     if !oauth && password.is_empty() {
         return Err("No IMAP password is stored for this account".to_string());
     }
-    let tls = tls_connector()?;
-    let client = if account.imap_security == "starttls" {
-        imap::connect_starttls((host, account.imap_port), host, &tls)
-    } else {
-        imap::connect((host, account.imap_port), host, &tls)
+    // imap 3 builds TLS itself from the port and security mode. Keeping the
+    // connector here would duplicate certificate verification and pin the
+    // session type to a removed transport alias.
+    let mut builder = imap::ClientBuilder::new(host, account.imap_port);
+    if account.imap_security == "starttls" {
+        builder = builder.mode(imap::ConnectionMode::StartTls);
     }
-    .map_err(|error| {
+    let client = builder.connect().map_err(|error| {
         format!(
             "Could not reach {host}:{} over IMAP: {error}",
             account.imap_port

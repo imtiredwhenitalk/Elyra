@@ -421,10 +421,9 @@ The deploy workflow runs `git reset --hard origin/main` and
 - `imap` uses `native-tls` for platform TLS.
 - `keyring` is only included for Windows targets with the `windows-native`
   feature.
-- `Cargo.lock` may lag behind workspace dependency changes. CI and Docker do not
-  use `--locked`, so Cargo resolves and updates the lockfile during the build.
-  If you need reproducible builds, regenerate the lockfile with
-  `cargo update -w` and commit it.
+- `Cargo.lock` is kept current and Rust CI builds with `--locked`. After a
+  manifest change, run `cargo update` and commit the workspace lockfile so the
+  checked-in graph stays reproducible.
 
 ## Debugging
 

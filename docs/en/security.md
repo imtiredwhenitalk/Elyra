@@ -329,7 +329,7 @@ The production stack follows these defaults:
 | Relay abuse | No rate limiting or quotas yet |
 | Phishing or malicious message content | Shield adds local heuristics and optional reputation checks, but no filter is complete; social engineering remains possible |
 | Denial of service | No rate limits on registration or API routes |
-| Supply-chain compromise | Dependencies are not fully pinned; `Cargo.lock` may lag; CI does not use `--locked` |
+| Supply-chain compromise | Reduced, not eliminated: the workspace `Cargo.lock` is current, Rust CI uses `--locked`, and weekly Dependabot PRs are enabled; release workflows may still resolve fresh versions |
 | Full forensic tamper resistance | Local audit log is not tamper-evident |
 | Metadata leakage to mail providers | IMAP/SMTP inherently reveals connection metadata to the provider |
 
@@ -341,7 +341,7 @@ These are documented so operators can make informed decisions:
    Add an invite code or admin approval before public exposure.
 2. **Unthrottled relay.** Add per-user rate limits, quotas, and monitoring before
    enabling the relay for untrusted users.
-3. **No OAuth/PKCE.** Provider OAuth is the next authentication milestone.
+3. **OAuth covers IMAP only.** SMTP XOAUTH2 remains an open follow-up.
 4. **No refresh tokens.** Users sign in again after token expiry.
 5. **No password reset or email verification.**
 6. **Permissive CORS.** Restrict origins if the API is exposed directly.
